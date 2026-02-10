@@ -1,10 +1,8 @@
 # Colloquip: Implementation Plan
 
-## Context: Hackathon Constraints
+## Context
 
 **Event**: Built with Opus 4.6 — Claude Code Hackathon (Cerebral Valley + Anthropic)
-**Timeline**: Feb 10-16, 2026 (6 days). Submissions due Feb 16 at 3:00 PM EST.
-**Resources**: $500 in Claude API credits, max 2 team members.
 **Deliverables**: Open source GitHub repo + project description + **video** (most important).
 **Judging criteria**: Technical innovation, implementation quality, potential impact.
 **Key insight**: "Judges favor functional prototypes over extensive documentation."
@@ -14,12 +12,10 @@
 ## Guiding Principles
 
 1. **Make it work** → **Make it right** → **Make it fast**
-2. **Demo-driven development** — every day should end with something runnable
-3. Every component testable in isolation with no LLM calls required
-4. Interfaces first, implementations second — enables pivoting
-5. Configuration-driven behavior — change tuning without code changes
-6. Minimal dependencies — add only what's needed at each phase
-7. **Budget API credits** — mock-first, real LLM only for integration + demo
+2. Every component testable in isolation with no LLM calls required
+3. Interfaces first, implementations second — enables pivoting
+4. Configuration-driven behavior — change tuning without code changes
+5. Minimal dependencies — add only what's needed at each phase
 
 ---
 
@@ -50,7 +46,31 @@ colloquip/
 │       │   ├── app.py         # FastAPI application
 │       │   ├── routes.py      # REST endpoints
 │       │   └── ws.py          # WebSocket endpoint
-│       └── cli.py             # CLI demo runner (rich terminal output)
+│       └── cli.py             # CLI runner (rich terminal output)
+├── web/                       # Deliberation Dashboard (React SPA)
+│   ├── package.json
+│   ├── tsconfig.json
+│   ├── index.html
+│   ├── src/
+│   │   ├── main.tsx
+│   │   ├── App.tsx
+│   │   ├── hooks/
+│   │   │   └── useDeliberation.ts   # WebSocket connection + state
+│   │   ├── components/
+│   │   │   ├── AgentRoster.tsx       # Left panel: agent status + triggers
+│   │   │   ├── ConversationStream.tsx # Center: posts with agent colors
+│   │   │   ├── EnergyChart.tsx       # Right: real-time energy curve
+│   │   │   ├── PhaseTimeline.tsx     # Right: phase progression indicator
+│   │   │   ├── TriggerLog.tsx        # Bottom: why each agent spoke
+│   │   │   ├── ConsensusView.tsx     # Final synthesis display
+│   │   │   ├── ControlBar.tsx        # Top: hypothesis input, start/stop
+│   │   │   └── HumanIntervention.tsx # Intervention input modal
+│   │   ├── types/
+│   │   │   └── deliberation.ts       # TypeScript types matching Python models
+│   │   └── utils/
+│   │       └── colors.ts             # Agent color assignments
+│   └── public/
+│       └── favicon.svg
 ├── tests/
 │   ├── __init__.py
 │   ├── conftest.py            # Shared fixtures (posts, agents, sessions)
@@ -80,103 +100,7 @@ colloquip/
 
 ---
 
-## Day-by-Day Schedule
-
-### Day 1 (Feb 10) — Foundation: Models + Pure Logic
-
-**Goal**: All core data models and pure-function business logic working with tests.
-
-| Block | Task | Deliverable |
-|-------|------|-------------|
-| Morning | Project scaffolding (Step 1.1) | `pyproject.toml`, package structure, pytest green |
-| Morning | Data models (Step 1.2) | All Pydantic models + test factories |
-| Afternoon | Energy calculator (Step 1.3) | `energy.py` with full test coverage |
-| Afternoon | Observer agent (Step 1.4) | `observer.py` with hysteresis + tests |
-| Evening | Trigger evaluator (Step 1.5) | `triggers.py` with all 9 rules + tests |
-| Evening | Configuration (Step 1.6) | YAML config loading, defaults |
-
-**End-of-day checkpoint**: `pytest` passes with ~40 unit tests. All pure logic works.
-
-### Day 2 (Feb 11) — Agent Framework + Mock Deliberation Loop
-
-**Goal**: Full deliberation runs end-to-end with mock LLM.
-
-| Block | Task | Deliverable |
-|-------|------|-------------|
-| Morning | LLM interface + mock (Step 2.1) | `MockLLM` with configurable behaviors |
-| Morning | Prompt builder (Step 2.2) | Persona + phase mandate composition |
-| Afternoon | Base agent (Step 2.3) | All 6 agents instantiable, trigger-aware |
-| Afternoon | Deliberation engine (Step 2.4) | Main loop: seed → emergent → termination |
-| Evening | Integration tests (Step 2.5) | Full mock deliberation passes |
-
-**End-of-day checkpoint**: `python -m colloquip.cli --mode mock` runs a complete deliberation and prints results to terminal.
-
-### Day 3 (Feb 12) — Real LLM + CLI Demo
-
-**Goal**: Real Claude-powered deliberation running with rich terminal output.
-
-| Block | Task | Deliverable |
-|-------|------|-------------|
-| Morning | Claude adapter (Step 3.2) | Real LLM integration with structured output |
-| Morning | First real deliberation run | Verify output quality, tune prompts |
-| Afternoon | CLI demo runner (`cli.py`) | Rich terminal UI: color-coded agents, phase indicator, energy bar |
-| Evening | Prompt tuning | Adjust prompts based on real output quality |
-
-**End-of-day checkpoint**: `python -m colloquip.cli "GLP-1 agonists improve cognitive function"` runs a full real deliberation with compelling terminal output.
-
-**API credit budget**: ~$50-75 for Day 3 testing (5-8 full runs).
-
-### Day 4 (Feb 13) — API + Streaming
-
-**Goal**: FastAPI backend serving deliberations with real-time streaming.
-
-| Block | Task | Deliverable |
-|-------|------|-------------|
-| Morning | FastAPI application (Step 3.1) | REST endpoints + SSE streaming |
-| Afternoon | WebSocket endpoint | Real-time deliberation updates |
-| Evening | API integration tests | All endpoints verified |
-
-**End-of-day checkpoint**: `curl` or simple client can start a deliberation and receive streaming posts.
-
-### Day 5 (Feb 14) — Polish + Edge Cases
-
-**Goal**: Robust, demo-ready system. Handle failures gracefully.
-
-| Block | Task | Deliverable |
-|-------|------|-------------|
-| Morning | Error handling & edge cases | Graceful degradation, retry logic |
-| Afternoon | Config tuning | Run 3-5 deliberations, tune energy/trigger thresholds |
-| Afternoon | README polish | Sell innovation + impact for judges |
-| Evening | Behavioral tests | Validate emergent properties with real LLM |
-
-**End-of-day checkpoint**: System handles failures gracefully. 3+ successful real deliberation runs saved.
-
-**API credit budget**: ~$100-150 for Day 5 tuning runs.
-
-### Day 6 (Feb 15-16) — Video + Submission
-
-**Goal**: Compelling demo video. Clean submission.
-
-| Block | Task | Deliverable |
-|-------|------|-------------|
-| Morning (Feb 15) | Plan video script | Outline: problem → approach → demo → results |
-| Afternoon (Feb 15) | Record demo | Screen recording of live deliberation (CLI or API) |
-| Evening (Feb 15) | Edit video | Clean cuts, narration, highlight emergent moments |
-| Morning (Feb 16) | Final polish | README, repo cleanup, any last fixes |
-| By 3pm EST (Feb 16) | **Submit** | GitHub repo + video + description |
-
-**Video strategy**: Show a real deliberation running live. Highlight:
-- Agents self-selecting when to speak (not scheduled)
-- Phase transitions emerging from conversation dynamics
-- Red Team challenging premature consensus
-- Energy naturally declining toward synthesis
-- The "aha moment" when a bridge connection emerges
-
-**API credit budget**: ~$50 for final demo recordings.
-
----
-
-## Phase 1: Core Domain Models & Pure Logic (Day 1)
+## Phase 1: Core Domain Models & Pure Logic
 
 **Goal**: All core business logic works, fully tested, zero external dependencies.
 
@@ -300,9 +224,19 @@ Implement from TRIGGER_RULES.md:
 
 **Success criteria**: Config loads cleanly, defaults match documentation.
 
+### Phase 1 Gate
+
+| Criteria | Metric |
+|----------|--------|
+| All unit tests pass | `pytest tests/test_energy.py tests/test_observer.py tests/test_triggers.py tests/test_models.py` green |
+| Energy formula calibrated | Healthy deliberation mock produces energy curve matching ENERGY_MODEL.md |
+| Observer detects all 4 phases | Truth table from OBSERVER_SPEC.md satisfied |
+| Triggers fire correctly | Each of 9 trigger rules validated independently |
+| No external dependencies | Tests run with no API keys, no database, no network |
+
 ---
 
-## Phase 2: Agent Framework & Deliberation Loop (Day 2)
+## Phase 2: Agent Framework & Deliberation Loop
 
 **Goal**: Full deliberation loop runs end-to-end with mock LLM. CLI prints results.
 
@@ -381,13 +315,23 @@ Implement from TRIGGER_RULES.md:
 
 **Success criteria**: `python -m colloquip.cli --mode mock "hypothesis"` runs and prints a complete deliberation. Integration tests green.
 
+### Phase 2 Gate
+
+| Criteria | Metric |
+|----------|--------|
+| Full deliberation completes | Mock deliberation produces 12-30 posts, ends with synthesis |
+| Phase transitions occur | At least 2 phase transitions in a typical run |
+| Red Team engages | Red Team responds at least once when consensus forms |
+| Energy terminates naturally | Energy drops below 0.2 for 3 consecutive turns |
+| CLI runs | `python -m colloquip.cli --mode mock` produces readable output |
+
 ---
 
-## Phase 3: Real LLM + API + Demo Polish (Days 3-5)
+## Phase 3: Real LLM Integration & CLI Polish
 
-**Goal**: Real Claude deliberation, API with streaming, demo-ready CLI.
+**Goal**: Real Claude-powered deliberation with rich terminal output.
 
-### Step 3.1 — Real LLM Integration (Day 3 morning)
+### Step 3.1 — Real LLM Integration
 
 - [ ] Anthropic Claude adapter implementing `LLMInterface`
 - [ ] Structured output parsing (JSON mode or tool use)
@@ -402,7 +346,7 @@ Implement from TRIGGER_RULES.md:
 
 **Success criteria**: Full deliberation runs with real Claude API.
 
-### Step 3.2 — CLI Demo Runner (Day 3 afternoon)
+### Step 3.2 — CLI Demo Runner
 
 - [ ] Rich terminal output: color-coded agents, phase indicator, energy bar
 - [ ] Real-time streaming display as posts are generated
@@ -413,14 +357,39 @@ Implement from TRIGGER_RULES.md:
 
 **Success criteria**: Visually compelling terminal demo suitable for video recording.
 
-### Step 3.3 — FastAPI Application (Day 4)
+### Step 3.3 — Prompt Tuning & Threshold Calibration
 
-- [ ] `POST /api/deliberations` — create session
+- [ ] Run real deliberations and evaluate output quality
+- [ ] Tune agent personas for distinct, authentic voices
+- [ ] Calibrate energy thresholds against real LLM output
+- [ ] Calibrate trigger sensitivity (too noisy vs too quiet)
+- [ ] Verify Red Team fires and produces meaningful challenges
+- [ ] Verify bridge connections produce non-obvious insights
+
+**Success criteria**: 5+ successful real deliberation runs with natural flow, diverse stances, and coherent synthesis.
+
+### Phase 3 Gate
+
+| Criteria | Metric |
+|----------|--------|
+| Real deliberation completes | End-to-end with Claude produces coherent posts |
+| CLI demo works | Rich terminal output shows agents, phases, energy in real-time |
+| Output quality | Agents stay in character, phase mandates influence behavior |
+| Thresholds tuned | Energy curve and trigger frequency match design intent |
+
+---
+
+## Phase 4: API Layer
+
+**Goal**: FastAPI backend with real-time streaming, ready for the web dashboard.
+
+### Step 4.1 — FastAPI Application (`api/`)
+
+- [ ] `POST /api/deliberations` — create session with hypothesis
 - [ ] `POST /api/deliberations/{id}/start` — start with SSE streaming
 - [ ] `POST /api/deliberations/{id}/intervene` — human intervention
-- [ ] `GET /api/deliberations/{id}` — get session state
-- [ ] `GET /api/deliberations/{id}/energy` — energy history
-- [ ] WebSocket endpoint for real-time updates
+- [ ] `GET /api/deliberations/{id}` — get session state (posts, phase, energy)
+- [ ] `GET /api/deliberations/{id}/energy` — energy history as time series
 
 **Tests**:
 - API creates session and returns ID
@@ -429,73 +398,288 @@ Implement from TRIGGER_RULES.md:
 - Get session returns current state
 - Error responses for invalid session IDs
 
-**Success criteria**: All endpoints work, streaming produces events in real-time.
+**Success criteria**: All REST endpoints work, SSE streaming produces events in real-time.
 
-### Step 3.4 — Polish & Tuning (Day 5)
+### Step 4.2 — WebSocket Endpoint (`api/ws.py`)
 
-- [ ] Error handling & graceful degradation
-- [ ] Run 3-5 real deliberations, tune energy/trigger thresholds
-- [ ] Behavioral tests with real LLM output
-- [ ] README: sell innovation + impact (see "README for Judges" below)
-- [ ] Repo cleanup: remove dead code, ensure clean `git log`
+The web dashboard requires richer real-time data than SSE provides. The WebSocket streams typed events that map directly to dashboard components.
 
-**Success criteria**: System handles failures gracefully. Multiple successful real deliberation runs.
+- [ ] WebSocket connection at `/ws/deliberations/{id}`
+- [ ] Event types sent over WebSocket:
+  - `post` — new agent post (agent, stance, content, claims, questions)
+  - `phase_change` — phase transition (from, to, confidence, observation)
+  - `energy_update` — energy value + component breakdown (novelty, disagreement, questions, staleness)
+  - `trigger_fired` — agent trigger activation (agent, rule, reason)
+  - `agent_status` — agent state change (active, refractory, idle)
+  - `session_complete` — deliberation finished (consensus map, final energy)
+- [ ] Backpressure handling for slow clients
+- [ ] Reconnection support (send missed events from sequence number)
 
-### Step 3.5 — Database Persistence (stretch goal, only if time)
+**Tests**:
+- WebSocket connects and receives typed events
+- All event types serialized correctly
+- Reconnection replays missed events
+- Multiple concurrent clients receive same events
 
-> **Note**: Database is deferred. In-memory state is sufficient for demo.
-> Only add if time permits on Day 5.
+**Success criteria**: WebSocket streams all event types needed by the dashboard in real-time.
 
-- [ ] SQLAlchemy models matching schema from SYSTEM_DESIGN.md
-- [ ] Repository pattern abstracting storage
+### Phase 4 Gate
+
+| Criteria | Metric |
+|----------|--------|
+| API endpoints functional | All REST endpoints return correct responses |
+| SSE streaming works | SSE delivers posts in real-time |
+| WebSocket streams all event types | All 6 event types delivered to connected clients |
+| Reconnection works | Client reconnecting receives missed events |
 
 ---
 
-## Video Strategy (Day 6)
+## Phase 5: Web Dashboard — Deliberation Visualization
 
-The video is the **most important submission artifact**. Plan it deliberately.
+**Goal**: A single-page React app that makes the invisible emergence visible. The dashboard is the primary demo artifact — it shows what no chat interface can: *why* agents speak, *how* energy flows, and *when* phases shift.
 
-### Video Outline (~3-5 minutes)
+### Design Philosophy
+
+The dashboard is a **simulation control panel**, not a chat app. Its job is to surface the emergent dynamics that happen behind the scenes:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  COLLOQUIP                                         ▶ Start      │
+│  Hypothesis: [GLP-1 agonists improve cognitive function     ]   │
+├────────────┬───────────────────────────────┬────────────────────┤
+│  AGENTS    │  CONVERSATION                 │  DYNAMICS          │
+│            │                               │                    │
+│  ● Bio     │  ┌─────────────────────────┐  │  Energy            │
+│    Chem    │  │ Dr. Vasquez (Biology)    │  │  0.82 ████████░░  │
+│  ● ADMET   │  │ EXPLORE · SUPPORTIVE    │  │                    │
+│    Clinic  │  │ GLP-1 agonists share a  │  │  ┌──────────────┐ │
+│    Reg     │  │ notable structural...    │  │  │  /\    /\    │ │
+│    RedTm   │  │ 🔗 relevance            │  │  │ /  \  /  \_  │ │
+│            │  └─────────────────────────┘  │  │/    \/     \  │ │
+│  Status:   │                               │  └──────────────┘ │
+│  Bio  ●act │  ┌─────────────────────────┐  │                    │
+│  Chem ○ref │  │ Dr. Okafor (Red Team)   │  │  Phase             │
+│  ADME ●act │  │ DEBATE · CRITICAL       │  │  ■ EXPLORE         │
+│  Clin ○idl │  │ The consensus is        │  │  □ DEBATE          │
+│  Reg  ○idl │  │ premature — consider... │  │  □ DEEPEN          │
+│  RedT ●act │  │ ⚡ consensus_forming     │  │  □ CONVERGE        │
+│            │  └─────────────────────────┘  │  □ SYNTHESIS        │
+├────────────┴───────────────────────────────┴────────────────────┤
+│  TRIGGER LOG                                                     │
+│  14:23:01  Dr. Okafor fired [consensus_forming] — 3+            │
+│            supportive posts without criticism                     │
+│  14:22:48  Dr. Vasquez fired [relevance] — GLP-1 in domain      │
+│  14:22:30  Dr. Kim fired [bridge_opportunity] — receptor         │
+│            binding overlaps Bio + Chem domains                    │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Step 5.1 — Project Setup & WebSocket Hook
+
+- [ ] Vite + React + TypeScript project in `web/`
+- [ ] TypeScript types matching Python Pydantic models (`types/deliberation.ts`)
+- [ ] `useDeliberation` hook: WebSocket connection, event dispatch, reconnection
+- [ ] Connection state management (connecting, connected, disconnected, error)
+- [ ] Mock WebSocket mode for UI development without running backend
+
+**Tests**:
+- Hook connects to WebSocket and dispatches events to state
+- Reconnection attempts on disconnect
+- Mock mode produces realistic event stream
+
+**Success criteria**: `useDeliberation("session-id")` returns typed, reactive state that updates in real-time.
+
+### Step 5.2 — Layout Shell & Control Bar
+
+- [ ] Three-column responsive layout (agents | conversation | dynamics)
+- [ ] `ControlBar` component: hypothesis text input, Start/Stop button, mode selector (mock/real)
+- [ ] Session creation flow: enter hypothesis → create via API → connect WebSocket → start
+- [ ] Loading and error states
+
+**Success criteria**: User can type a hypothesis, hit Start, and see the session begin.
+
+### Step 5.3 — Conversation Stream
+
+The center panel — the actual deliberation content.
+
+- [ ] `ConversationStream` component: scrollable list of posts
+- [ ] Each post card shows:
+  - Agent name + color badge
+  - Current phase tag
+  - Stance indicator (supportive/critical/neutral/novel)
+  - Post content (markdown rendered)
+  - Claims and questions (collapsible)
+  - Trigger reason tag (which rule fired, subtle)
+- [ ] Auto-scroll to latest post with manual scroll override
+- [ ] Smooth entry animation for new posts
+- [ ] Visual distinction between seed phase posts and emergent posts
+
+**Success criteria**: Posts appear in real-time with clear agent attribution and stance. Easy to follow the deliberation flow.
+
+### Step 5.4 — Agent Roster (Left Panel)
+
+Shows the "life" of each agent — when they're active, when they're resting, when they're triggered.
+
+- [ ] `AgentRoster` component: list of all 6 agents
+- [ ] Per-agent display:
+  - Name + domain + color
+  - Status indicator: active (generating), refractory (cooling down), idle (waiting)
+  - Post count
+  - Last trigger rule that fired
+- [ ] Pulse animation when agent is generating a response
+- [ ] Dim appearance during refractory period
+- [ ] Tooltip with full agent persona description
+
+**Success criteria**: Glancing at the roster immediately shows who's active and why.
+
+### Step 5.5 — Energy Chart (Right Panel, Top)
+
+The "heartbeat" of the deliberation — makes energy dynamics tangible.
+
+- [ ] `EnergyChart` component: real-time line chart (Recharts or Chart.js)
+- [ ] X-axis: post number or turn. Y-axis: energy 0.0–1.0
+- [ ] Energy line updates with each `energy_update` event
+- [ ] Termination threshold line (dashed, at 0.2)
+- [ ] Color gradient: green (healthy) → yellow (declining) → red (near termination)
+- [ ] Energy component breakdown on hover (novelty, disagreement, questions, staleness)
+- [ ] Energy injection spikes visually marked (when human intervenes)
+
+**Success criteria**: Watching the energy chart tells the story of the deliberation — peaks during heated debate, valleys during consensus, injection spikes on intervention.
+
+### Step 5.6 — Phase Timeline (Right Panel, Bottom)
+
+- [ ] `PhaseTimeline` component: vertical list of all 5 phases
+- [ ] Current phase highlighted, completed phases filled, future phases dimmed
+- [ ] Transition markers showing when phase changed (at which post number)
+- [ ] Observer confidence indicator for current phase
+- [ ] Smooth transition animation
+
+**Success criteria**: Phase progression is immediately legible. Transitions are visually satisfying.
+
+### Step 5.7 — Trigger Log (Bottom Panel)
+
+The "why" panel — this is what makes Colloquip's emergence visible. Without it, the dashboard is just a chat app.
+
+- [ ] `TriggerLog` component: reverse-chronological log of trigger events
+- [ ] Each entry shows: timestamp, agent name, trigger rule, reason string
+- [ ] Color-coded by trigger type (relevance=blue, disagreement=red, bridge=purple, red-team=orange)
+- [ ] Filterable by agent or trigger type
+- [ ] Clickable entries scroll to the corresponding post in the conversation stream
+
+**Success criteria**: A viewer can trace *why* each agent spoke by reading the trigger log. The emergent self-selection is demystified.
+
+### Step 5.8 — Human Intervention & Consensus View
+
+- [ ] `HumanIntervention` component: modal/drawer for injecting human input
+  - Text input for human message
+  - Shows current energy level and predicted boost
+  - Submit sends to API intervention endpoint
+- [ ] `ConsensusView` component: displayed when deliberation completes
+  - Key findings
+  - Areas of agreement and disagreement
+  - Confidence levels
+  - Recommended next steps
+  - Final energy curve summary
+
+**Success criteria**: Human can intervene mid-deliberation. Completion shows a meaningful synthesis.
+
+### Step 5.9 — Polish & Responsiveness
+
+- [ ] Dark mode (default for demo/video)
+- [ ] Responsive layout (dashboard works at 1280px+ widths)
+- [ ] Smooth animations throughout (framer-motion or CSS transitions)
+- [ ] Keyboard shortcuts: Space to start/stop, Escape to close modals
+- [ ] Sound effects (subtle, optional): soft chime on phase transition, alert on Red Team trigger
+
+**Success criteria**: Dashboard feels polished and professional. Looks great in a screen recording.
+
+### Phase 5 Gate
+
+| Criteria | Metric |
+|----------|--------|
+| All components render | Dashboard shows agents, conversation, energy, phases, triggers |
+| Real-time updates work | WebSocket events update all panels simultaneously |
+| Energy chart animates | Smooth real-time line chart with component breakdown on hover |
+| Trigger log traces decisions | Every agent post has a corresponding trigger log entry |
+| Human intervention works | User can inject input and see energy spike |
+| Consensus displays | Completion shows synthesis view |
+| Video-ready | Dark mode, smooth animations, no visual bugs at 1280px+ |
+
+---
+
+## Phase 6: Database Persistence
+
+**Goal**: Sessions persist across server restarts. Historical deliberations are retrievable.
+
+### Step 6.1 — Database Models & Migrations
+
+- [ ] SQLAlchemy models matching schema from SYSTEM_DESIGN.md
+- [ ] `Session`, `Post`, `EnergyHistory`, `PhaseTransition`, `ConsensusMap` tables
+- [ ] Alembic migrations
+- [ ] Repository pattern abstracting storage (interface already used by engine)
+
+### Step 6.2 — Session History
+
+- [ ] `GET /api/deliberations` — list past sessions
+- [ ] Session replay: load historical deliberation and step through it
+- [ ] Dashboard: session picker / history sidebar
+
+**Success criteria**: Server can restart without losing data. Past deliberations are browsable.
+
+---
+
+## Phase 7: Polish, Tuning & Submission Prep
+
+**Goal**: Production-quality system ready for demo and submission.
+
+### Step 7.1 — Error Handling & Robustness
+
+- [ ] Graceful degradation on LLM failure (agent continues with fallback)
+- [ ] WebSocket disconnect/reconnect handling
+- [ ] API rate limit management
+- [ ] Input validation on all endpoints
+
+### Step 7.2 — Behavioral Tests (Emergent Properties)
+
+These validate the system's emergent behavior — the "magic" of the design:
+
+| Test | What It Validates |
+|------|-------------------|
+| Red Team prevents premature consensus | 3+ supportive posts → Red Team responds |
+| Bridge opportunities emerge | Agents with overlapping domains find connections |
+| Energy naturally decays | Repetitive responses → energy drops → termination |
+| Phase transitions are stable | Hysteresis prevents oscillation under noisy metrics |
+
+### Step 7.3 — README & Repo Polish
+
+The root README must sell the project:
+
+1. **One-line pitch**: "Emergent multi-agent deliberation — where serendipity arises from simple rules, not engineered detection."
+2. **The insight**: Inspired by cellular automata. Simple local rules produce complex global behavior.
+3. **What makes this different**: Side-by-side comparison (fixed-schedule vs emergent).
+4. **Screenshot/GIF**: Dashboard showing a live deliberation.
+5. **How to run**: Quick start instructions.
+6. **Architecture**: Diagram showing Observer + Agents + Energy loop.
+7. **Technical highlights**: Trigger rules, hysteresis, energy-based termination.
+8. **Link to video**.
+
+### Step 7.4 — Video Production
+
+The video is the **most important submission artifact**.
+
+**Video Outline (~3-5 minutes)**:
 
 1. **Hook** (30s): "What if scientific debates could happen autonomously — and produce insights no single agent planned?"
 2. **Problem** (30s): Current multi-agent systems use fixed schedules. Conversations are artificial.
-3. **Our approach** (60s): Emergent behavior from simple rules. Show the architecture diagram. Explain cellular-automata inspiration.
-4. **Live demo** (90s): Run a real deliberation. Show:
-   - Agents self-selecting (trigger rules visible)
-   - Phase transition (EXPLORE → DEBATE)
-   - Red Team breaking consensus
+3. **Our approach** (60s): Emergent behavior from simple rules. Show the architecture diagram. Cellular-automata inspiration.
+4. **Live demo** (90s): Run a real deliberation in the dashboard. Show:
+   - Agents self-selecting when to speak (trigger log visible)
+   - Phase transition (EXPLORE → DEBATE) with animation
+   - Red Team breaking consensus (energy spike)
    - Energy curve declining toward synthesis
    - A bridge connection emerging
 5. **Results** (30s): ConsensusMap output. Highlight a serendipitous finding.
 6. **Impact** (30s): Applications beyond drug discovery. Any domain needing structured multi-expert deliberation.
-
-### Recording Tips
-
-- Use the CLI demo runner with rich formatting — more visual than raw API
-- Have a compelling hypothesis ready (something that generates real debate)
-- Do a dry run first with mock to verify timing
-- Record the real run — authenticity > polish
-
----
-
-## API Credit Budget
-
-Total: $500 in Claude API credits.
-
-| Activity | Estimated Cost | Day |
-|----------|---------------|-----|
-| First real LLM test (3-5 runs) | $50-75 | Day 3 |
-| Prompt tuning iterations (5-8 runs) | $75-100 | Day 3-4 |
-| Threshold tuning (3-5 runs) | $50-75 | Day 5 |
-| Video demo recordings (3-5 runs) | $50-75 | Day 6 |
-| Buffer for retries and debugging | $50-75 | Throughout |
-| **Reserved unspent** | **~$100-150** | — |
-
-**Cost controls**:
-- Use mock mode for ALL development and unit/integration testing
-- Track token usage per run in logs
-- Use `claude-sonnet` for development; switch to `opus-4-6` for final demo only if budget allows
-- Reduce `max_turns` to 15 during development (halves cost per run)
 
 ---
 
@@ -537,17 +721,6 @@ Total: $500 in Claude API credits.
 | Human intervention | Energy injection extends deliberation |
 | Agent failure | Graceful degradation, remaining agents continue |
 
-### Behavioral Tests (Emergent Properties)
-
-These validate the system's emergent behavior — the "magic" of the design:
-
-| Test | What It Validates |
-|------|-------------------|
-| Red Team prevents premature consensus | 3+ supportive posts → Red Team responds |
-| Bridge opportunities emerge | Agents with overlapping domains find connections |
-| Energy naturally decays | Repetitive mock responses → energy drops → termination |
-| Phase transitions are stable | Hysteresis prevents oscillation under noisy metrics |
-
 ### Test Infrastructure
 
 - **Fixtures**: `create_post()`, `create_session()`, `create_agent()` factories with sensible defaults and overrides
@@ -556,106 +729,56 @@ These validate the system's emergent behavior — the "magic" of the design:
 
 ---
 
-## Verification & Success Criteria
-
-### Day 1 Gate (Core Logic)
-
-| Criteria | Metric |
-|----------|--------|
-| All unit tests pass | `pytest tests/test_energy.py tests/test_observer.py tests/test_triggers.py tests/test_models.py` green |
-| Energy formula calibrated | Healthy deliberation mock produces energy curve matching ENERGY_MODEL.md |
-| Observer detects all 4 phases | Truth table from OBSERVER_SPEC.md satisfied |
-| Triggers fire correctly | Each of 9 trigger rules validated independently |
-| No external dependencies | Tests run with no API keys, no database, no network |
-
-### Day 2 Gate (Working Loop)
-
-| Criteria | Metric |
-|----------|--------|
-| Full deliberation completes | Mock deliberation produces 12-30 posts, ends with synthesis |
-| Phase transitions occur | At least 2 phase transitions in a typical run |
-| Red Team engages | Red Team responds at least once when consensus forms |
-| Energy terminates naturally | Energy drops below 0.2 for 3 consecutive turns |
-| CLI runs | `python -m colloquip.cli --mode mock` produces readable output |
-
-### Day 3 Gate (Real LLM)
-
-| Criteria | Metric |
-|----------|--------|
-| Real deliberation completes | End-to-end with Claude produces coherent posts |
-| CLI demo works | Rich terminal output shows agents, phases, energy in real-time |
-| Output quality | Agents stay in character, phase mandates influence behavior |
-
-### Day 4 Gate (API)
-
-| Criteria | Metric |
-|----------|--------|
-| API endpoints functional | All REST endpoints return correct responses |
-| Streaming works | SSE delivers posts in real-time |
-
-### Day 5 Gate (Polish)
-
-| Criteria | Metric |
-|----------|--------|
-| Error handling works | Agent failure → continue with remaining agents |
-| Tuned thresholds | 3+ successful real deliberations with natural flow |
-| README sells the project | Innovation + impact clearly articulated |
-
-### Day 6 Gate (Submit)
-
-| Criteria | Metric |
-|----------|--------|
-| Video complete | 3-5 minute video showing live demo |
-| Repo clean | No dead code, clean git history, LICENSE present |
-| Submitted before 3pm EST | All deliverables uploaded |
-
-### Overall Success Metrics (from docs/README.md)
-
-| Metric | Target | How We Measure |
-|--------|--------|----------------|
-| Agent trigger accuracy | >80% valuable posts | Review posts from mock + real runs; rate "valuable" |
-| Phase detection accuracy | >70% human agreement | Annotate 10+ runs; compare Observer vs human labels |
-| Serendipity emergence | Novel connections without forcing | Bridge trigger fires, produces non-obvious connections |
-| Conversation naturalness | Reduced repetition vs fixed-schedule | Compare staleness scores: emergent vs round-robin |
-| Energy termination | Synthesis at appropriate time | Energy curves match healthy pattern from ENERGY_MODEL.md |
-
----
-
 ## Implementation Order & Dependencies
 
 ```
-Day 1:
-  Step 1.1  Scaffolding + LICENSE
-    │
-    ├── Step 1.2  Models ──────────────────────────┐
-    │     │                                         │
-    │     ├── Step 1.3  Energy Calculator           │  (parallel)
-    │     ├── Step 1.4  Observer Agent              │  (parallel)
-    │     └── Step 1.5  Trigger Evaluator           │  (parallel)
-    │                                               │
-    └── Step 1.6  Configuration ────────────────────┘
+Phase 1:  Scaffolding + LICENSE
+  │
+  ├── Models ──────────────────────────────┐
+  │     │                                   │
+  │     ├── Energy Calculator               │  (parallel)
+  │     ├── Observer Agent                  │  (parallel)
+  │     └── Trigger Evaluator               │  (parallel)
+  │                                         │
+  └── Configuration ────────────────────────┘
 
-Day 2:
-    ├── Step 2.1  LLM Interface & Mock ─────────────┐
-    ├── Step 2.2  Prompt Builder ───────────────────┤
-    └── Step 2.3  Base Agent ───────────────────────┘
-          │
-          └── Step 2.4  Deliberation Engine
-                │
-                └── Step 2.5  CLI Runner + Integration Tests
+Phase 2:
+  ├── LLM Interface & Mock ─────────────────┐
+  ├── Prompt Builder ───────────────────────┤
+  └── Base Agent ───────────────────────────┘
+        │
+        └── Deliberation Engine
+              │
+              └── CLI Runner + Integration Tests
 
-Day 3:
-    ├── Step 3.1  Real LLM Integration
-    └── Step 3.2  CLI Demo Runner (rich output)
+Phase 3:
+  ├── Real LLM Integration (Anthropic adapter)
+  ├── CLI Demo Runner (rich terminal output)
+  └── Prompt Tuning & Threshold Calibration
 
-Day 4:
-    └── Step 3.3  FastAPI Application
+Phase 4:
+  ├── FastAPI Application (REST + SSE)
+  └── WebSocket Endpoint (typed events for dashboard)
 
-Day 5:
-    └── Step 3.4  Polish, Tuning, README
+Phase 5:
+  ├── React SPA Setup + WebSocket Hook
+  ├── Layout Shell + Control Bar
+  ├── Conversation Stream
+  ├── Agent Roster
+  ├── Energy Chart
+  ├── Phase Timeline
+  ├── Trigger Log
+  ├── Human Intervention + Consensus View
+  └── Polish & Responsiveness
 
-Day 6:
-    └── Video + Submission
+Phase 6:
+  └── Database Persistence (stretch)
+
+Phase 7:
+  ├── Error Handling & Robustness
+  ├── Behavioral Tests
+  ├── README & Repo Polish
+  └── Video Production
 ```
 
 ---
@@ -664,43 +787,37 @@ Day 6:
 
 | Layer | Choice | Rationale |
 |-------|--------|-----------|
-| Language | Python 3.11+ | Async support, LLM ecosystem, spec compatibility |
-| Models | Pydantic v2 | Validation, serialization, config; already in spec |
-| API | FastAPI | Async, WebSocket support, Pydantic integration |
-| Testing | pytest + pytest-asyncio | Standard, fixtures, async test support |
-| LLM | Anthropic SDK | Primary LLM target; hackathon sponsor |
-| Config | PyYAML + Pydantic | YAML files validated through Pydantic models |
-| CLI | rich (Python) | Color-coded terminal output for demo |
+| **Backend** | | |
+| Language | Python 3.11+ | Async support, LLM ecosystem |
+| Models | Pydantic v2 | Validation, serialization, config |
+| API | FastAPI | Async, WebSocket, Pydantic integration |
+| Testing | pytest + pytest-asyncio | Standard, fixtures, async support |
+| LLM | Anthropic SDK | Primary LLM target |
+| Config | PyYAML + Pydantic | YAML validated through Pydantic |
+| CLI | rich | Color-coded terminal output |
+| **Frontend** | | |
+| Framework | React 18+ | Component model, hooks, ecosystem |
+| Language | TypeScript | Type safety matching Pydantic models |
+| Build | Vite | Fast dev server, simple config |
+| Charts | Recharts | React-native charting, real-time friendly |
+| Styling | Tailwind CSS | Rapid UI development, dark mode |
+| Animations | framer-motion | Smooth transitions for phase changes |
 
 ### Dependencies by Phase
 
-**Day 1-2** (zero external services):
-- pydantic
-- pyyaml
+**Phase 1-2** (zero external services):
+- pydantic, pyyaml
 - pytest, pytest-asyncio
 
-**Day 3** (LLM calls):
-- anthropic
-- rich
+**Phase 3** (LLM calls):
+- anthropic, rich
 
-**Day 4** (API):
-- fastapi, uvicorn
-- httpx (test client)
+**Phase 4** (API):
+- fastapi, uvicorn, httpx, websockets
 
----
-
-## README for Judges
-
-The root README must sell the project. Structure:
-
-1. **One-line pitch**: "Emergent multi-agent deliberation — where serendipity arises from simple rules, not engineered detection."
-2. **The insight**: Inspired by cellular automata. Simple local rules produce complex global behavior.
-3. **What makes this different**: Side-by-side comparison table (fixed-schedule vs emergent).
-4. **Quick demo**: GIF or screenshot of terminal output showing a deliberation in progress.
-5. **How to run**: `pip install -e .` → `python -m colloquip.cli "your hypothesis"`.
-6. **Architecture**: Brief diagram showing Observer + Agents + Energy loop.
-7. **Technical highlights**: Trigger rules, hysteresis, energy-based termination.
-8. **Link to video**.
+**Phase 5** (web dashboard):
+- react, react-dom, typescript, vite
+- recharts, tailwindcss, framer-motion
 
 ---
 
@@ -713,23 +830,21 @@ The root README must sell the project. Structure:
 | Phase oscillation | Confusing agent behavior | Hysteresis with tunable threshold; behavioral tests |
 | Trigger rules too noisy | Agents over-respond | Refractory period; phase modulation; integration monitoring |
 | Trigger rules too quiet | Agents under-respond | Silence-breaking rule as safety net; min-responders in engine |
-| API credits run out | Can't demo with real LLM | Mock-first; track usage; reserve $100+ for final demo |
-| Video not compelling | Weak submission | Plan video on Day 5, record Day 6 morning; dry run first |
-| Run out of time | Incomplete submission | Day-by-day gates ensure something submittable every day |
+| WebSocket reliability | Dashboard misses events | Sequence-based reconnection; event replay from server |
+| Dashboard performance | Sluggish with many posts | Virtualized list for conversation stream; throttled chart updates |
 
 ---
 
-## What's Explicitly Out of Scope
+## What's Explicitly Out of Scope (for now)
 
-- Frontend (Next.js) — CLI demo is sufficient for hackathon video
-- Database persistence — in-memory state is sufficient for demo
 - Knowledge service / RAG / pgvector — stub interface, implement later
-- Monitoring / Prometheus metrics — not needed for hackathon
-- Docker / deployment — local development only
+- Monitoring / Prometheus metrics — add after core works
+- Docker / deployment — local development first
 - Authentication / multi-tenancy
+- Mobile responsive layout (1280px+ only)
 
 ---
 
 *Plan created: 2026-02-10*
-*Updated: 2026-02-10 (hackathon constraints integrated)*
+*Updated: 2026-02-10 (web dashboard added, timeline constraints removed)*
 *Colloquip v0.1 — Emergent Deliberation System*
