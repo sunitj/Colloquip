@@ -1,12 +1,25 @@
 # Colloquip: Implementation Plan
 
+## Context: Hackathon Constraints
+
+**Event**: Built with Opus 4.6 — Claude Code Hackathon (Cerebral Valley + Anthropic)
+**Timeline**: Feb 10-16, 2026 (6 days). Submissions due Feb 16 at 3:00 PM EST.
+**Resources**: $500 in Claude API credits, max 2 team members.
+**Deliverables**: Open source GitHub repo + project description + **video** (most important).
+**Judging criteria**: Technical innovation, implementation quality, potential impact.
+**Key insight**: "Judges favor functional prototypes over extensive documentation."
+
+---
+
 ## Guiding Principles
 
 1. **Make it work** → **Make it right** → **Make it fast**
-2. Every component testable in isolation with no LLM calls required
-3. Interfaces first, implementations second — enables pivoting
-4. Configuration-driven behavior — change tuning without code changes
-5. Minimal dependencies — add only what's needed at each phase
+2. **Demo-driven development** — every day should end with something runnable
+3. Every component testable in isolation with no LLM calls required
+4. Interfaces first, implementations second — enables pivoting
+5. Configuration-driven behavior — change tuning without code changes
+6. Minimal dependencies — add only what's needed at each phase
+7. **Budget API credits** — mock-first, real LLM only for integration + demo
 
 ---
 
@@ -30,12 +43,14 @@ colloquip/
 │       ├── llm/
 │       │   ├── __init__.py
 │       │   ├── interface.py   # LLM protocol/interface
-│       │   └── mock.py        # Mock LLM for testing
-│       └── api/
-│           ├── __init__.py
-│           ├── app.py         # FastAPI application
-│           ├── routes.py      # REST endpoints
-│           └── ws.py          # WebSocket endpoint
+│       │   ├── mock.py        # Mock LLM for testing
+│       │   └── anthropic.py   # Real Claude adapter
+│       ├── api/
+│       │   ├── __init__.py
+│       │   ├── app.py         # FastAPI application
+│       │   ├── routes.py      # REST endpoints
+│       │   └── ws.py          # WebSocket endpoint
+│       └── cli.py             # CLI demo runner (rich terminal output)
 ├── tests/
 │   ├── __init__.py
 │   ├── conftest.py            # Shared fixtures (posts, agents, sessions)
@@ -56,23 +71,121 @@ colloquip/
 │   ├── OBSERVER_SPEC.md
 │   ├── AGENT_PROMPTS.md
 │   └── TRIGGER_RULES.md
-├── plan/                      # This plan
+├── plan/
 │   └── IMPLEMENTATION_PLAN.md
 ├── pyproject.toml
+├── LICENSE                    # MIT License (open source requirement)
 └── README.md
 ```
 
 ---
 
-## Phase 1: Core Domain Models & Pure Logic (Make It Work)
+## Day-by-Day Schedule
+
+### Day 1 (Feb 10) — Foundation: Models + Pure Logic
+
+**Goal**: All core data models and pure-function business logic working with tests.
+
+| Block | Task | Deliverable |
+|-------|------|-------------|
+| Morning | Project scaffolding (Step 1.1) | `pyproject.toml`, package structure, pytest green |
+| Morning | Data models (Step 1.2) | All Pydantic models + test factories |
+| Afternoon | Energy calculator (Step 1.3) | `energy.py` with full test coverage |
+| Afternoon | Observer agent (Step 1.4) | `observer.py` with hysteresis + tests |
+| Evening | Trigger evaluator (Step 1.5) | `triggers.py` with all 9 rules + tests |
+| Evening | Configuration (Step 1.6) | YAML config loading, defaults |
+
+**End-of-day checkpoint**: `pytest` passes with ~40 unit tests. All pure logic works.
+
+### Day 2 (Feb 11) — Agent Framework + Mock Deliberation Loop
+
+**Goal**: Full deliberation runs end-to-end with mock LLM.
+
+| Block | Task | Deliverable |
+|-------|------|-------------|
+| Morning | LLM interface + mock (Step 2.1) | `MockLLM` with configurable behaviors |
+| Morning | Prompt builder (Step 2.2) | Persona + phase mandate composition |
+| Afternoon | Base agent (Step 2.3) | All 6 agents instantiable, trigger-aware |
+| Afternoon | Deliberation engine (Step 2.4) | Main loop: seed → emergent → termination |
+| Evening | Integration tests (Step 2.5) | Full mock deliberation passes |
+
+**End-of-day checkpoint**: `python -m colloquip.cli --mode mock` runs a complete deliberation and prints results to terminal.
+
+### Day 3 (Feb 12) — Real LLM + CLI Demo
+
+**Goal**: Real Claude-powered deliberation running with rich terminal output.
+
+| Block | Task | Deliverable |
+|-------|------|-------------|
+| Morning | Claude adapter (Step 3.2) | Real LLM integration with structured output |
+| Morning | First real deliberation run | Verify output quality, tune prompts |
+| Afternoon | CLI demo runner (`cli.py`) | Rich terminal UI: color-coded agents, phase indicator, energy bar |
+| Evening | Prompt tuning | Adjust prompts based on real output quality |
+
+**End-of-day checkpoint**: `python -m colloquip.cli "GLP-1 agonists improve cognitive function"` runs a full real deliberation with compelling terminal output.
+
+**API credit budget**: ~$50-75 for Day 3 testing (5-8 full runs).
+
+### Day 4 (Feb 13) — API + Streaming
+
+**Goal**: FastAPI backend serving deliberations with real-time streaming.
+
+| Block | Task | Deliverable |
+|-------|------|-------------|
+| Morning | FastAPI application (Step 3.1) | REST endpoints + SSE streaming |
+| Afternoon | WebSocket endpoint | Real-time deliberation updates |
+| Evening | API integration tests | All endpoints verified |
+
+**End-of-day checkpoint**: `curl` or simple client can start a deliberation and receive streaming posts.
+
+### Day 5 (Feb 14) — Polish + Edge Cases
+
+**Goal**: Robust, demo-ready system. Handle failures gracefully.
+
+| Block | Task | Deliverable |
+|-------|------|-------------|
+| Morning | Error handling & edge cases | Graceful degradation, retry logic |
+| Afternoon | Config tuning | Run 3-5 deliberations, tune energy/trigger thresholds |
+| Afternoon | README polish | Sell innovation + impact for judges |
+| Evening | Behavioral tests | Validate emergent properties with real LLM |
+
+**End-of-day checkpoint**: System handles failures gracefully. 3+ successful real deliberation runs saved.
+
+**API credit budget**: ~$100-150 for Day 5 tuning runs.
+
+### Day 6 (Feb 15-16) — Video + Submission
+
+**Goal**: Compelling demo video. Clean submission.
+
+| Block | Task | Deliverable |
+|-------|------|-------------|
+| Morning (Feb 15) | Plan video script | Outline: problem → approach → demo → results |
+| Afternoon (Feb 15) | Record demo | Screen recording of live deliberation (CLI or API) |
+| Evening (Feb 15) | Edit video | Clean cuts, narration, highlight emergent moments |
+| Morning (Feb 16) | Final polish | README, repo cleanup, any last fixes |
+| By 3pm EST (Feb 16) | **Submit** | GitHub repo + video + description |
+
+**Video strategy**: Show a real deliberation running live. Highlight:
+- Agents self-selecting when to speak (not scheduled)
+- Phase transitions emerging from conversation dynamics
+- Red Team challenging premature consensus
+- Energy naturally declining toward synthesis
+- The "aha moment" when a bridge connection emerges
+
+**API credit budget**: ~$50 for final demo recordings.
+
+---
+
+## Phase 1: Core Domain Models & Pure Logic (Day 1)
 
 **Goal**: All core business logic works, fully tested, zero external dependencies.
 
 ### Step 1.1 — Project Scaffolding
 
-- [ ] `pyproject.toml` with Python 3.11+, pytest, pydantic
+- [ ] `pyproject.toml` with Python 3.11+, pytest, pydantic, pyyaml
 - [ ] Basic package structure (`src/colloquip/`)
 - [ ] Test infrastructure (`tests/`, conftest with factories)
+- [ ] `LICENSE` (MIT)
 - [ ] Verify `pytest` runs green with a placeholder test
 
 **Success criteria**: `pytest` passes, package importable.
@@ -189,16 +302,16 @@ Implement from TRIGGER_RULES.md:
 
 ---
 
-## Phase 2: Agent Framework & Deliberation Loop (Make It Right)
+## Phase 2: Agent Framework & Deliberation Loop (Day 2)
 
-**Goal**: Full deliberation loop runs end-to-end with mock LLM.
+**Goal**: Full deliberation loop runs end-to-end with mock LLM. CLI prints results.
 
 ### Step 2.1 — LLM Interface & Mock (`llm/`)
 
 - [ ] `LLMInterface` protocol (abstract base)
 - [ ] `MockLLM` implementation that returns deterministic, configurable responses
 - [ ] Mock returns structured output matching `Post` fields (stance, claims, questions, novelty)
-- [ ] Configurable mock behaviors (always supportive, always critical, mixed, etc.)
+- [ ] Configurable mock behaviors (always supportive, always critical, mixed, declining novelty)
 
 **Tests**:
 - Mock returns valid structured output
@@ -257,24 +370,50 @@ Implement from TRIGGER_RULES.md:
 
 **Success criteria**: Full deliberation runs mock-to-completion. Produces 12-30 posts with phase transitions and energy-based termination.
 
-### Step 2.5 — End-to-End Integration Test
+### Step 2.5 — CLI Runner + End-to-End Integration Tests
 
+- [ ] `cli.py` — basic terminal output of deliberation (agent name, phase, content)
 - [ ] Single integration test: hypothesis in → ConsensusMap out
 - [ ] Verify posts contain diverse stances
 - [ ] Verify phase transitions occurred
 - [ ] Verify energy declined toward termination
 - [ ] Verify Red Team challenged consensus
-- [ ] Run with multiple mock LLM behaviors to test robustness
 
-**Success criteria**: Complete deliberation produces coherent output with expected emergent properties.
+**Success criteria**: `python -m colloquip.cli --mode mock "hypothesis"` runs and prints a complete deliberation. Integration tests green.
 
 ---
 
-## Phase 3: API & Real LLM Integration (Make It Fast)
+## Phase 3: Real LLM + API + Demo Polish (Days 3-5)
 
-**Goal**: Working API with real LLM, ready for frontend.
+**Goal**: Real Claude deliberation, API with streaming, demo-ready CLI.
 
-### Step 3.1 — FastAPI Application (`api/`)
+### Step 3.1 — Real LLM Integration (Day 3 morning)
+
+- [ ] Anthropic Claude adapter implementing `LLMInterface`
+- [ ] Structured output parsing (JSON mode or tool use)
+- [ ] Retry logic with exponential backoff for rate limits
+- [ ] Token usage tracking and logging
+- [ ] `LLM_MODE=mock|real` environment switch
+
+**Tests**:
+- Integration test with real LLM (marked `@pytest.mark.slow`)
+- Retry logic works on simulated rate limit
+- Structured output correctly parsed into Post model
+
+**Success criteria**: Full deliberation runs with real Claude API.
+
+### Step 3.2 — CLI Demo Runner (Day 3 afternoon)
+
+- [ ] Rich terminal output: color-coded agents, phase indicator, energy bar
+- [ ] Real-time streaming display as posts are generated
+- [ ] Summary display at end (ConsensusMap)
+- [ ] `--mode mock|real` flag
+- [ ] `--hypothesis "..."` argument
+- [ ] `--save-transcript path` for recording runs
+
+**Success criteria**: Visually compelling terminal demo suitable for video recording.
+
+### Step 3.3 — FastAPI Application (Day 4)
 
 - [ ] `POST /api/deliberations` — create session
 - [ ] `POST /api/deliberations/{id}/start` — start with SSE streaming
@@ -288,36 +427,75 @@ Implement from TRIGGER_RULES.md:
 - Start streams posts as SSE events
 - Intervention returns response posts
 - Get session returns current state
-- WebSocket connects and receives events
 - Error responses for invalid session IDs
 
 **Success criteria**: All endpoints work, streaming produces events in real-time.
 
-### Step 3.2 — Real LLM Integration
+### Step 3.4 — Polish & Tuning (Day 5)
 
-- [ ] Anthropic Claude adapter implementing `LLMInterface`
-- [ ] Structured output parsing (JSON mode or tool use)
-- [ ] Retry logic with exponential backoff for rate limits
-- [ ] Token usage tracking
-- [ ] `LLM_MODE=mock|real` environment switch
+- [ ] Error handling & graceful degradation
+- [ ] Run 3-5 real deliberations, tune energy/trigger thresholds
+- [ ] Behavioral tests with real LLM output
+- [ ] README: sell innovation + impact (see "README for Judges" below)
+- [ ] Repo cleanup: remove dead code, ensure clean `git log`
 
-**Tests**:
-- Integration test with real LLM (marked slow, optional in CI)
-- Retry logic works on simulated rate limit
-- Structured output correctly parsed into Post model
+**Success criteria**: System handles failures gracefully. Multiple successful real deliberation runs.
 
-**Success criteria**: Full deliberation runs with real Claude API.
+### Step 3.5 — Database Persistence (stretch goal, only if time)
 
-### Step 3.3 — Database Persistence (deferred)
-
-> **Note**: Database is deferred. In-memory state is sufficient for Phase 1-2
-> and most of Phase 3. Add PostgreSQL when session persistence across
-> restarts is needed.
+> **Note**: Database is deferred. In-memory state is sufficient for demo.
+> Only add if time permits on Day 5.
 
 - [ ] SQLAlchemy models matching schema from SYSTEM_DESIGN.md
-- [ ] Session, Post, EnergyHistory, ConsensusMap tables
-- [ ] Alembic migrations
 - [ ] Repository pattern abstracting storage
+
+---
+
+## Video Strategy (Day 6)
+
+The video is the **most important submission artifact**. Plan it deliberately.
+
+### Video Outline (~3-5 minutes)
+
+1. **Hook** (30s): "What if scientific debates could happen autonomously — and produce insights no single agent planned?"
+2. **Problem** (30s): Current multi-agent systems use fixed schedules. Conversations are artificial.
+3. **Our approach** (60s): Emergent behavior from simple rules. Show the architecture diagram. Explain cellular-automata inspiration.
+4. **Live demo** (90s): Run a real deliberation. Show:
+   - Agents self-selecting (trigger rules visible)
+   - Phase transition (EXPLORE → DEBATE)
+   - Red Team breaking consensus
+   - Energy curve declining toward synthesis
+   - A bridge connection emerging
+5. **Results** (30s): ConsensusMap output. Highlight a serendipitous finding.
+6. **Impact** (30s): Applications beyond drug discovery. Any domain needing structured multi-expert deliberation.
+
+### Recording Tips
+
+- Use the CLI demo runner with rich formatting — more visual than raw API
+- Have a compelling hypothesis ready (something that generates real debate)
+- Do a dry run first with mock to verify timing
+- Record the real run — authenticity > polish
+
+---
+
+## API Credit Budget
+
+Total: $500 in Claude API credits.
+
+| Activity | Estimated Cost | Day |
+|----------|---------------|-----|
+| First real LLM test (3-5 runs) | $50-75 | Day 3 |
+| Prompt tuning iterations (5-8 runs) | $75-100 | Day 3-4 |
+| Threshold tuning (3-5 runs) | $50-75 | Day 5 |
+| Video demo recordings (3-5 runs) | $50-75 | Day 6 |
+| Buffer for retries and debugging | $50-75 | Throughout |
+| **Reserved unspent** | **~$100-150** | — |
+
+**Cost controls**:
+- Use mock mode for ALL development and unit/integration testing
+- Track token usage per run in logs
+- Use `claude-sonnet` for development; switch to `opus-4-6` for final demo only if budget allows
+- Reduce `max_turns` to 15 during development (halves cost per run)
 
 ---
 
@@ -380,7 +558,7 @@ These validate the system's emergent behavior — the "magic" of the design:
 
 ## Verification & Success Criteria
 
-### Phase 1 Gate (Core Logic)
+### Day 1 Gate (Core Logic)
 
 | Criteria | Metric |
 |----------|--------|
@@ -390,7 +568,7 @@ These validate the system's emergent behavior — the "magic" of the design:
 | Triggers fire correctly | Each of 9 trigger rules validated independently |
 | No external dependencies | Tests run with no API keys, no database, no network |
 
-### Phase 2 Gate (Working Loop)
+### Day 2 Gate (Working Loop)
 
 | Criteria | Metric |
 |----------|--------|
@@ -398,16 +576,38 @@ These validate the system's emergent behavior — the "magic" of the design:
 | Phase transitions occur | At least 2 phase transitions in a typical run |
 | Red Team engages | Red Team responds at least once when consensus forms |
 | Energy terminates naturally | Energy drops below 0.2 for 3 consecutive turns |
-| Multiple mock scenarios pass | Contentious, quick-consensus, and intervention scenarios all work |
+| CLI runs | `python -m colloquip.cli --mode mock` produces readable output |
 
-### Phase 3 Gate (API Ready)
+### Day 3 Gate (Real LLM)
+
+| Criteria | Metric |
+|----------|--------|
+| Real deliberation completes | End-to-end with Claude produces coherent posts |
+| CLI demo works | Rich terminal output shows agents, phases, energy in real-time |
+| Output quality | Agents stay in character, phase mandates influence behavior |
+
+### Day 4 Gate (API)
 
 | Criteria | Metric |
 |----------|--------|
 | API endpoints functional | All REST endpoints return correct responses |
-| Streaming works | SSE/WebSocket delivers posts in real-time |
-| Real LLM deliberation | End-to-end deliberation with Claude produces coherent output |
-| Configuration-driven | Changing YAML config alters behavior without code changes |
+| Streaming works | SSE delivers posts in real-time |
+
+### Day 5 Gate (Polish)
+
+| Criteria | Metric |
+|----------|--------|
+| Error handling works | Agent failure → continue with remaining agents |
+| Tuned thresholds | 3+ successful real deliberations with natural flow |
+| README sells the project | Innovation + impact clearly articulated |
+
+### Day 6 Gate (Submit)
+
+| Criteria | Metric |
+|----------|--------|
+| Video complete | 3-5 minute video showing live demo |
+| Repo clean | No dead code, clean git history, LICENSE present |
+| Submitted before 3pm EST | All deliverables uploaded |
 
 ### Overall Success Metrics (from docs/README.md)
 
@@ -424,34 +624,39 @@ These validate the system's emergent behavior — the "magic" of the design:
 ## Implementation Order & Dependencies
 
 ```
-Step 1.1  Scaffolding
-  │
-  ├── Step 1.2  Models ──────────────────────────┐
-  │     │                                         │
-  │     ├── Step 1.3  Energy Calculator           │
-  │     │                                         │
-  │     ├── Step 1.4  Observer Agent              │
-  │     │                                         │
-  │     └── Step 1.5  Trigger Evaluator           │
-  │                                               │
-  │   Step 1.6  Configuration ────────────────────┤
-  │                                               │
-  ├── Step 2.1  LLM Interface & Mock ─────────────┤
-  │                                               │
-  ├── Step 2.2  Prompt Builder ───────────────────┤
-  │                                               │
-  └── Step 2.3  Base Agent ───────────────────────┘
-        │
-        └── Step 2.4  Deliberation Engine
-              │
-              ├── Step 2.5  Integration Tests
-              │
-              ├── Step 3.1  FastAPI Application
-              │
-              └── Step 3.2  Real LLM Integration
-```
+Day 1:
+  Step 1.1  Scaffolding + LICENSE
+    │
+    ├── Step 1.2  Models ──────────────────────────┐
+    │     │                                         │
+    │     ├── Step 1.3  Energy Calculator           │  (parallel)
+    │     ├── Step 1.4  Observer Agent              │  (parallel)
+    │     └── Step 1.5  Trigger Evaluator           │  (parallel)
+    │                                               │
+    └── Step 1.6  Configuration ────────────────────┘
 
-Steps 1.3, 1.4, and 1.5 can be built in parallel — they all depend on models but not on each other.
+Day 2:
+    ├── Step 2.1  LLM Interface & Mock ─────────────┐
+    ├── Step 2.2  Prompt Builder ───────────────────┤
+    └── Step 2.3  Base Agent ───────────────────────┘
+          │
+          └── Step 2.4  Deliberation Engine
+                │
+                └── Step 2.5  CLI Runner + Integration Tests
+
+Day 3:
+    ├── Step 3.1  Real LLM Integration
+    └── Step 3.2  CLI Demo Runner (rich output)
+
+Day 4:
+    └── Step 3.3  FastAPI Application
+
+Day 5:
+    └── Step 3.4  Polish, Tuning, README
+
+Day 6:
+    └── Video + Submission
+```
 
 ---
 
@@ -463,25 +668,39 @@ Steps 1.3, 1.4, and 1.5 can be built in parallel — they all depend on models b
 | Models | Pydantic v2 | Validation, serialization, config; already in spec |
 | API | FastAPI | Async, WebSocket support, Pydantic integration |
 | Testing | pytest + pytest-asyncio | Standard, fixtures, async test support |
-| LLM | Anthropic SDK | Primary LLM target from spec |
+| LLM | Anthropic SDK | Primary LLM target; hackathon sponsor |
 | Config | PyYAML + Pydantic | YAML files validated through Pydantic models |
-| Task runner | None (pytest + scripts) | Keep simple until needed |
+| CLI | rich (Python) | Color-coded terminal output for demo |
 
 ### Dependencies by Phase
 
-**Phase 1** (zero external services):
+**Day 1-2** (zero external services):
 - pydantic
 - pyyaml
 - pytest, pytest-asyncio
 
-**Phase 2** (still no external services):
-- (same as Phase 1)
-
-**Phase 3** (external services):
-- fastapi, uvicorn
+**Day 3** (LLM calls):
 - anthropic
+- rich
+
+**Day 4** (API):
+- fastapi, uvicorn
 - httpx (test client)
-- websockets
+
+---
+
+## README for Judges
+
+The root README must sell the project. Structure:
+
+1. **One-line pitch**: "Emergent multi-agent deliberation — where serendipity arises from simple rules, not engineered detection."
+2. **The insight**: Inspired by cellular automata. Simple local rules produce complex global behavior.
+3. **What makes this different**: Side-by-side comparison table (fixed-schedule vs emergent).
+4. **Quick demo**: GIF or screenshot of terminal output showing a deliberation in progress.
+5. **How to run**: `pip install -e .` → `python -m colloquip.cli "your hypothesis"`.
+6. **Architecture**: Brief diagram showing Observer + Agents + Energy loop.
+7. **Technical highlights**: Trigger rules, hysteresis, energy-based termination.
+8. **Link to video**.
 
 ---
 
@@ -489,24 +708,28 @@ Steps 1.3, 1.4, and 1.5 can be built in parallel — they all depend on models b
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| LLM output unparseable | Agent produces invalid Post | Structured output with fallback parsing; mock-first development |
+| LLM output unparseable | Agent produces invalid Post | Structured output with fallback parsing; mock-first dev |
 | Energy never terminates | Infinite loop | Hard cap at max_turns; integration tests verify termination |
 | Phase oscillation | Confusing agent behavior | Hysteresis with tunable threshold; behavioral tests |
-| Trigger rules too noisy | Agents over-respond | Refractory period; phase modulation; integration test monitoring |
+| Trigger rules too noisy | Agents over-respond | Refractory period; phase modulation; integration monitoring |
 | Trigger rules too quiet | Agents under-respond | Silence-breaking rule as safety net; min-responders in engine |
+| API credits run out | Can't demo with real LLM | Mock-first; track usage; reserve $100+ for final demo |
+| Video not compelling | Weak submission | Plan video on Day 5, record Day 6 morning; dry run first |
+| Run out of time | Incomplete submission | Day-by-day gates ensure something submittable every day |
 
 ---
 
 ## What's Explicitly Out of Scope
 
-- Frontend (Next.js) — deferred until API is stable
-- Database persistence — in-memory first; add when needed
+- Frontend (Next.js) — CLI demo is sufficient for hackathon video
+- Database persistence — in-memory state is sufficient for demo
 - Knowledge service / RAG / pgvector — stub interface, implement later
-- Monitoring / Prometheus metrics — add after core works
-- Docker / deployment — local development first
+- Monitoring / Prometheus metrics — not needed for hackathon
+- Docker / deployment — local development only
 - Authentication / multi-tenancy
 
 ---
 
 *Plan created: 2026-02-10*
+*Updated: 2026-02-10 (hackathon constraints integrated)*
 *Colloquip v0.1 — Emergent Deliberation System*
