@@ -9,6 +9,15 @@ interface AgentRosterProps {
 
 const AGENT_ORDER = ['biology', 'chemistry', 'admet', 'clinical', 'regulatory', 'redteam'];
 
+const AGENT_DESCRIPTIONS: Record<string, string> = {
+  biology: 'Evaluates biological plausibility, mechanisms, targets, and pathways',
+  chemistry: 'Assesses chemical tractability, SAR, binding affinity, and synthesis',
+  admet: 'Reviews drug safety, metabolism, toxicology, and therapeutic index',
+  clinical: 'Focuses on patient relevance, trial design, and translational validity',
+  regulatory: 'Analyzes regulatory precedent, approval pathways, and compliance',
+  redteam: 'Challenges assumptions, surfaces biases, and prevents premature consensus',
+};
+
 export function AgentRoster({ posts, triggers, status }: AgentRosterProps) {
   const postCounts: Record<string, number> = {};
   const lastStance: Record<string, string> = {};
@@ -49,6 +58,7 @@ export function AgentRoster({ posts, triggers, status }: AgentRosterProps) {
             key={agentId}
             className={`agent-card ${statusClass}`}
             style={{ borderLeftColor: meta.color }}
+            title={AGENT_DESCRIPTIONS[agentId] || ''}
           >
             <div className="agent-header">
               <span className="agent-icon">{meta.icon}</span>

@@ -44,17 +44,19 @@ export function ConversationStream({ posts }: ConversationStreamProps) {
           bgColor: '#94a3b818',
           icon: '?',
         };
+        const isSeed = post.triggered_by.includes('seed_phase');
 
         return (
           <div
             key={post.id || i}
-            className="post-card"
+            className={`post-card ${isSeed ? 'seed' : ''}`}
             style={{ borderLeftColor: meta.color, backgroundColor: meta.bgColor }}
           >
             <div className="post-header">
               <span className="post-agent" style={{ color: meta.color }}>
                 {meta.icon} {meta.name}
               </span>
+              {isSeed && <span className="seed-badge">SEED</span>}
               <span className="post-phase">{PHASE_LABELS[post.phase] || post.phase}</span>
               <span
                 className="post-stance"

@@ -265,7 +265,22 @@ def main():
         action="store_true",
         help="Disable rich terminal output",
     )
+    parser.add_argument(
+        "--prompt-version",
+        type=str,
+        default="v1",
+        help="Prompt version to use (v1 or v2)",
+    )
+    parser.add_argument(
+        "--eval-prompts",
+        action="store_true",
+        help="Run prompt evaluation harness comparing all versions",
+    )
     args = parser.parse_args()
+
+    if args.eval_prompts:
+        asyncio.run(_run_prompt_eval(seed=args.seed, max_turns=args.max_turns))
+        return
 
     asyncio.run(run_deliberation(
         hypothesis=args.hypothesis,
@@ -276,6 +291,41 @@ def main():
         save_transcript=args.save_transcript,
         use_rich=not args.no_rich,
     ))
+
+
+async def _run_prompt_eval(seed: int = 42, max_turns: int = 20) -> None:
+    """Run prompt evaluation harness and print comparison table."""
+    from colloquip.eval.prompt_eval import compare_versions
+
+    print("\n  Prompt Version Evaluation")
+    print("  " + "=" * 60)
+    print(f"  Seed: {seed}  |  Max turns: {max_turns}  |  Mode: mock\n")
+
+    results = await compare_versions(seed=seed, max_turns=max_turns)
+
+    # Print comparison table
+    headers = [
+        "version", "posts", "agents", "stances", "claims/post",
+        "questions/post", "phases", "transitions", "red_team",
+        "energy_declined", "consensus",
+    ]
+    header_line = " | ".join(f"{h:>14}" for h in headers)
+    print(f"  {header_line}")
+    print("  " + "-" * len(header_line))
+
+    for result in results:
+        d = result.summary_dict()
+        row = " | ".join(f"{str(d.get(h, '')):>14}" for h in headers)
+        print(f"  {row}")
+
+    print()
+
+    # Print notes for each version
+    from colloquip.agents.prompts import PROMPT_VERSIONS
+    for result in results:
+        pv = PROMPT_VERSIONS[result.prompt_version]
+        print(f"  {result.prompt_version}: {pv.notes}")
+    print()
 
 
 if __name__ == "__main__":

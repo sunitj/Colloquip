@@ -20,9 +20,11 @@ class BaseDeliberationAgent:
         config: AgentConfig,
         llm: LLMInterface,
         trigger_evaluator: Optional[TriggerEvaluator] = None,
+        prompt_version: str = "v1",
     ):
         self.config = config
         self.llm = llm
+        self.prompt_version = prompt_version
         self.trigger_evaluator = trigger_evaluator or TriggerEvaluator(
             agent_id=config.agent_id,
             domain_keywords=config.domain_keywords,
@@ -46,7 +48,7 @@ class BaseDeliberationAgent:
 
     async def generate_post(self, deps: AgentDependencies) -> Post:
         """Generate a post given current context."""
-        system_prompt = build_system_prompt(self.config, deps.phase)
+        system_prompt = build_system_prompt(self.config, deps.phase, self.prompt_version)
         user_prompt = build_user_prompt(
             hypothesis=deps.session.hypothesis,
             posts=deps.posts,

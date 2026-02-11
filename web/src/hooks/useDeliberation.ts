@@ -15,6 +15,14 @@ import { AGENT_META } from '../components/agentMeta';
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 const WS_BASE = API_BASE.replace(/^http/, 'ws');
 
+/** Shape returned by GET /api/deliberations/{id}/history */
+interface HistoryResponse {
+  session: { id: string; hypothesis: string; status: string; phase: string };
+  posts: Post[];
+  energy_history: EnergyUpdate[];
+  consensus: ConsensusMap | null;
+}
+
 const initialState: DeliberationState = {
   sessionId: null,
   hypothesis: '',
@@ -193,6 +201,73 @@ export function useDeliberation() {
     }
   }, [connect]);
 
+  const loadSession = useCallback(async (sessionId: string) => {
+    // Close any existing WebSocket — historical view is read-only
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+
+    setState({ ...initialState });
+
+    try {
+      const res = await fetch(`${API_BASE}/api/deliberations/${sessionId}/history`);
+      if (!res.ok) throw new Error('Failed to load session history');
+      const data: HistoryResponse = await res.json();
+
+      // Reconstruct triggers from posts
+      const triggers: TriggerEntry[] = data.posts.map((post, i) => ({
+        timestamp: post.created_at,
+        agentId: post.agent_id,
+        agentName: AGENT_META[post.agent_id]?.name ?? post.agent_id,
+        rules: post.triggered_by,
+        postIndex: i,
+      }));
+
+      // Reconstruct phase history by detecting phase changes across posts
+      const phaseHistory: PhaseSignal[] = [];
+      let prevPhase: Phase | null = null;
+      for (const post of data.posts) {
+        if (post.phase !== prevPhase) {
+          phaseHistory.push({
+            current_phase: post.phase,
+            confidence: 1.0,
+            metrics: {
+              question_rate: 0, disagreement_rate: 0, topic_diversity: 0,
+              citation_density: 0, novelty_avg: 0, energy: 0, posts_since_novel: 0,
+            },
+            observation: null,
+          });
+          prevPhase = post.phase;
+        }
+      }
+
+      setState({
+        sessionId: data.session.id,
+        hypothesis: data.session.hypothesis,
+        status: data.session.status as SessionStatus,
+        phase: data.session.phase as Phase,
+        posts: data.posts,
+        energyHistory: data.energy_history,
+        phaseHistory,
+        triggers,
+        consensus: data.consensus,
+        connected: false,
+        error: null,
+      });
+    } catch (err) {
+      setState(s => ({ ...s, error: String(err) }));
+    }
+  }, []);
+
+  const reset = useCallback(() => {
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+    setState({ ...initialState });
+  }, []);
+
   const intervene = useCallback((content: string, interventionType: string = 'question') => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({
@@ -210,5 +285,5 @@ export function useDeliberation() {
     };
   }, []);
 
-  return { state, createAndStart, intervene };
+  return { state, createAndStart, loadSession, reset, intervene };
 }
