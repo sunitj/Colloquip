@@ -1,5 +1,8 @@
 """Colloquip API — FastAPI application with REST + SSE + WebSocket."""
 
+import os
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -8,12 +11,31 @@ from colloquip.api.routes import router
 from colloquip.api.ws import ws_router
 
 
-def create_app(session_manager: SessionManager | None = None) -> FastAPI:
+def create_app(
+    session_manager: SessionManager | None = None,
+    database_url: str | None = None,
+) -> FastAPI:
     """Create and configure the FastAPI application."""
+    db_url = database_url or os.environ.get("DATABASE_URL")
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        # Startup
+        if db_url:
+            from colloquip.db.engine import create_engine_and_tables, get_async_session
+            await create_engine_and_tables(db_url)
+            app.state.session_manager._db_factory = get_async_session
+        yield
+        # Shutdown
+        if db_url:
+            from colloquip.db.engine import dispose_engine
+            await dispose_engine()
+
     app = FastAPI(
         title="Colloquip",
         description="Emergent multi-agent deliberation API",
         version="0.1.0",
+        lifespan=lifespan,
     )
 
     # CORS for web dashboard (credentials=False with wildcard origin per spec)

@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from typing import Dict, Optional
+from typing import Callable, Dict, List, Optional
 from uuid import UUID
 
 from colloquip.agents.base import BaseDeliberationAgent
@@ -28,9 +28,14 @@ _SUBSCRIBER_QUEUE_SIZE = 256
 
 
 class SessionManager:
-    """Manages active deliberation sessions and their state."""
+    """Manages active deliberation sessions and their state.
 
-    def __init__(self):
+    Keeps in-memory state for real-time streaming plus optional
+    database persistence for durability across restarts.
+    """
+
+    def __init__(self, db_session_factory: Optional[Callable] = None):
+        # In-memory state (always present)
         self.sessions: Dict[UUID, DeliberationSession] = {}
         self.posts: Dict[UUID, list] = {}
         self.energy_history: Dict[UUID, list] = {}  # List[float] for engine use
@@ -39,6 +44,8 @@ class SessionManager:
         self.subscribers: Dict[UUID, list[asyncio.Queue]] = {}
         self._running_tasks: Dict[UUID, asyncio.Task] = {}
         self._session_locks: Dict[UUID, asyncio.Lock] = {}
+        # Optional database factory
+        self._db_factory = db_session_factory
 
     def create_session(
         self,
@@ -163,6 +170,7 @@ class SessionManager:
                         "type": "post",
                         "data": event.model_dump(mode="json"),
                     })
+                    await self._persist_post(event)
                 elif isinstance(event, PhaseSignal):
                     await self._broadcast(session_id, {
                         "type": "phase_change",
@@ -175,17 +183,21 @@ class SessionManager:
                         "type": "energy_update",
                         "data": event.model_dump(mode="json"),
                     })
+                    await self._persist_energy(session_id, event)
                 elif isinstance(event, ConsensusMap):
                     await self._broadcast(session_id, {
                         "type": "session_complete",
                         "data": event.model_dump(mode="json"),
                     })
+                    await self._persist_consensus(event)
 
             await self._broadcast(session_id, {"type": "done", "data": None})
+            await self._persist_session_status(session_id)
         except asyncio.CancelledError:
             logger.info("Deliberation cancelled for session %s", session_id)
             if session:
                 session.status = SessionStatus.PAUSED
+            await self._persist_session_status(session_id)
         except Exception as e:
             logger.error("Deliberation error for session %s: %s", session_id, e)
             if session:
@@ -194,6 +206,7 @@ class SessionManager:
                 "type": "error",
                 "data": {"message": str(e)},
             })
+            await self._persist_session_status(session_id)
         finally:
             self._running_tasks.pop(session_id, None)
 
@@ -231,7 +244,111 @@ class SessionManager:
                 "type": "post",
                 "data": post.model_dump(mode="json"),
             })
+            await self._persist_post(post)
         return result_posts
+
+    # ---- Database persistence (optional) ----
+
+    async def persist_session(self, session: DeliberationSession) -> None:
+        """Persist a session to the database (if configured)."""
+        if not self._db_factory:
+            return
+        try:
+            from colloquip.db.repository import SessionRepository
+            async with self._db_factory() as db:
+                repo = SessionRepository(db)
+                await repo.save_session(session)
+                await repo.commit()
+        except Exception as e:
+            logger.error("Failed to persist session: %s", e)
+
+    async def _persist_post(self, post: Post) -> None:
+        if not self._db_factory:
+            return
+        try:
+            from colloquip.db.repository import SessionRepository
+            async with self._db_factory() as db:
+                repo = SessionRepository(db)
+                await repo.save_post(post)
+                await repo.commit()
+        except Exception as e:
+            logger.error("Failed to persist post: %s", e)
+
+    async def _persist_energy(self, session_id: UUID, update: EnergyUpdate) -> None:
+        if not self._db_factory:
+            return
+        try:
+            from colloquip.db.repository import SessionRepository
+            async with self._db_factory() as db:
+                repo = SessionRepository(db)
+                await repo.save_energy_update(session_id, update)
+                await repo.commit()
+        except Exception as e:
+            logger.error("Failed to persist energy update: %s", e)
+
+    async def _persist_consensus(self, consensus: ConsensusMap) -> None:
+        if not self._db_factory:
+            return
+        try:
+            from colloquip.db.repository import SessionRepository
+            async with self._db_factory() as db:
+                repo = SessionRepository(db)
+                await repo.save_consensus(consensus)
+                await repo.commit()
+        except Exception as e:
+            logger.error("Failed to persist consensus: %s", e)
+
+    async def _persist_session_status(self, session_id: UUID) -> None:
+        if not self._db_factory:
+            return
+        session = self.sessions.get(session_id)
+        if not session:
+            return
+        try:
+            from colloquip.db.repository import SessionRepository
+            async with self._db_factory() as db:
+                repo = SessionRepository(db)
+                await repo.update_session_status(session_id, session.status, session.phase)
+                await repo.commit()
+        except Exception as e:
+            logger.error("Failed to persist session status: %s", e)
+
+    async def load_historical_sessions(self, limit: int = 50) -> List[DeliberationSession]:
+        """Load past sessions from the database."""
+        if not self._db_factory:
+            return []
+        try:
+            from colloquip.db.repository import SessionRepository
+            async with self._db_factory() as db:
+                repo = SessionRepository(db)
+                return await repo.list_sessions(limit=limit)
+        except Exception as e:
+            logger.error("Failed to load sessions: %s", e)
+            return []
+
+    async def load_session_data(self, session_id: UUID) -> Optional[dict]:
+        """Load full session data from the database (posts, energy, consensus)."""
+        if not self._db_factory:
+            return None
+        try:
+            from colloquip.db.repository import SessionRepository
+            async with self._db_factory() as db:
+                repo = SessionRepository(db)
+                session = await repo.get_session(session_id)
+                if not session:
+                    return None
+                posts = await repo.get_posts(session_id)
+                energy = await repo.get_energy_history(session_id)
+                consensus = await repo.get_consensus(session_id)
+                return {
+                    "session": session,
+                    "posts": posts,
+                    "energy_history": energy,
+                    "consensus": consensus,
+                }
+        except Exception as e:
+            logger.error("Failed to load session data: %s", e)
+            return None
 
     def _create_llm(self, mode: str, seed: int, model: Optional[str]):
         if mode == "mock":

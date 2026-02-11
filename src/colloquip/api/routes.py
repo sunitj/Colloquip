@@ -211,3 +211,69 @@ async def get_events(
 
     events = manager.get_events(session_id)
     return {"events": events[since:]}
+
+
+@router.get("/deliberations")
+async def list_deliberations(request: Request, limit: int = 50, offset: int = 0):
+    """List all deliberation sessions (current in-memory + historical from DB)."""
+    manager = _get_manager(request)
+
+    # Return in-memory sessions (sorted newest first)
+    sessions = sorted(
+        manager.sessions.values(),
+        key=lambda s: s.created_at,
+        reverse=True,
+    )
+    sessions = sessions[offset:offset + limit]
+
+    return {
+        "sessions": [
+            {
+                "id": str(s.id),
+                "hypothesis": s.hypothesis,
+                "status": s.status.value,
+                "phase": s.phase.value,
+                "created_at": s.created_at.isoformat(),
+            }
+            for s in sessions
+        ],
+    }
+
+
+@router.get("/deliberations/{session_id}/history")
+async def get_session_history(session_id: UUID, request: Request):
+    """Load full session data from the database for historical replay."""
+    manager = _get_manager(request)
+
+    # First check in-memory
+    session = manager.get_session(session_id)
+    if session:
+        posts = manager.get_posts(session_id)
+        energy_history = manager.get_energy_history(session_id)
+        return {
+            "session": {
+                "id": str(session.id),
+                "hypothesis": session.hypothesis,
+                "status": session.status.value,
+                "phase": session.phase.value,
+            },
+            "posts": [p.model_dump(mode="json") for p in posts],
+            "energy_history": energy_history,
+        }
+
+    # Try loading from database
+    data = await manager.load_session_data(session_id)
+    if not data:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    return {
+        "session": {
+            "id": str(data["session"].id),
+            "hypothesis": data["session"].hypothesis,
+            "status": data["session"].status.value,
+            "phase": data["session"].phase.value,
+        },
+        "posts": [p.model_dump(mode="json") for p in data["posts"]],
+        "energy_history": [e.model_dump() for e in data["energy_history"]],
+        "consensus": data["consensus"].model_dump(mode="json") if data["consensus"] else None,
+    }
