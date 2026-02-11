@@ -1,0 +1,380 @@
+"""Main deliberation engine orchestrating the emergent loop."""
+
+import asyncio
+import logging
+from typing import AsyncIterator, Dict, List, Optional, Union
+
+from colloquip.agents.base import BaseDeliberationAgent
+from colloquip.agents.prompts import build_synthesis_prompt
+from colloquip.energy import EnergyCalculator
+from colloquip.llm.interface import LLMInterface
+from colloquip.models import (
+    AgentDependencies,
+    AgentStance,
+    ConsensusMap,
+    DeliberationSession,
+    EnergySource,
+    EnergyUpdate,
+    HumanIntervention,
+    Phase,
+    PhaseSignal,
+    Post,
+    SessionStatus,
+)
+from colloquip.observer import ObserverAgent
+
+logger = logging.getLogger(__name__)
+
+
+class EmergentDeliberationEngine:
+    """Main engine for emergent deliberation.
+
+    Replaces hardcoded phase sequence with:
+    - Observer-based phase detection
+    - Trigger-based agent selection
+    - Energy-based termination
+    """
+
+    def __init__(
+        self,
+        agents: Dict[str, BaseDeliberationAgent],
+        observer: ObserverAgent,
+        energy_calculator: EnergyCalculator,
+        llm: LLMInterface,
+        max_turns: int = 30,
+        min_posts: int = 12,
+    ):
+        self.agents = agents
+        self.observer = observer
+        self.energy_calculator = energy_calculator
+        self.llm = llm
+        self.max_turns = max_turns
+        self.min_posts = min_posts
+
+    async def run_deliberation(
+        self,
+        session: DeliberationSession,
+        hypothesis: str,
+    ) -> AsyncIterator[Union[Post, PhaseSignal, EnergyUpdate, ConsensusMap]]:
+        """Run emergent deliberation, yielding events as they occur."""
+        posts: List[Post] = []
+        energy_history: List[float] = []
+        turn = 0
+
+        session.status = SessionStatus.RUNNING
+        session.phase = Phase.EXPLORE
+
+        # --- Seed phase: all agents produce initial posts ---
+        logger.info("Starting seed phase for session %s", session.id)
+        seed_posts = await self._run_seed_phase(session, hypothesis, posts)
+        for post in seed_posts:
+            posts.append(post)
+            yield post
+
+        # Initial energy
+        energy_update = self.energy_calculator.calculate_energy_update(posts, turn)
+        energy_history.append(energy_update.energy)
+        yield energy_update
+
+        # --- Main loop ---
+        while turn < self.max_turns:
+            turn += 1
+
+            # 1. Observer detects phase
+            phase_signal = self.observer.detect_phase(posts)
+            session.phase = phase_signal.current_phase
+            yield phase_signal
+
+            # 2. Termination check
+            should_stop, reason = self.energy_calculator.should_terminate(
+                posts, energy_history
+            )
+            if should_stop:
+                logger.info("Terminating: %s", reason)
+                break
+
+            # 3. Trigger evaluation — find responding agents
+            responding = self._evaluate_triggers(posts, phase_signal.current_phase)
+
+            if not responding:
+                logger.debug("No agents triggered on turn %d", turn)
+                # If no one triggers and we're past min_posts, energy decays
+                if len(posts) >= self.min_posts:
+                    energy_update = self.energy_calculator.calculate_energy_update(
+                        posts, turn
+                    )
+                    energy_history.append(energy_update.energy)
+                    yield energy_update
+                continue
+
+            # 4. Generate posts concurrently
+            new_posts = await self._generate_posts(
+                responding, session, phase_signal, posts
+            )
+
+            for post in new_posts:
+                posts.append(post)
+                yield post
+
+            # 5. Update energy
+            energy_update = self.energy_calculator.calculate_energy_update(posts, turn)
+            energy_history.append(energy_update.energy)
+            yield energy_update
+
+            # Energy injection for novel posts
+            for post in new_posts:
+                if post.novelty_score > 0.7:
+                    current_e = energy_history[-1]
+                    boosted = self.energy_calculator.inject_energy(
+                        EnergySource.NOVEL_POST, current_e
+                    )
+                    energy_history[-1] = boosted
+
+        # --- Synthesis ---
+        session.phase = Phase.SYNTHESIS
+        consensus = await self._run_synthesis(session, hypothesis, posts)
+        session.status = SessionStatus.COMPLETED
+        yield consensus
+
+    async def handle_intervention(
+        self,
+        session: DeliberationSession,
+        intervention: HumanIntervention,
+        posts: List[Post],
+        energy_history: List[float],
+    ) -> List[Post]:
+        """Handle human intervention mid-deliberation."""
+        # Energy injection
+        if intervention.type == "terminate":
+            energy_history.append(0.0)
+            return []
+
+        if intervention.type in ("question", "data", "redirect"):
+            current_e = energy_history[-1] if energy_history else 0.5
+            boosted = self.energy_calculator.inject_energy(
+                EnergySource.HUMAN_INTERVENTION, current_e
+            )
+            energy_history.append(boosted)
+
+        # Create a human post
+        human_post = Post(
+            session_id=session.id,
+            agent_id="human",
+            content=intervention.content,
+            stance=AgentStance.NEUTRAL,
+            novelty_score=0.5,
+            phase=session.phase,
+            triggered_by=["human_intervention"],
+        )
+        posts.append(human_post)
+
+        # Get responses from triggered agents
+        phase_signal = self.observer.detect_phase(posts)
+        responding = self._evaluate_triggers(posts, phase_signal.current_phase)
+        new_posts = await self._generate_posts(
+            responding, session, phase_signal, posts
+        )
+        return new_posts
+
+    async def _run_seed_phase(
+        self,
+        session: DeliberationSession,
+        hypothesis: str,
+        posts: List[Post],
+    ) -> List[Post]:
+        """All agents produce initial posts."""
+        from colloquip.models import ConversationMetrics
+
+        seed_signal = PhaseSignal(
+            current_phase=Phase.EXPLORE,
+            confidence=1.0,
+            metrics=ConversationMetrics(
+                question_rate=0.0,
+                disagreement_rate=0.0,
+                topic_diversity=0.0,
+                citation_density=0.0,
+                novelty_avg=0.0,
+                energy=1.0,
+                posts_since_novel=0,
+            ),
+            observation=None,
+        )
+
+        deps = AgentDependencies(
+            session=session,
+            phase=Phase.EXPLORE,
+            phase_signal=seed_signal,
+            posts=posts,
+        )
+
+        tasks = []
+        for agent in self.agents.values():
+            tasks.append(self._safe_generate(agent, deps, ["seed_phase"]))
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        seed_posts = []
+        for result in results:
+            if isinstance(result, Post):
+                seed_posts.append(result)
+            elif isinstance(result, Exception):
+                logger.error("Seed phase agent failure: %s", result)
+
+        return seed_posts
+
+    def _evaluate_triggers(
+        self,
+        posts: List[Post],
+        phase: Phase,
+    ) -> Dict[str, List[str]]:
+        """Evaluate triggers for all agents, return {agent_id: triggered_rules}."""
+        responding: Dict[str, List[str]] = {}
+        for agent_id, agent in self.agents.items():
+            should_respond, rules = agent.should_respond(posts, phase)
+            if should_respond:
+                responding[agent_id] = rules
+        return responding
+
+    async def _generate_posts(
+        self,
+        responding: Dict[str, List[str]],
+        session: DeliberationSession,
+        phase_signal: PhaseSignal,
+        posts: List[Post],
+    ) -> List[Post]:
+        """Generate posts from responding agents concurrently."""
+        deps = AgentDependencies(
+            session=session,
+            phase=phase_signal.current_phase,
+            phase_signal=phase_signal,
+            posts=posts,
+        )
+
+        tasks = []
+        agent_rules = []
+        for agent_id, rules in responding.items():
+            agent = self.agents[agent_id]
+            tasks.append(self._safe_generate(agent, deps, rules))
+            agent_rules.append(rules)
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        new_posts = []
+        for i, result in enumerate(results):
+            if isinstance(result, Post):
+                result.triggered_by = agent_rules[i]
+                new_posts.append(result)
+            elif isinstance(result, Exception):
+                logger.error("Agent generation failure: %s", result)
+
+        return new_posts
+
+    async def _safe_generate(
+        self,
+        agent: BaseDeliberationAgent,
+        deps: AgentDependencies,
+        rules: List[str],
+    ) -> Post:
+        """Generate post with error handling."""
+        try:
+            post = await agent.generate_post(deps)
+            post.triggered_by = rules
+            return post
+        except Exception as e:
+            logger.error("Agent %s failed: %s", agent.agent_id, e)
+            raise
+
+    async def _run_synthesis(
+        self,
+        session: DeliberationSession,
+        hypothesis: str,
+        posts: List[Post],
+    ) -> ConsensusMap:
+        """Generate final ConsensusMap from deliberation."""
+        prompt = build_synthesis_prompt(hypothesis, posts)
+
+        try:
+            summary = await self.llm.generate_synthesis(
+                system_prompt=(
+                    "You are a deliberation synthesizer. "
+                    "Summarize the multi-agent deliberation into a structured consensus."
+                ),
+                user_prompt=prompt,
+            )
+        except Exception as e:
+            logger.error("Synthesis generation failed: %s", e)
+            summary = "Synthesis generation failed. Please review the deliberation posts."
+
+        # Extract final stances from last post per agent
+        final_stances: Dict[str, AgentStance] = {}
+        for post in reversed(posts):
+            if post.agent_id not in final_stances and post.agent_id != "human":
+                final_stances[post.agent_id] = post.stance
+
+        return ConsensusMap(
+            session_id=session.id,
+            summary=summary,
+            agreements=self._extract_agreements(posts),
+            disagreements=self._extract_disagreements(posts),
+            minority_positions=self._extract_minority_positions(posts),
+            serendipity_connections=self._extract_connections(posts),
+            final_stances=final_stances,
+        )
+
+    def _extract_agreements(self, posts: List[Post]) -> List[str]:
+        """Extract points of agreement from posts."""
+        # Claims made by supportive posts that aren't contested
+        supportive_claims = []
+        for post in posts:
+            if post.stance == AgentStance.SUPPORTIVE:
+                supportive_claims.extend(post.key_claims)
+        # Deduplicate and return top items
+        seen = set()
+        unique = []
+        for claim in supportive_claims:
+            if claim not in seen:
+                seen.add(claim)
+                unique.append(claim)
+        return unique[:5]
+
+    def _extract_disagreements(self, posts: List[Post]) -> List[str]:
+        """Extract points of disagreement."""
+        critical_claims = []
+        for post in posts:
+            if post.stance == AgentStance.CRITICAL:
+                critical_claims.extend(post.key_claims)
+        seen = set()
+        unique = []
+        for claim in critical_claims:
+            if claim not in seen:
+                seen.add(claim)
+                unique.append(claim)
+        return unique[:5]
+
+    def _extract_minority_positions(self, posts: List[Post]) -> List[str]:
+        """Extract minority positions worth preserving."""
+        # Agents who were consistently in the minority
+        from collections import Counter
+        agent_stances = Counter()
+        for post in posts:
+            agent_stances[post.agent_id] += 1 if post.stance == AgentStance.CRITICAL else -1
+
+        minority = []
+        for post in posts:
+            if agent_stances[post.agent_id] > 0 and post.stance == AgentStance.CRITICAL:
+                for claim in post.key_claims:
+                    if claim not in minority:
+                        minority.append(claim)
+        return minority[:3]
+
+    def _extract_connections(self, posts: List[Post]) -> List[Dict]:
+        """Extract serendipitous connections."""
+        connections = []
+        for post in posts:
+            if post.stance == AgentStance.NOVEL_CONNECTION:
+                for conn in post.connections_identified:
+                    connections.append({
+                        "agent": post.agent_id,
+                        "connection": conn,
+                    })
+        return connections[:5]

@@ -1,0 +1,108 @@
+agents:
+  biology:
+    display_name: "Biology & Target ID"
+    domain_keywords:
+      - mechanism
+      - target
+      - pathway
+      - receptor
+      - gene
+      - protein
+      - cell
+      - tissue
+      - expression
+      - knockout
+    knowledge_scope:
+      - biology
+      - preclinical
+
+  chemistry:
+    display_name: "Discovery Chemistry"
+    domain_keywords:
+      - synthesis
+      - compound
+      - molecule
+      - SAR
+      - analog
+      - scaffold
+      - reaction
+      - binding
+      - selectivity
+      - potency
+    knowledge_scope:
+      - chemistry
+      - manufacturing
+
+  admet:
+    display_name: "ADMET & Toxicology"
+    domain_keywords:
+      - toxicity
+      - safety
+      - metabolism
+      - clearance
+      - half-life
+      - bioavailability
+      - CYP
+      - hERG
+      - genotoxicity
+      - therapeutic index
+    knowledge_scope:
+      - safety
+      - preclinical
+
+  clinical:
+    display_name: "Clinical Translation"
+    domain_keywords:
+      - patient
+      - trial
+      - endpoint
+      - efficacy
+      - dose
+      - population
+      - outcome
+      - standard of care
+      - indication
+      - biomarker
+    knowledge_scope:
+      - clinical
+      - regulatory
+
+  regulatory:
+    display_name: "Regulatory Strategy"
+    domain_keywords:
+      - FDA
+      - EMA
+      - approval
+      - guidance
+      - precedent
+      - pathway
+      - label
+      - IND
+      - NDA
+      - breakthrough
+    knowledge_scope:
+      - regulatory
+      - clinical
+
+  redteam:
+    display_name: "Red Team (Adversarial)"
+    is_red_team: true
+    domain_keywords:
+      - assumption
+      - bias
+      - alternative
+      - failure
+      - risk
+      - overlooked
+      - counter
+      - dissent
+      - minority
+      - challenge
+    knowledge_scope:
+      - biology
+      - chemistry
+      - safety
+      - clinical
+      - regulatory
+      - manufacturing
+      - preclinical

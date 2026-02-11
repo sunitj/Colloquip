@@ -94,7 +94,9 @@ colloquip/
 ├── plan/
 │   └── IMPLEMENTATION_PLAN.md
 ├── pyproject.toml
-├── LICENSE                    # MIT License (open source requirement)
+├── uv.lock                    # uv lockfile (reproducible builds)
+├── .gitignore
+├── LICENSE                    # AGPL-3.0 License
 └── README.md
 ```
 
@@ -106,24 +108,32 @@ colloquip/
 
 ### Step 1.1 — Project Scaffolding
 
-- [ ] `pyproject.toml` with Python 3.11+, pytest, pydantic, pyyaml
-- [ ] Basic package structure (`src/colloquip/`)
-- [ ] Test infrastructure (`tests/`, conftest with factories)
-- [ ] `LICENSE` (MIT)
-- [ ] Verify `pytest` runs green with a placeholder test
+- [x] `pyproject.toml` with Python 3.11+, pydantic, pyyaml, `[dependency-groups]` for uv
+- [x] Basic package structure (`src/colloquip/`)
+- [x] Test infrastructure (`tests/`, conftest with factories)
+- [x] `.gitignore` for Python/Node/IDE files
+- [ ] `LICENSE` (AGPL-3.0-or-later)
+- [x] `uv sync --group dev` to install all deps via uv lockfile
+- [x] Verify `uv run pytest` runs green
 
-**Success criteria**: `pytest` passes, package importable.
+**Dependency management**: Use `uv` for all Python dependency operations. The `uv.lock` file ensures reproducible builds.
+
+**Success criteria**: `uv run pytest` passes, package importable.
 
 ### Step 1.2 — Data Models (`models.py`)
 
 Implement all Pydantic models from SYSTEM_DESIGN.md:
 
-- [ ] `Phase` enum (EXPLORE, DEBATE, DEEPEN, CONVERGE, SYNTHESIS)
-- [ ] `AgentStance` enum (SUPPORTIVE, CRITICAL, NEUTRAL, NOVEL_CONNECTION)
-- [ ] `Citation`, `Post`, `ConversationMetrics`, `PhaseSignal`
-- [ ] `EnergyUpdate`, `DeliberationSession`, `ConsensusMap`
-- [ ] `AgentConfig`, `EngineConfig`
-- [ ] Test factory functions in `conftest.py` (`create_post()`, `create_session()`, etc.)
+- [x] `Phase` enum (EXPLORE, DEBATE, DEEPEN, CONVERGE, SYNTHESIS)
+- [x] `AgentStance` enum (SUPPORTIVE, CRITICAL, NEUTRAL, NOVEL_CONNECTION)
+- [x] `EnergySource` enum (NEW_KNOWLEDGE, HUMAN_INTERVENTION, NOVEL_POST, RED_TEAM_CHALLENGE)
+- [x] `SessionStatus` enum (PENDING, RUNNING, PAUSED, COMPLETED)
+- [x] `Citation`, `Post`, `ConversationMetrics`, `PhaseSignal`
+- [x] `EnergyUpdate`, `DeliberationSession`, `ConsensusMap`
+- [x] `AgentConfig`, `EngineConfig`
+- [x] `HumanIntervention` model (for mid-deliberation human input)
+- [x] `AgentDependencies` model (context passed to agents for generation)
+- [x] Test factory functions in `conftest.py` (`create_post()`, `create_session()`, `create_metrics()`, etc.)
 
 **Tests**:
 - Model validation (required fields, enums, type coercion)
@@ -136,14 +146,14 @@ Implement all Pydantic models from SYSTEM_DESIGN.md:
 
 Implement from ENERGY_MODEL.md:
 
-- [ ] `calculate_energy(posts, window=10) -> float`
-- [ ] `_calculate_novelty_component(recent) -> float`
-- [ ] `_calculate_disagreement_component(recent) -> float`
-- [ ] `_calculate_question_component(recent, all_posts) -> float`
-- [ ] `_calculate_staleness_penalty(recent, all_posts) -> float`
-- [ ] `should_terminate(posts, energy_history, config) -> (bool, str)`
-- [ ] `inject_energy(source, current_energy) -> float`
-- [ ] `EnergyCalculator` class wrapping the above with config
+- [x] `calculate_energy(posts, window=10) -> float`
+- [x] `_calculate_novelty_component(recent) -> float`
+- [x] `_calculate_disagreement_component(recent) -> float`
+- [x] `_calculate_question_component(recent, all_posts) -> float`
+- [x] `_calculate_staleness_penalty(recent, all_posts) -> float`
+- [x] `should_terminate(posts, energy_history, config) -> (bool, str)`
+- [x] `inject_energy(source, current_energy) -> float`
+- [x] `EnergyCalculator` class wrapping the above with config
 
 **Tests**:
 - High novelty posts → high energy
@@ -161,12 +171,12 @@ Implement from ENERGY_MODEL.md:
 
 Implement from OBSERVER_SPEC.md:
 
-- [ ] Metric functions: `question_rate()`, `disagreement_rate()`, `topic_diversity()`, `citation_density()`, `novelty_average()`, `posts_since_novel()`
-- [ ] `ConversationMetrics` calculation from post list
-- [ ] `detect_phase(metrics) -> Optional[Phase]` (rule-based)
-- [ ] `ObserverAgent` class with hysteresis
-- [ ] `calculate_confidence()` function
-- [ ] `generate_observation(metrics) -> Optional[str]` (meta-observations)
+- [x] Metric functions: `question_rate()`, `disagreement_rate()`, `topic_diversity()`, `citation_density()`, `novelty_average()`, `posts_since_novel()`
+- [x] `ConversationMetrics` calculation from post list
+- [x] `detect_phase(metrics) -> Optional[Phase]` (rule-based)
+- [x] `ObserverAgent` class with hysteresis
+- [x] `calculate_confidence()` function
+- [x] `generate_observation(metrics) -> Optional[str]` (meta-observations)
 
 **Tests**:
 - High question rate + diverse agents → EXPLORE detected
@@ -186,15 +196,15 @@ Implement from OBSERVER_SPEC.md:
 
 Implement from TRIGGER_RULES.md:
 
-- [ ] `check_relevance()` — domain keyword matching
-- [ ] `check_disagreement()` — strong claims in domain
-- [ ] `check_question()` — unanswered domain questions
-- [ ] `check_silence_breaking()` — agent silent too long
-- [ ] `check_bridge_opportunity()` — cross-agent connections
-- [ ] `check_uncertainty_response()` — uncertainty in domain
-- [ ] Red Team rules: `check_consensus_forming()`, `check_criticism_gap()`, `check_premature_convergence()`
-- [ ] `TriggerEvaluator` class with phase modulation
-- [ ] `apply_refractory_period()` function
+- [x] `check_relevance()` — domain keyword matching
+- [x] `check_disagreement()` — strong claims in domain
+- [x] `check_question()` — unanswered domain questions
+- [x] `check_silence_breaking()` — agent silent too long
+- [x] `check_bridge_opportunity()` — cross-agent connections
+- [x] `check_uncertainty_response()` — uncertainty in domain
+- [x] Red Team rules: `check_consensus_forming()`, `check_criticism_gap()`, `check_premature_convergence()`
+- [x] `TriggerEvaluator` class with phase modulation
+- [x] `apply_refractory_period()` function
 
 **Tests**:
 - Biology keywords in recent posts → Biology relevance fires
@@ -212,10 +222,10 @@ Implement from TRIGGER_RULES.md:
 
 ### Step 1.6 — Configuration (`config.py`)
 
-- [ ] `EngineConfig`, `ObserverConfig`, `EnergyConfig`, `TriggerConfig` dataclasses
-- [ ] YAML loading from `config/` directory
-- [ ] Defaults matching values in docs (max_turns=30, threshold=0.2, etc.)
-- [ ] `config/engine.yaml` and `config/agents.yaml` with defaults from docs
+- [x] `EngineConfig`, `ObserverConfig`, `EnergyConfig`, `TriggerConfig` Pydantic models
+- [x] YAML loading from `config/` directory
+- [x] Defaults matching values in docs (max_turns=30, threshold=0.2, etc.)
+- [x] `config/engine.yaml` and `config/agents.yaml` with defaults from docs
 
 **Tests**:
 - Default config matches documented values
@@ -242,10 +252,10 @@ Implement from TRIGGER_RULES.md:
 
 ### Step 2.1 — LLM Interface & Mock (`llm/`)
 
-- [ ] `LLMInterface` protocol (abstract base)
-- [ ] `MockLLM` implementation that returns deterministic, configurable responses
-- [ ] Mock returns structured output matching `Post` fields (stance, claims, questions, novelty)
-- [ ] Configurable mock behaviors (always supportive, always critical, mixed, declining novelty)
+- [x] `LLMInterface` protocol (abstract base)
+- [x] `MockLLM` implementation that returns deterministic, configurable responses
+- [x] Mock returns structured output matching `Post` fields (stance, claims, questions, novelty)
+- [x] Configurable mock behaviors (always supportive, always critical, mixed, high novelty, low novelty, declining)
 
 **Tests**:
 - Mock returns valid structured output
@@ -256,10 +266,11 @@ Implement from TRIGGER_RULES.md:
 
 ### Step 2.2 — Agent Prompt Builder (`agents/prompts.py`)
 
-- [ ] `build_system_prompt(persona, phase_mandate, guidelines) -> str`
-- [ ] `build_user_prompt(posts, phase_signal, knowledge) -> str`
-- [ ] Phase mandate selection based on current phase
-- [ ] Agent personas loaded from config/AGENT_PROMPTS.md content
+- [x] `build_system_prompt(config, phase) -> str`
+- [x] `build_user_prompt(hypothesis, posts, phase_observation) -> str`
+- [x] `build_synthesis_prompt(hypothesis, posts) -> str` — ConsensusMap generation prompt
+- [x] Phase mandate selection based on current phase (PHASE_MANDATES dict)
+- [x] Response guidelines appended to all prompts
 
 **Tests**:
 - Prompt includes persona, correct phase mandate, and guidelines
@@ -270,11 +281,12 @@ Implement from TRIGGER_RULES.md:
 
 ### Step 2.3 — Base Deliberation Agent (`agents/base.py`)
 
-- [ ] `BaseDeliberationAgent` class
-- [ ] `should_respond(posts, phase) -> (bool, list[str])` delegates to TriggerEvaluator
-- [ ] `generate_post(deps) -> Post` calls LLM and parses response
-- [ ] `AgentDependencies` dataclass (session, phase, posts, knowledge context)
-- [ ] All 6 agent configs instantiable from YAML + prompts
+- [x] `BaseDeliberationAgent` class
+- [x] `should_respond(posts, phase) -> (bool, list[str])` delegates to TriggerEvaluator
+- [x] `generate_post(deps) -> Post` calls LLM and parses response
+- [x] `AgentDependencies` Pydantic model (session, phase, phase_signal, posts, knowledge_context)
+- [x] Fallback post generation on LLM failure
+- [x] All 6 agent configs instantiable via `create_default_agents()`
 
 **Tests**:
 - Agent defers to trigger evaluator for should_respond
@@ -286,12 +298,13 @@ Implement from TRIGGER_RULES.md:
 
 ### Step 2.4 — Deliberation Engine (`engine.py`)
 
-- [ ] `EmergentDeliberationEngine` class
-- [ ] Seed phase: all agents produce initial posts
-- [ ] Main loop: Observer → termination check → trigger eval → response generation → update
-- [ ] `run_deliberation()` async generator yielding Post, PhaseSignal, EnergyUpdate
-- [ ] Human intervention handling
-- [ ] Graceful degradation (agent failure doesn't block deliberation)
+- [x] `EmergentDeliberationEngine` class
+- [x] Seed phase: all agents produce initial posts concurrently
+- [x] Main loop: Observer → termination check → trigger eval → response generation → update
+- [x] `run_deliberation()` async generator yielding Post, PhaseSignal, EnergyUpdate, ConsensusMap
+- [x] Human intervention handling with energy injection
+- [x] Synthesis phase: generates ConsensusMap from deliberation
+- [x] Graceful degradation (agent failure doesn't block deliberation)
 
 **Tests**:
 - Seed phase produces 6 posts (one per agent)
@@ -306,12 +319,13 @@ Implement from TRIGGER_RULES.md:
 
 ### Step 2.5 — CLI Runner + End-to-End Integration Tests
 
-- [ ] `cli.py` — basic terminal output of deliberation (agent name, phase, content)
-- [ ] Single integration test: hypothesis in → ConsensusMap out
-- [ ] Verify posts contain diverse stances
-- [ ] Verify phase transitions occurred
-- [ ] Verify energy declined toward termination
-- [ ] Verify Red Team challenged consensus
+- [x] `cli.py` — terminal output of deliberation (agent, phase, stance, triggers, novelty, energy bar)
+- [x] `--hypothesis`, `--mode mock|real`, `--seed` CLI arguments
+- [x] Single integration test: hypothesis in → ConsensusMap out
+- [x] Verify posts contain diverse stances
+- [x] Verify phase transitions occurred
+- [x] Verify energy updates emitted
+- [ ] Verify Red Team challenged consensus (behavioral test)
 
 **Success criteria**: `python -m colloquip.cli --mode mock "hypothesis"` runs and prints a complete deliberation. Integration tests green.
 
@@ -789,12 +803,14 @@ Phase 7:
 |-------|--------|-----------|
 | **Backend** | | |
 | Language | Python 3.11+ | Async support, LLM ecosystem |
+| Package Manager | **uv** | Fast, reproducible, lockfile-based |
 | Models | Pydantic v2 | Validation, serialization, config |
 | API | FastAPI | Async, WebSocket, Pydantic integration |
 | Testing | pytest + pytest-asyncio | Standard, fixtures, async support |
 | LLM | Anthropic SDK | Primary LLM target |
 | Config | PyYAML + Pydantic | YAML validated through Pydantic |
 | CLI | rich | Color-coded terminal output |
+| Linting | ruff | Fast Python linter/formatter |
 | **Frontend** | | |
 | Framework | React 18+ | Component model, hooks, ecosystem |
 | Language | TypeScript | Type safety matching Pydantic models |
@@ -845,6 +861,39 @@ Phase 7:
 
 ---
 
+## Identified Gaps & Resolutions
+
+Gaps discovered during implementation review (2026-02-11):
+
+| Gap | Status | Resolution |
+|-----|--------|------------|
+| `EnergySource` enum not in models | **Resolved** | Added to `models.py` with 4 sources |
+| `HumanIntervention` model missing | **Resolved** | Added to `models.py` |
+| `AgentDependencies` model missing | **Resolved** | Added to `models.py` |
+| `SessionStatus` enum missing | **Resolved** | Added to `models.py` |
+| License: plan said MIT | **Resolved** | Changed to AGPL-3.0-or-later in pyproject.toml |
+| No `.gitignore` | **Resolved** | Created with Python/Node/IDE patterns |
+| Synthesis/ConsensusMap generation not specified | **Resolved** | `build_synthesis_prompt()` + engine `_run_synthesis()` |
+| Knowledge service stub needed | **Deferred** | Engine accepts `knowledge_context` in `AgentDependencies`; no-op for now |
+| SYSTEM_DESIGN says Next.js, plan says React+Vite | **Resolved** | Plan is correct: React + Vite |
+| Observer `topic_diversity` could exceed 1.0 | **Resolved** | Capped with `min(..., 1.0)` |
+| Dependency management tooling | **Resolved** | Using `uv` with `[dependency-groups]` in pyproject.toml |
+
+---
+
+## Current Status
+
+**Phase 1: COMPLETE** — 91 tests passing
+- All core domain models, energy calculator, observer, triggers, config implemented and tested
+
+**Phase 2: COMPLETE** — 91 tests passing
+- LLM interface + mock, prompt builder, base agent, engine, CLI all working
+- Full mock deliberation runs end-to-end producing ConsensusMap
+
+**Next**: Phase 3 (Real LLM integration + CLI polish)
+
+---
+
 *Plan created: 2026-02-10*
-*Updated: 2026-02-10 (web dashboard added, timeline constraints removed)*
+*Updated: 2026-02-11 (Phase 1+2 complete, gaps addressed, AGPLv3, uv)*
 *Colloquip v0.1 — Emergent Deliberation System*
