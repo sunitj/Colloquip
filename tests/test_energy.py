@@ -138,3 +138,36 @@ class TestEnergyUpdate:
         assert "questions" in update.components
         assert "staleness" in update.components
         assert 0.0 <= update.energy <= 1.0
+
+    def test_energy_update_matches_calculate_energy(self, energy_calculator):
+        """Ensure energy from update matches calculate_energy (no double-compute)."""
+        posts = [
+            create_post(novelty_score=0.6, stance=AgentStance.CRITICAL, agent_id="chemistry"),
+            create_post(novelty_score=0.4, stance=AgentStance.SUPPORTIVE, agent_id="biology"),
+            create_post(novelty_score=0.7, content="What about this?", agent_id="clinical"),
+        ]
+        update = energy_calculator.calculate_energy_update(posts, turn=1)
+        energy = energy_calculator.calculate_energy(posts)
+        assert update.energy == pytest.approx(energy, abs=0.001)
+
+
+class TestNormalizedFormula:
+    def test_high_novelty_diverse_agents_high_energy(self, energy_calculator):
+        """With diverse agents and high novelty, energy should be high."""
+        diverse_contents = [
+            "The receptor binding mechanism shows efficacy in preclinical trials",
+            "Synthetic chemistry routes enable scaffold optimization for selectivity",
+            "Pharmacokinetic modeling reveals favorable half-life and clearance",
+            "Regulatory precedent supports breakthrough therapy designation here",
+            "Clinical endpoints demonstrate statistical significance in the cohort",
+        ]
+        posts = [
+            create_post(novelty_score=0.9, agent_id=f"agent{i}", content=diverse_contents[i])
+            for i in range(5)
+        ]
+        energy = energy_calculator.calculate_energy(posts)
+        # Diverse agents + high novelty + low repetition → healthy energy
+        assert energy > 0.3
+
+    def test_empty_posts_still_one(self, energy_calculator):
+        assert energy_calculator.calculate_energy([]) == 1.0

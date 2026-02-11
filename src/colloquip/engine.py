@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+from collections import Counter, defaultdict
 from typing import AsyncIterator, Dict, List, Optional, Union
 
 from colloquip.agents.base import BaseDeliberationAgent
@@ -122,13 +123,21 @@ class EmergentDeliberationEngine:
             energy_history.append(energy_update.energy)
             yield energy_update
 
-            # Energy injection for novel posts (accumulate boosts)
-            for post in new_posts:
-                if post.novelty_score > 0.7:
-                    boosted = self.energy_calculator.inject_energy(
-                        EnergySource.NOVEL_POST, energy_history[-1]
-                    )
-                    energy_history[-1] = boosted
+            # 6. Energy injection for novel posts (at most one boost per turn)
+            max_novelty = max(
+                (p.novelty_score for p in new_posts), default=0.0
+            )
+            if max_novelty > 0.7:
+                boosted = self.energy_calculator.inject_energy(
+                    EnergySource.NOVEL_POST, energy_history[-1]
+                )
+                energy_history[-1] = boosted
+                # Re-yield updated energy so display stays consistent
+                yield EnergyUpdate(
+                    turn=turn,
+                    energy=boosted,
+                    components=energy_update.components,
+                )
 
         # --- Synthesis ---
         session.phase = Phase.SYNTHESIS
@@ -143,7 +152,10 @@ class EmergentDeliberationEngine:
         posts: List[Post],
         energy_history: List[float],
     ) -> List[Post]:
-        """Handle human intervention mid-deliberation."""
+        """Handle human intervention mid-deliberation.
+
+        Returns a list of posts: the human post followed by agent responses.
+        """
         # Energy injection
         if intervention.type == "terminate":
             energy_history.append(0.0)
@@ -174,7 +186,7 @@ class EmergentDeliberationEngine:
         new_posts = await self._generate_posts(
             responding, session, phase_signal, posts
         )
-        return new_posts
+        return [human_post] + new_posts
 
     async def _run_seed_phase(
         self,
@@ -273,14 +285,14 @@ class EmergentDeliberationEngine:
         deps: AgentDependencies,
         rules: List[str],
     ) -> Post:
-        """Generate post with error handling."""
+        """Generate post with error handling — always returns a Post."""
         try:
             post = await agent.generate_post(deps)
             post.triggered_by = rules
             return post
         except Exception as e:
             logger.error("Agent %s failed: %s", agent.agent_id, e)
-            raise
+            return agent._fallback_post(deps)
 
     async def _run_synthesis(
         self,
@@ -327,12 +339,10 @@ class EmergentDeliberationEngine:
 
     def _extract_agreements(self, posts: List[Post]) -> List[str]:
         """Extract points of agreement from posts."""
-        # Claims made by supportive posts that aren't contested
         supportive_claims = []
         for post in posts:
             if post.stance == AgentStance.SUPPORTIVE:
                 supportive_claims.extend(post.key_claims)
-        # Deduplicate and return top items
         seen = set()
         unique = []
         for claim in supportive_claims:
@@ -356,16 +366,38 @@ class EmergentDeliberationEngine:
         return unique[:5]
 
     def _extract_minority_positions(self, posts: List[Post]) -> List[str]:
-        """Extract minority positions worth preserving."""
-        # Agents who were consistently in the minority
-        from collections import Counter
-        agent_stances = Counter()
-        for post in posts:
-            agent_stances[post.agent_id] += 1 if post.stance == AgentStance.CRITICAL else -1
+        """Extract minority positions worth preserving.
 
-        minority = []
+        A minority position is one held by fewer than half the agents.
+        """
+        # Determine each agent's dominant stance
+        agent_stance_counts: Dict[str, Counter] = defaultdict(Counter)
         for post in posts:
-            if agent_stances[post.agent_id] > 0 and post.stance == AgentStance.CRITICAL:
+            if post.agent_id != "human":
+                agent_stance_counts[post.agent_id][post.stance] += 1
+
+        agent_dominant: Dict[str, AgentStance] = {}
+        for agent_id, counts in agent_stance_counts.items():
+            agent_dominant[agent_id] = counts.most_common(1)[0][0]
+
+        # Count how many agents hold each dominant stance
+        stance_agent_count = Counter(agent_dominant.values())
+        total_agents = len(agent_dominant)
+
+        # A minority stance is one held by fewer than half the agents
+        minority_stances = {
+            stance
+            for stance, count in stance_agent_count.items()
+            if count < total_agents / 2
+        }
+
+        # Collect claims from agents whose dominant stance is a minority
+        minority: List[str] = []
+        for post in posts:
+            if (
+                post.agent_id in agent_dominant
+                and agent_dominant[post.agent_id] in minority_stances
+            ):
                 for claim in post.key_claims:
                     if claim not in minority:
                         minority.append(claim)

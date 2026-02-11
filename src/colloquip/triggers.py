@@ -1,5 +1,6 @@
 """Trigger evaluator for agent self-selection."""
 
+import re
 from typing import Dict, List, Optional, Tuple
 
 from colloquip.config import TriggerConfig
@@ -130,26 +131,39 @@ class TriggerEvaluator:
             if "?" not in post.content:
                 continue
 
-            sentences = post.content.split(".")
+            # Split on sentence boundaries rather than bare periods
+            sentences = re.split(r"(?<=[.!?])\s+", post.content)
             for sentence in sentences:
                 if "?" not in sentence:
                     continue
                 is_my_domain = any(
                     kw.lower() in sentence.lower() for kw in self.domain_keywords
                 )
-                if is_my_domain and not self._is_answered(posts, sentence):
+                if is_my_domain and not self._is_answered(posts, sentence, post):
                     return True
 
         return False
 
-    def _is_answered(self, posts: List[Post], question: str) -> bool:
-        """Check if this agent already answered a similar question."""
-        q_keywords = set(question.lower().split())
+    def _is_answered(self, posts: List[Post], question: str, question_post: Post) -> bool:
+        """Check if this agent already answered a similar question.
+
+        Only checks posts that come AFTER the question post to avoid
+        falsely considering pre-existing posts as answers.
+        """
+        q_keywords = set(re.sub(r"[^\w\s]", "", question.lower()).split())
+        found_question = False
         for post in posts:
+            if post is question_post:
+                found_question = True
+                continue
+            if not found_question:
+                continue
             if post.agent_id != self.agent_id:
                 continue
-            p_keywords = set(post.content.lower().split())
-            if len(q_keywords & p_keywords) > 3:
+            p_keywords = set(re.sub(r"[^\w\s]", "", post.content.lower()).split())
+            # Adaptive threshold based on question length
+            threshold = max(2, len(q_keywords) // 2)
+            if len(q_keywords & p_keywords) >= threshold:
                 return True
         return False
 
@@ -277,4 +291,4 @@ class TriggerEvaluator:
         if len(posts) < self.config.red_team_min_debate_posts:
             return True
         critical_posts = [p for p in posts if p.stance == AgentStance.CRITICAL]
-        return len(critical_posts) < 3
+        return len(critical_posts) < self.config.red_team_min_critical_posts

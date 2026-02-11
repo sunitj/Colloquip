@@ -90,6 +90,7 @@ class TriggerConfig(BaseModel):
     red_team_consensus_threshold: int = 3
     red_team_criticism_gap: int = 3
     red_team_min_debate_posts: int = 15
+    red_team_min_critical_posts: int = 3
 
 
 class ColloquipConfig(BaseModel):

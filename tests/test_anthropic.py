@@ -23,6 +23,21 @@ class TestExtractListItems:
     def test_no_bullets(self):
         assert _extract_list_items("Just text here") == []
 
+    def test_numbered_list_dot(self):
+        text = "1. First item\n2. Second item\n3. Third item"
+        items = _extract_list_items(text)
+        assert items == ["First item", "Second item", "Third item"]
+
+    def test_numbered_list_paren(self):
+        text = "1) Item A\n2) Item B"
+        items = _extract_list_items(text)
+        assert items == ["Item A", "Item B"]
+
+    def test_mixed_list_formats(self):
+        text = "- Bullet item\n1. Numbered item\n* Star item"
+        items = _extract_list_items(text)
+        assert len(items) == 3
+
 
 class TestParseAgentResponse:
     def test_full_structured_response(self):

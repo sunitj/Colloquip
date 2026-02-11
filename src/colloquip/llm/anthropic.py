@@ -15,16 +15,17 @@ _STANCE_PATTERN = re.compile(
     r"\*?\*?Stance\*?\*?[:\s]*(SUPPORTIVE|CRITICAL|NEUTRAL|NOVEL_CONNECTION)",
     re.IGNORECASE,
 )
+_LIST_ITEM = r"(?:\s*(?:[-*]|\d+[.)])\s+.+\n?)+"
 _CLAIMS_PATTERN = re.compile(
-    r"\*?\*?Key Claims\*?\*?[:\s]*\n((?:\s*[-*]\s+.+\n?)+)",
+    r"\*?\*?Key Claims\*?\*?[:\s]*\n(" + _LIST_ITEM + ")",
     re.IGNORECASE,
 )
 _QUESTIONS_PATTERN = re.compile(
-    r"\*?\*?Questions Raised\*?\*?[:\s]*\n((?:\s*[-*]\s+.+\n?)+)",
+    r"\*?\*?Questions Raised\*?\*?[:\s]*\n(" + _LIST_ITEM + ")",
     re.IGNORECASE,
 )
 _CONNECTIONS_PATTERN = re.compile(
-    r"\*?\*?Connections Identified\*?\*?[:\s]*\n((?:\s*[-*]\s+.+\n?)+)",
+    r"\*?\*?Connections Identified\*?\*?[:\s]*\n(" + _LIST_ITEM + ")",
     re.IGNORECASE,
 )
 
@@ -37,12 +38,16 @@ _STANCE_MAP = {
 
 
 def _extract_list_items(text: str) -> List[str]:
-    """Extract bullet-point list items from a text block."""
+    """Extract list items from bullet or numbered list formats."""
     items = []
     for line in text.strip().split("\n"):
         line = line.strip()
         if line.startswith(("-", "*")):
             item = line.lstrip("-* ").strip()
+            if item:
+                items.append(item)
+        elif re.match(r"^\d+[.)]\s+", line):
+            item = re.sub(r"^\d+[.)]\s+", "", line).strip()
             if item:
                 items.append(item)
     return items

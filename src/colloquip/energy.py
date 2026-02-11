@@ -1,5 +1,6 @@
 """Energy calculator and termination logic for conversation dynamics."""
 
+import re
 from typing import Dict, List, Optional, Tuple
 
 from colloquip.config import EnergyConfig
@@ -12,12 +13,23 @@ class EnergyCalculator:
     def __init__(self, config: Optional[EnergyConfig] = None):
         self.config = config or EnergyConfig()
 
-    def calculate_energy(self, posts: List[Post]) -> float:
-        """Calculate current energy level (0.0 - 1.0)."""
+    def _compute_energy_and_components(
+        self, posts: List[Post]
+    ) -> Tuple[float, Dict[str, float]]:
+        """Core computation: returns (energy, components).
+
+        Used by both calculate_energy() and calculate_energy_update()
+        to avoid duplicating work.
+        """
         window = self.config.window
         recent = posts[-window:]
         if not recent:
-            return 1.0  # Full energy at start
+            return 1.0, {
+                "novelty": 0.0,
+                "disagreement": 0.0,
+                "questions": 0.0,
+                "staleness": 0.0,
+            }
 
         novelty = self._calculate_novelty_component(recent)
         disagreement = self._calculate_disagreement_component(recent)
@@ -25,44 +37,38 @@ class EnergyCalculator:
         staleness = self._calculate_staleness_penalty(recent, posts)
 
         weights = self.config.weights
-        energy = (
-            weights["novelty"] * novelty
-            + weights["disagreement"] * disagreement
-            + weights["questions"] * questions
-            + abs(weights["staleness"]) * (-staleness)
-        )
+        # Normalize positive weights so they sum to 1.0
+        positive_sum = sum(v for k, v in weights.items() if k != "staleness")
+        if positive_sum > 0:
+            energy = (
+                (weights["novelty"] / positive_sum) * novelty
+                + (weights["disagreement"] / positive_sum) * disagreement
+                + (weights["questions"] / positive_sum) * questions
+            )
+        else:
+            energy = 0.0
 
-        return max(0.0, min(1.0, energy))
+        # Staleness is always a penalty (negative contribution)
+        energy += weights["staleness"] * staleness
+
+        energy = max(0.0, min(1.0, energy))
+
+        return energy, {
+            "novelty": novelty,
+            "disagreement": disagreement,
+            "questions": questions,
+            "staleness": staleness,
+        }
+
+    def calculate_energy(self, posts: List[Post]) -> float:
+        """Calculate current energy level (0.0 - 1.0)."""
+        energy, _ = self._compute_energy_and_components(posts)
+        return energy
 
     def calculate_energy_update(self, posts: List[Post], turn: int) -> EnergyUpdate:
         """Calculate energy and return a full EnergyUpdate with component breakdown."""
-        window = self.config.window
-        recent = posts[-window:]
-
-        if not recent:
-            return EnergyUpdate(
-                turn=turn,
-                energy=1.0,
-                components={"novelty": 1.0, "disagreement": 0.0, "questions": 0.0, "staleness": 0.0},
-            )
-
-        novelty = self._calculate_novelty_component(recent)
-        disagreement = self._calculate_disagreement_component(recent)
-        questions = self._calculate_question_component(recent, posts)
-        staleness = self._calculate_staleness_penalty(recent, posts)
-
-        energy = self.calculate_energy(posts)
-
-        return EnergyUpdate(
-            turn=turn,
-            energy=energy,
-            components={
-                "novelty": novelty,
-                "disagreement": disagreement,
-                "questions": questions,
-                "staleness": staleness,
-            },
-        )
+        energy, components = self._compute_energy_and_components(posts)
+        return EnergyUpdate(turn=turn, energy=energy, components=components)
 
     def should_terminate(
         self, posts: List[Post], energy_history: List[float]
@@ -82,7 +88,7 @@ class EnergyCalculator:
                     f"for {rounds} rounds"
                 )
 
-        # Condition 2: Maximum turns reached (hard cap)
+        # Condition 2: Maximum posts reached (hard cap)
         if len(posts) >= self.config.max_posts:
             return True, f"max_posts: reached {self.config.max_posts}"
 
@@ -142,7 +148,8 @@ class EnergyCalculator:
         """Open questions component."""
         recent_questions: List[Tuple[Post, str]] = []
         for post in recent:
-            sentences = post.content.split(".")
+            # Split on sentence boundaries (period/exclamation/question + space)
+            sentences = re.split(r"(?<=[.!?])\s+", post.content)
             for sentence in sentences:
                 if "?" in sentence:
                     recent_questions.append((post, sentence))
@@ -156,13 +163,16 @@ class EnergyCalculator:
                 q_index = all_posts.index(q_post)
             except ValueError:
                 continue
-            subsequent = all_posts[q_index + 1 :]
+            subsequent = all_posts[q_index + 1:]
 
-            q_keywords = set(question.lower().split())
+            # Strip punctuation from keywords for matching
+            q_keywords = set(re.sub(r"[^\w\s]", "", question.lower()).split())
             answered = False
             for post in subsequent:
-                p_keywords = set(post.content.lower().split())
-                if len(q_keywords & p_keywords) > 3:
+                p_keywords = set(re.sub(r"[^\w\s]", "", post.content.lower()).split())
+                # Adaptive threshold: at least half of question keywords matched
+                threshold = max(2, len(q_keywords) // 2)
+                if len(q_keywords & p_keywords) >= threshold:
                     answered = True
                     break
 
@@ -229,4 +239,3 @@ class EnergyCalculator:
 
         avg_overlap = sum(overlaps) / len(overlaps)
         return min(avg_overlap * self.config.repetition_weight, 1.0)
-

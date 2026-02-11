@@ -215,6 +215,41 @@ class TestRefractoryPeriod:
         assert should_respond
 
 
+class TestIsAnsweredTemporal:
+    def test_pre_existing_post_not_counted_as_answer(self, biology_evaluator):
+        """Posts made BEFORE a question should not be counted as answers."""
+        posts = [
+            create_post(
+                content="The receptor target mechanism involves complex pathway signaling.",
+                agent_id="biology",
+            ),
+            # Padding posts to clear the refractory period (2 posts)
+            create_post(content="Filler post.", agent_id="admet"),
+            create_post(content="Another filler.", agent_id="clinical"),
+            create_post(
+                content="What is the receptor target mechanism for this pathway?",
+                agent_id="chemistry",
+            ),
+        ]
+        should_respond, rules = biology_evaluator.evaluate(posts, Phase.EXPLORE)
+        assert "question" in rules
+
+    def test_subsequent_post_counts_as_answer(self, biology_evaluator):
+        """Posts made AFTER a question should count as answers."""
+        posts = [
+            create_post(
+                content="What is the mechanism of receptor binding?",
+                agent_id="chemistry",
+            ),
+            create_post(
+                content="The mechanism of receptor binding involves conformational change.",
+                agent_id="biology",
+            ),
+        ]
+        should_respond, rules = biology_evaluator.evaluate(posts, Phase.EXPLORE)
+        assert "question" not in rules
+
+
 class TestSeedPhase:
     def test_empty_posts_seed_phase(self, biology_evaluator):
         should_respond, rules = biology_evaluator.evaluate([], Phase.EXPLORE)
