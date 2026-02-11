@@ -161,7 +161,7 @@ class SessionManager:
                         "data": event.model_dump(mode="json"),
                     })
                 elif isinstance(event, EnergyUpdate):
-                    self.energy_history[session_id].append(event.energy)
+                    self.energy_history[session_id].append(event.model_dump(mode="json"))
                     await self._broadcast(session_id, {
                         "type": "energy_update",
                         "data": event.model_dump(mode="json"),
