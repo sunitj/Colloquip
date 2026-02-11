@@ -56,3 +56,23 @@ class TestValidation:
         config = EnergyConfig(window=5, min_posts=6)
         assert config.window == 5
         assert config.min_posts == 6
+
+    def test_min_posts_must_be_less_than_max_posts(self):
+        with pytest.raises(ValueError, match="min_posts.*must be less than max_posts"):
+            EnergyConfig(min_posts=50, max_posts=50)
+
+    def test_min_posts_greater_than_max_posts_fails(self):
+        with pytest.raises(ValueError):
+            EnergyConfig(min_posts=60, max_posts=50)
+
+    def test_max_open_questions_must_be_positive(self):
+        with pytest.raises(ValueError):
+            EnergyConfig(max_open_questions=0)
+
+    def test_hysteresis_threshold_must_be_positive(self):
+        with pytest.raises(ValueError):
+            ObserverConfig(hysteresis_threshold=0)
+
+    def test_energy_threshold_bounds(self):
+        with pytest.raises(ValueError):
+            EnergyConfig(energy_threshold=1.5)

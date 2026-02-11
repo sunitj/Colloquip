@@ -1,6 +1,6 @@
 """Prompt builder for deliberation agents."""
 
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from colloquip.models import AgentConfig, Phase, Post
 
@@ -93,7 +93,7 @@ def build_system_prompt(config: AgentConfig, phase: Phase) -> str:
 def build_user_prompt(
     hypothesis: str,
     posts: List[Post],
-    phase_observation: str | None = None,
+    phase_observation: Optional[str] = None,
     max_history: int = 15,
 ) -> str:
     """Build the user prompt with conversation history."""

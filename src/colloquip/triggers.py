@@ -208,7 +208,7 @@ class TriggerEvaluator:
         a_touches = any(kw.lower() in text_a for kw in self.domain_keywords)
         b_touches = any(kw.lower() in text_b for kw in self.domain_keywords)
 
-        if not (a_touches or b_touches):
+        if not (a_touches and b_touches):
             return False
 
         bridge_patterns = [

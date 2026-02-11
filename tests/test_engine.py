@@ -147,3 +147,37 @@ class TestConsensus:
         assert cm.session_id == session.id
         assert cm.summary  # Non-empty
         assert isinstance(cm.final_stances, dict)
+
+    @pytest.mark.asyncio
+    async def test_empty_synthesis_guard(self):
+        """Synthesis with empty posts returns a fallback message."""
+        from colloquip.models import DeliberationSession
+
+        engine = _create_engine(max_turns=0, min_posts=3)
+        session = DeliberationSession(hypothesis="Test")
+        # Directly test _run_synthesis with empty posts
+        consensus = await engine._run_synthesis(session, "Test", [])
+        assert consensus.session_id == session.id
+        assert "No posts" in consensus.summary
+
+
+class TestMockBounds:
+    def test_declining_novelty_stays_above_minimum(self):
+        """DECLINING mode should never produce novelty below 0.05."""
+        mock = MockLLM(behavior=MockBehavior.DECLINING, seed=42)
+        for _ in range(50):
+            mock._call_count += 1
+            novelty = mock._pick_novelty()
+            assert novelty >= 0.05, f"Novelty {novelty} dropped below 0.05"
+
+    def test_high_novelty_bounds(self):
+        mock = MockLLM(behavior=MockBehavior.HIGH_NOVELTY, seed=42)
+        for _ in range(50):
+            novelty = mock._pick_novelty()
+            assert 0.6 <= novelty <= 0.95
+
+    def test_low_novelty_bounds(self):
+        mock = MockLLM(behavior=MockBehavior.LOW_NOVELTY, seed=42)
+        for _ in range(50):
+            novelty = mock._pick_novelty()
+            assert 0.05 <= novelty <= 0.3

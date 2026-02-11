@@ -197,7 +197,11 @@ class EnergyCalculator:
 
         # Penalty 3: Agent participation stagnation
         unique_agents = len(set(p.agent_id for p in recent))
-        participation_penalty = 1.0 - (unique_agents / 6)
+        total_agents = len(set(p.agent_id for p in all_posts))
+        if total_agents > 0:
+            participation_penalty = 1.0 - (unique_agents / total_agents)
+        else:
+            participation_penalty = 0.0
         penalties.append(participation_penalty)
 
         return sum(penalties) / len(penalties)
@@ -226,6 +230,3 @@ class EnergyCalculator:
         avg_overlap = sum(overlaps) / len(overlaps)
         return min(avg_overlap * self.config.repetition_weight, 1.0)
 
-
-# Module-level convenience type alias
-Tuple = tuple  # noqa: just to satisfy the type hint used above

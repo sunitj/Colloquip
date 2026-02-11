@@ -24,9 +24,11 @@ class ObserverAgent:
         self,
         energy_calculator: EnergyCalculator,
         config: Optional[ObserverConfig] = None,
+        num_agents: int = 6,
     ):
         self.energy_calculator = energy_calculator
         self.config = config or ObserverConfig()
+        self.num_agents = max(1, num_agents)
         self.current_phase = Phase.EXPLORE
         self.pending_phase: Optional[Phase] = None
         self.pending_count: int = 0
@@ -80,7 +82,7 @@ class ObserverAgent:
         if not recent:
             return 0.0
         unique_agents = len(set(p.agent_id for p in recent))
-        return min(unique_agents / 6, 1.0)  # 6 scientist agents, capped
+        return min(unique_agents / self.num_agents, 1.0)
 
     def _citation_density(self, recent: List[Post]) -> float:
         if not recent:
@@ -157,7 +159,8 @@ class ObserverAgent:
         if detected is None or detected == self.current_phase:
             return 0.9
 
-        progress = self.pending_count / self.config.hysteresis_threshold
+        threshold = max(1, self.config.hysteresis_threshold)
+        progress = self.pending_count / threshold
         return max(0.5, 0.9 - (progress * 0.3))
 
     def _generate_observation(self, metrics: ConversationMetrics) -> Optional[str]:

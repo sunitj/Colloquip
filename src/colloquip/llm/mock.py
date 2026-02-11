@@ -91,7 +91,8 @@ class MockLLM:
             return round(self.rng.uniform(0.05, 0.3), 2)
         if self.behavior == MockBehavior.DECLINING:
             base = max(0.1, 0.9 - self._call_count * 0.05)
-            return round(self.rng.uniform(base * 0.8, base), 2)
+            low = max(0.05, base * 0.8)
+            return round(self.rng.uniform(low, base), 2)
         return round(self.rng.uniform(0.2, 0.8), 2)
 
     def _extract_agent_name(self, system_prompt: str) -> str:

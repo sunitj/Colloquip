@@ -3,6 +3,7 @@
 import pytest
 
 from colloquip.models import AgentStance, Citation, Phase
+from colloquip.observer import ObserverAgent
 
 from tests.conftest import create_post
 
@@ -219,6 +220,28 @@ class TestConfidence:
         observer.detect_phase(debate_posts)
         signal = observer.detect_phase(debate_posts)
         assert signal.confidence < 0.9
+
+
+class TestConfigurableAgentCount:
+    def test_custom_num_agents(self, energy_calculator, observer_config):
+        obs = ObserverAgent(
+            energy_calculator=energy_calculator,
+            config=observer_config,
+            num_agents=4,
+        )
+        posts = [
+            create_post(agent_id="a"),
+            create_post(agent_id="b"),
+            create_post(agent_id="c"),
+            create_post(agent_id="d"),
+        ]
+        metrics = obs.calculate_metrics(posts)
+        assert metrics.topic_diversity == pytest.approx(1.0, abs=0.01)
+
+    def test_default_six_agents(self, observer):
+        posts = [create_post(agent_id=f"a{i}") for i in range(3)]
+        metrics = observer.calculate_metrics(posts)
+        assert metrics.topic_diversity == pytest.approx(3 / 6, abs=0.01)
 
 
 class TestMetaObservations:

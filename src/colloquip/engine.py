@@ -12,6 +12,7 @@ from colloquip.models import (
     AgentDependencies,
     AgentStance,
     ConsensusMap,
+    ConversationMetrics,
     DeliberationSession,
     EnergySource,
     EnergyUpdate,
@@ -121,12 +122,11 @@ class EmergentDeliberationEngine:
             energy_history.append(energy_update.energy)
             yield energy_update
 
-            # Energy injection for novel posts
+            # Energy injection for novel posts (accumulate boosts)
             for post in new_posts:
                 if post.novelty_score > 0.7:
-                    current_e = energy_history[-1]
                     boosted = self.energy_calculator.inject_energy(
-                        EnergySource.NOVEL_POST, current_e
+                        EnergySource.NOVEL_POST, energy_history[-1]
                     )
                     energy_history[-1] = boosted
 
@@ -183,8 +183,6 @@ class EmergentDeliberationEngine:
         posts: List[Post],
     ) -> List[Post]:
         """All agents produce initial posts."""
-        from colloquip.models import ConversationMetrics
-
         seed_signal = PhaseSignal(
             current_phase=Phase.EXPLORE,
             confidence=1.0,
@@ -291,6 +289,12 @@ class EmergentDeliberationEngine:
         posts: List[Post],
     ) -> ConsensusMap:
         """Generate final ConsensusMap from deliberation."""
+        if not posts:
+            return ConsensusMap(
+                session_id=session.id,
+                summary="No posts were generated during deliberation.",
+            )
+
         prompt = build_synthesis_prompt(hypothesis, posts)
 
         try:

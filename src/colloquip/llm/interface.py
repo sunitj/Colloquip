@@ -1,6 +1,6 @@
 """LLM interface protocol for the deliberation system."""
 
-from typing import Protocol, runtime_checkable
+from typing import List, Optional, Protocol, runtime_checkable
 
 from colloquip.models import AgentStance
 
@@ -10,9 +10,9 @@ class LLMResponse(Protocol):
     """Structured response from an LLM call."""
     content: str
     stance: AgentStance
-    key_claims: list[str]
-    questions_raised: list[str]
-    connections_identified: list[str]
+    key_claims: List[str]
+    questions_raised: List[str]
+    connections_identified: List[str]
     novelty_score: float
 
 
@@ -23,9 +23,9 @@ class LLMResult:
         self,
         content: str,
         stance: AgentStance,
-        key_claims: list[str] | None = None,
-        questions_raised: list[str] | None = None,
-        connections_identified: list[str] | None = None,
+        key_claims: Optional[List[str]] = None,
+        questions_raised: Optional[List[str]] = None,
+        connections_identified: Optional[List[str]] = None,
         novelty_score: float = 0.5,
     ):
         self.content = content

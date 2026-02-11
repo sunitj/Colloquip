@@ -4,14 +4,14 @@ from pathlib import Path
 from typing import Dict, Optional
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from colloquip.models import EngineConfig, Phase
 
 
 class ObserverConfig(BaseModel):
-    hysteresis_threshold: int = 3
-    window_size: int = 10
+    hysteresis_threshold: int = Field(default=3, ge=1)
+    window_size: int = Field(default=10, ge=1)
     min_posts_before_converge: int = 12
     observation_frequency: float = 0.2
 
@@ -37,15 +37,15 @@ class EnergyConfig(BaseModel):
     novelty_bonus_per_connection: float = 0.1
     max_novelty_bonus: float = 0.3
     optimal_disagreement_rate: float = 0.4
-    max_open_questions: int = 5
+    max_open_questions: int = Field(default=5, ge=1)
     posts_since_novel_threshold: int = 10
     repetition_weight: float = 2.0
 
     # Termination
-    min_posts: int = 12
-    max_posts: int = 50
-    energy_threshold: float = 0.2
-    low_energy_rounds: int = 3
+    min_posts: int = Field(default=12, ge=1)
+    max_posts: int = Field(default=50, ge=1)
+    energy_threshold: float = Field(default=0.2, ge=0.0, le=1.0)
+    low_energy_rounds: int = Field(default=3, ge=1)
 
     # Energy injection amounts
     injection: Dict[str, float] = Field(default_factory=lambda: {
@@ -54,6 +54,14 @@ class EnergyConfig(BaseModel):
         "novel_post": 0.2,
         "red_team_challenge": 0.15,
     })
+
+    @model_validator(mode="after")
+    def validate_post_bounds(self) -> "EnergyConfig":
+        if self.min_posts >= self.max_posts:
+            raise ValueError(
+                f"min_posts ({self.min_posts}) must be less than max_posts ({self.max_posts})"
+            )
+        return self
 
 
 class TriggerConfig(BaseModel):
