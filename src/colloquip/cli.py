@@ -6,6 +6,10 @@ import json
 import sys
 from typing import Dict, Optional, Union
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from colloquip.agents.base import BaseDeliberationAgent
 from colloquip.config import EnergyConfig, ObserverConfig
 from colloquip.display import create_display
