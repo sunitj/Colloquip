@@ -1,161 +1,176 @@
-# Emergent Deliberation System
+# Colloquip
 
-A complex-systems approach to multi-agent scientific deliberation, where serendipity and insight emerge from simple local rules rather than engineered detection algorithms.
+**Emergent multi-agent deliberation — where serendipity arises from simple rules, not engineered detection.**
 
----
+Colloquip is an emergent multi-agent deliberation system inspired by cellular automata: simple local rules produce complex global behavior. Six specialist agents debate scientific hypotheses without a fixed schedule or hardcoded turns. Instead, agents decide *when* to speak based on trigger rules, an Observer detects *what phase* the conversation is in, and an energy model determines *when* to stop.
 
-## Design Philosophy
+## What Makes This Different
 
-Inspired by cellular automata (Conway's Game of Life) and flocking behavior:
+| Traditional Multi-Agent | Colloquip (Emergent) |
+|---|---|
+| Fixed turn order (Agent A, then B, then C...) | Agents self-select when to speak via trigger rules |
+| Predefined phase schedule | Observer detects phases from conversation dynamics |
+| Hard turn limit or human stop | Energy-based termination (conversation dies naturally) |
+| Orchestrator decides who speaks | No orchestrator — emergence from simple rules |
 
-- **Simple local rules** → **Complex global patterns**
-- **No central orchestrator** → **Emergent coordination**
-- **Authentic serendipity** → Not detected, but naturally arising
-
----
-
-## Document Index
-
-| Document | Purpose |
-|----------|---------|
-| [AGENT_PROMPTS.md](./AGENT_PROMPTS.md) | Complete prompts for all 6 scientist agents + observer, including phase-dependent mandates |
-| [OBSERVER_SPEC.md](./OBSERVER_SPEC.md) | Observer agent specification: phase detection, hysteresis, meta-observations |
-| [TRIGGER_RULES.md](./TRIGGER_RULES.md) | Detailed trigger rule definitions for agent self-selection |
-| [ENERGY_MODEL.md](./ENERGY_MODEL.md) | Energy calculation and termination logic |
-| [SYSTEM_DESIGN.md](./SYSTEM_DESIGN.md) | Complete architecture, data flow, API design |
-
----
-
-## Quick Reference
-
-### The Agents
-
-| Agent | Role | Key Trait |
-|-------|------|-----------|
-| **Biology** | Target validation, mechanism | Hypothesis-driven, builds from first principles |
-| **Chemistry** | Tractability, synthesis | Pragmatic, solution-oriented |
-| **ADMET** | Safety, toxicology | Risk-averse, finds reasons things won't work |
-| **Clinical** | Patient relevance, translation | Patient-centric, bridges bench to bedside |
-| **Regulatory** | Precedent, pathways | Cautious, precedent-driven |
-| **Red Team** | Adversarial challenge | Contrarian, prevents premature consensus |
-| **Observer** | Phase detection | Meta-cognitive, doesn't participate in content |
-
-### The Phases
-
-| Phase | Behavior | Detection Signal |
-|-------|----------|------------------|
-| **EXPLORE** | Speculative, questioning | High question rate, diverse participation |
-| **DEBATE** | Evidence-heavy, challenging | High disagreement, lots of citations |
-| **DEEPEN** | Focused, drilling down | Low diversity, high novelty |
-| **CONVERGE** | Synthesizing, concluding | Low energy, stagnating |
-| **SYNTHESIS** | Final summary | Explicit (not detected) |
-
-### The Trigger Rules
-
-| Rule | Fires When |
-|------|------------|
-| **Relevance** | My domain mentioned in recent posts |
-| **Disagreement** | Strong claim made in my domain |
-| **Question** | Unanswered question in my domain |
-| **Silence Breaking** | Haven't spoken in a while, still relevant |
-| **Bridge Opportunity** | I can connect concepts from other agents |
-| **Uncertainty Response** | I have evidence for others' uncertainty |
-
-### Energy Formula
+## Architecture
 
 ```
-Energy = 0.4 × Novelty + 0.3 × Disagreement + 0.2 × Questions - 0.1 × Staleness
+                    ┌─────────────────────────┐
+                    │     Observer Agent       │
+                    │  (phase detection with   │
+                    │   hysteresis)            │
+                    └────────────┬────────────┘
+                                 │ PhaseSignal
+    ┌────────────────────────────┼────────────────────────────┐
+    │                            │                            │
+    ▼                            ▼                            ▼
+┌────────┐  ┌────────┐  ┌────────────┐  ┌────────┐  ┌────────┐  ┌──────────┐
+│Biology │  │Chem    │  │  ADMET     │  │Clinical│  │Regulat.│  │Red Team  │
+│Agent   │  │Agent   │  │  Agent     │  │Agent   │  │Agent   │  │Agent     │
+└───┬────┘  └───┬────┘  └─────┬──────┘  └───┬────┘  └───┬────┘  └────┬─────┘
+    │           │             │              │           │             │
+    │  Trigger  │  Trigger    │   Trigger    │  Trigger  │  Trigger    │ Trigger
+    │  Rules    │  Rules      │   Rules      │  Rules    │  Rules      │ Rules
+    └─────┬─────┴──────┬──────┴──────┬───────┴─────┬─────┴──────┬─────┘
+          │            │             │             │            │
+          ▼            ▼             ▼             ▼            ▼
+    ┌───────────────────────────────────────────────────────────────┐
+    │                 Energy Calculator                              │
+    │  E = w_n·novelty + w_d·disagreement + w_q·questions           │
+    │      - w_s·staleness                                          │
+    │  Terminate when E < threshold for 3 consecutive turns         │
+    └───────────────────────────────────────────────────────────────┘
 ```
 
-Terminate when energy < 0.2 for 3 consecutive turns.
+## Key Technical Highlights
 
----
+- **9 Trigger Rules**: relevance, disagreement, question, silence-breaking, bridge opportunity, uncertainty response, + 3 Red Team rules (consensus-forming, criticism-gap, premature-convergence)
+- **Hysteresis Phase Detection**: Prevents oscillation — requires 3 consecutive signals before transitioning between EXPLORE, DEBATE, DEEPEN, CONVERGE, SYNTHESIS
+- **Energy-Based Termination**: Normalized energy formula with 4 components (novelty, disagreement, questions, staleness). Conversation ends when ideas run dry, not when a timer expires
+- **Red Team Agent**: Automatically challenges consensus — fires when 3+ agents agree without criticism
+- **Human Intervention**: Inject questions/data mid-deliberation; boosts energy to extend the conversation
+- **Real-Time Dashboard**: React SPA with WebSocket streaming showing agents, energy chart, phase timeline, trigger log
 
-## Key Differences from Classic Colloquium
+## Quick Start
 
-| Aspect | Classic | Emergent |
-|--------|---------|----------|
-| Phase control | Hardcoded sequence | Observer detects from dynamics |
-| Agent triggering | Engine calls all agents | Agents self-select via rules |
-| Termination | Fixed round count | Energy-based decay |
-| Agent prompts | Static persona | Persona + phase mandate |
-| Serendipity | Keyword detection | Emerges from interactions |
+### Prerequisites
+- Python 3.11+
+- [uv](https://docs.astral.sh/uv/) package manager
+- Node.js 18+ (for web dashboard)
 
----
+### Install & Run
 
-## Getting Started
+```bash
+# Clone and install
+git clone https://github.com/sunitj/Colloquip.git
+cd Colloquip
+uv sync --group dev --all-extras
 
-### 1. Read the Design Documents
+# Run with mock LLM (no API key needed)
+uv run colloquip --mode mock "GLP-1 agonists improve cognitive function in Alzheimer's patients"
 
-Start with [SYSTEM_DESIGN.md](./SYSTEM_DESIGN.md) for architecture overview, then dive into specific components.
+# Run with real Claude API
+export ANTHROPIC_API_KEY=your-key-here
+uv run colloquip --mode real "GLP-1 agonists improve cognitive function in Alzheimer's patients"
 
-### 2. Understand the Prompts
-
-[AGENT_PROMPTS.md](./AGENT_PROMPTS.md) contains the complete prompts. Each agent has:
-- Core persona (~2000-4000 tokens)
-- Phase mandates (4 phases × ~100 tokens each)
-- Response guidelines
-
-### 3. Implement Components
-
-Suggested order:
-1. Data models (Phase, ConversationMetrics, etc.)
-2. Energy calculator
-3. Observer agent
-4. Trigger evaluator
-5. Base agent with `should_respond()`
-6. Main deliberation loop
-7. API endpoints
-
-### 4. Test Incrementally
-
-- Unit test each component in isolation
-- Integration test the full loop
-- Behavioral tests for emergent properties
-
----
-
-## Configuration Defaults
-
-```yaml
-engine:
-  max_turns: 30
-  min_posts: 12
-
-observer:
-  hysteresis_threshold: 3
-  window_size: 10
-
-energy:
-  threshold: 0.2
-  low_energy_rounds: 3
-
-triggers:
-  refractory_period: 2
-  relevance_threshold: 2
-  silence_max: 6
+# Save transcript
+uv run colloquip --mode mock --save-transcript output.json "Your hypothesis here"
 ```
 
----
+### API Server
 
-## Success Criteria
+```bash
+# Start the FastAPI server
+uv run uvicorn colloquip.api:create_app --factory --reload
 
-| Metric | Target |
-|--------|--------|
-| Agent trigger accuracy | >80% valuable posts |
-| Phase detection accuracy | >70% human agreement |
-| Serendipity emergence | Novel connections without forcing |
-| Conversation naturalness | Reduced repetition vs. classic |
-| Energy termination | Synthesis at appropriate time |
+# With database persistence
+DATABASE_URL=sqlite+aiosqlite:///colloquip.db uv run uvicorn colloquip.api:create_app --factory --reload
+```
 
----
+### Web Dashboard
 
-## Related Documents
+```bash
+cd web
+npm install
+npm run dev
+# Open http://localhost:5173
+```
 
-- [../VISION_ANALYSIS.md](../VISION_ANALYSIS.md) — Vision and gap analysis
-- [../IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md) — Implementation roadmap
+### Run Tests
 
----
+```bash
+uv run pytest                    # All 181 tests
+uv run pytest -m integration     # Integration tests only
+uv run pytest tests/test_behavioral.py  # Emergent behavior tests
+```
 
-*Emergent Deliberation System v1.0*
-*Created: 2026-02-10*
+## Project Structure
+
+```
+colloquip/
+├── src/colloquip/
+│   ├── models.py          # Pydantic data models (Post, Phase, Energy, etc.)
+│   ├── config.py          # Configuration with YAML loading
+│   ├── energy.py          # Energy calculator + termination logic
+│   ├── observer.py        # Observer agent (rule-based phase detection)
+│   ├── triggers.py        # Trigger evaluator (agent self-selection)
+│   ├── engine.py          # Main emergent deliberation loop
+│   ├── agents/            # Agent framework + prompt builder
+│   ├── llm/               # LLM interface, mock, Anthropic adapter
+│   ├── api/               # FastAPI REST + SSE + WebSocket
+│   ├── db/                # SQLAlchemy async persistence
+│   ├── cli.py             # CLI runner
+│   └── display.py         # Rich terminal output
+├── web/                   # React + TypeScript dashboard
+│   └── src/
+│       ├── hooks/useDeliberation.ts   # WebSocket state management
+│       └── components/    # AgentRoster, EnergyChart, PhaseTimeline, etc.
+├── tests/                 # 181 tests (unit + integration + behavioral)
+├── config/                # YAML configs for agents and engine
+└── plan/                  # Implementation plan and design docs
+```
+
+## How It Works
+
+1. **Seed Phase**: All 6 agents produce initial posts about the hypothesis
+2. **Emergent Loop** (repeats until energy depletes):
+   - Observer calculates conversation metrics and detects the current phase
+   - Energy calculator checks if conversation should terminate
+   - Each agent's trigger evaluator decides if it should respond
+   - Responding agents generate posts concurrently
+   - Energy is updated based on novelty, disagreement, questions, staleness
+3. **Synthesis**: LLM generates a ConsensusMap with agreements, disagreements, minority positions, and serendipitous connections
+
+## API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/deliberations` | Create a new deliberation session |
+| `POST` | `/api/deliberations/{id}/start` | Start deliberation (SSE stream) |
+| `POST` | `/api/deliberations/{id}/intervene` | Human intervention |
+| `GET` | `/api/deliberations/{id}` | Get session state |
+| `GET` | `/api/deliberations/{id}/energy` | Energy history |
+| `GET` | `/api/deliberations` | List all sessions |
+| `WS` | `/ws/deliberations/{id}` | Real-time WebSocket stream |
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Backend | Python 3.11+, FastAPI, SQLAlchemy (async), Pydantic v2 |
+| LLM | Anthropic Claude (via SDK), Mock LLM for testing |
+| Frontend | React 18, TypeScript, Vite |
+| Testing | pytest, pytest-asyncio (181 tests) |
+| Package Manager | uv (reproducible builds via lockfile) |
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Implementation Plan](plan/IMPLEMENTATION_PLAN.md) | Phased build plan with success criteria |
+| [System Design](docs/SYSTEM_DESIGN.md) | Architecture, data models, API, data flow |
+| [Energy Model](docs/ENERGY_MODEL.md) | Energy calculation and termination logic |
+| [Observer Spec](docs/OBSERVER_SPEC.md) | Phase detection, hysteresis, meta-observations |
+| [Agent Prompts](docs/AGENT_PROMPTS.md) | All agent personas and phase mandates |
+| [Trigger Rules](docs/TRIGGER_RULES.md) | Agent self-selection trigger rules |

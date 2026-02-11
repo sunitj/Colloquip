@@ -1,0 +1,66 @@
+engine:
+  max_turns: 30
+  min_posts: 12
+  energy_threshold: 0.2
+  low_energy_rounds: 3
+  refractory_period: 2
+  hysteresis_threshold: 3
+
+observer:
+  hysteresis_threshold: 3
+  window_size: 10
+  min_posts_before_converge: 12
+  observation_frequency: 0.2
+
+  explore_question_rate_min: 0.3
+  explore_topic_diversity_min: 0.6
+  debate_disagreement_rate_min: 0.4
+  debate_citation_density_min: 0.5
+  deepen_topic_diversity_max: 0.5
+  deepen_novelty_avg_min: 0.5
+  converge_energy_max: 0.3
+  converge_posts_since_novel_min: 5
+
+energy:
+  window: 10
+  weights:
+    novelty: 0.4
+    disagreement: 0.3
+    questions: 0.2
+    staleness: -0.1
+  novelty_bonus_per_connection: 0.1
+  max_novelty_bonus: 0.3
+  optimal_disagreement_rate: 0.4
+  max_open_questions: 5
+  posts_since_novel_threshold: 10
+  repetition_weight: 2.0
+  min_posts: 12
+  max_posts: 50
+  energy_threshold: 0.2
+  low_energy_rounds: 3
+  injection:
+    new_knowledge: 0.3
+    human_intervention: 0.4
+    novel_post: 0.2
+    red_team_challenge: 0.15
+
+triggers:
+  window: 5
+  refractory_period: 2
+  relevance_min_keyword_matches: 2
+  relevance_phase_modulation:
+    explore: 1
+    debate: 2
+    deepen: 3
+    converge: 3
+  silence_min_conversation_length: 8
+  silence_max: 6
+  silence_phase_modulation:
+    explore: 4
+    debate: 6
+    deepen: 8
+    converge: 6
+  bridge_min_agents: 2
+  red_team_consensus_threshold: 3
+  red_team_criticism_gap: 3
+  red_team_min_debate_posts: 15
