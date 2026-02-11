@@ -107,6 +107,8 @@ class EmergentDeliberationEngine:
                     )
                     energy_history.append(energy_update.energy)
                     yield energy_update
+                # Yield control so CancelledError can be delivered
+                await asyncio.sleep(0)
                 continue
 
             # 4. Generate posts concurrently
@@ -292,7 +294,19 @@ class EmergentDeliberationEngine:
             return post
         except Exception as e:
             logger.error("Agent %s failed: %s", agent.agent_id, e)
-            return agent._fallback_post(deps)
+            try:
+                return agent._fallback_post(deps)
+            except Exception as fallback_err:
+                logger.error("Agent %s fallback also failed: %s", agent.agent_id, fallback_err)
+                return Post(
+                    session_id=deps.session.id,
+                    agent_id=agent.agent_id,
+                    content="[Agent encountered an error and could not respond]",
+                    stance=AgentStance.NEUTRAL,
+                    novelty_score=0.0,
+                    phase=deps.phase,
+                    triggered_by=rules,
+                )
 
     async def _run_synthesis(
         self,

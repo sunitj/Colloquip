@@ -58,6 +58,22 @@ class TestCreateDeliberation:
         resp = await client.post("/api/deliberations", json={})
         assert resp.status_code == 422
 
+    async def test_create_session_empty_hypothesis(self, client):
+        resp = await client.post("/api/deliberations", json={"hypothesis": ""})
+        assert resp.status_code == 422
+
+    async def test_create_session_invalid_mode(self, client):
+        resp = await client.post("/api/deliberations", json={
+            "hypothesis": "Test", "mode": "invalid"
+        })
+        assert resp.status_code == 422
+
+    async def test_create_session_invalid_max_turns(self, client):
+        resp = await client.post("/api/deliberations", json={
+            "hypothesis": "Test", "max_turns": 0
+        })
+        assert resp.status_code == 422
+
 
 class TestGetSession:
     async def test_get_session(self, client):
@@ -158,6 +174,28 @@ class TestIntervention:
         )
         assert resp.status_code == 404
 
+    async def test_intervene_invalid_type(self, client):
+        create_resp = await client.post("/api/deliberations", json={
+            "hypothesis": "Test hypothesis",
+        })
+        session_id = create_resp.json()["id"]
+        resp = await client.post(
+            f"/api/deliberations/{session_id}/intervene",
+            json={"type": "invalid", "content": "Hello"},
+        )
+        assert resp.status_code == 422
+
+    async def test_intervene_empty_content(self, client):
+        create_resp = await client.post("/api/deliberations", json={
+            "hypothesis": "Test hypothesis",
+        })
+        session_id = create_resp.json()["id"]
+        resp = await client.post(
+            f"/api/deliberations/{session_id}/intervene",
+            json={"type": "question", "content": ""},
+        )
+        assert resp.status_code == 422
+
 
 class TestGetEvents:
     async def test_get_events_empty(self, client):
@@ -235,6 +273,36 @@ class TestSessionManager:
         posts = manager.get_posts(session.id)
         assert len(posts) >= 6  # At least seed posts
 
-        # Verify energy history was tracked
+        # Verify energy history returns full EnergyUpdate dicts
         energy = manager.get_energy_history(session.id)
         assert len(energy) > 0
+        # Each entry should be a dict with turn, energy, and components
+        first_entry = energy[0]
+        assert isinstance(first_entry, dict)
+        assert "energy" in first_entry
+        assert "turn" in first_entry
+        assert "components" in first_entry
+
+    async def test_session_lock_created(self):
+        manager = SessionManager()
+        session = manager.create_session("Test hypothesis")
+        assert session.id in manager._session_locks
+
+    async def test_start_already_running_returns_error(self):
+        """Starting an already-running session raises ValueError."""
+        manager = SessionManager()
+        session = manager.create_session("Test hypothesis", max_turns=3)
+        queue = manager.subscribe(session.id)
+        await manager.start_deliberation(session.id)
+
+        with pytest.raises(ValueError, match="already running"):
+            await manager.start_deliberation(session.id)
+
+        # Cleanup: wait for deliberation to finish
+        while True:
+            try:
+                event = await asyncio.wait_for(queue.get(), timeout=10)
+                if event.get("type") in ("done", "error"):
+                    break
+            except asyncio.TimeoutError:
+                break

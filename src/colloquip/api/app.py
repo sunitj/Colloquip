@@ -33,11 +33,12 @@ class SessionManager:
     def __init__(self):
         self.sessions: Dict[UUID, DeliberationSession] = {}
         self.posts: Dict[UUID, list] = {}
-        self.energy_history: Dict[UUID, list] = {}
+        self.energy_history: Dict[UUID, list] = {}  # List[float] for engine use
         self.engines: Dict[UUID, EmergentDeliberationEngine] = {}
         self.events: Dict[UUID, list] = {}
         self.subscribers: Dict[UUID, list[asyncio.Queue]] = {}
         self._running_tasks: Dict[UUID, asyncio.Task] = {}
+        self._session_locks: Dict[UUID, asyncio.Lock] = {}
 
     def create_session(
         self,
@@ -54,6 +55,7 @@ class SessionManager:
         self.energy_history[session.id] = []
         self.events[session.id] = []
         self.subscribers[session.id] = []
+        self._session_locks[session.id] = asyncio.Lock()
 
         # Create engine components
         llm = self._create_llm(mode, seed, model)
@@ -61,7 +63,7 @@ class SessionManager:
         num_agents = len(agents)
 
         energy_config = EnergyConfig()
-        energy_calc = EnergyCalculator(config=energy_config)
+        energy_calc = EnergyCalculator(config=energy_config, num_agents=num_agents)
         observer = ObserverAgent(energy_calculator=energy_calc, num_agents=num_agents)
 
         engine = EmergentDeliberationEngine(
@@ -84,8 +86,9 @@ class SessionManager:
         return list(self.posts.get(session_id, []))
 
     def get_energy_history(self, session_id: UUID) -> list:
-        """Return a snapshot copy of the energy history."""
-        return list(self.energy_history.get(session_id, []))
+        """Return energy history as full EnergyUpdate dicts for the API."""
+        events = self.events.get(session_id, [])
+        return [e["data"] for e in events if e.get("type") == "energy_update"]
 
     def get_events(self, session_id: UUID) -> list:
         """Return a snapshot copy of the events list."""
@@ -143,14 +146,19 @@ class SessionManager:
 
     async def _run_deliberation(self, session_id: UUID):
         """Internal deliberation runner that broadcasts events."""
+        session = self.sessions.get(session_id)
         try:
-            session = self.sessions[session_id]
             engine = self.engines[session_id]
             posts = self.posts[session_id]
+            lock = self._session_locks.get(session_id)
 
             async for event in engine.run_deliberation(session, session.hypothesis):
                 if isinstance(event, Post):
-                    posts.append(event)
+                    if lock:
+                        async with lock:
+                            posts.append(event)
+                    else:
+                        posts.append(event)
                     await self._broadcast(session_id, {
                         "type": "post",
                         "data": event.model_dump(mode="json"),
@@ -161,7 +169,8 @@ class SessionManager:
                         "data": event.model_dump(mode="json"),
                     })
                 elif isinstance(event, EnergyUpdate):
-                    self.energy_history[session_id].append(event.model_dump(mode="json"))
+                    # Store float for engine use; broadcast full dict for frontend
+                    self.energy_history[session_id].append(event.energy)
                     await self._broadcast(session_id, {
                         "type": "energy_update",
                         "data": event.model_dump(mode="json"),
@@ -175,11 +184,12 @@ class SessionManager:
             await self._broadcast(session_id, {"type": "done", "data": None})
         except asyncio.CancelledError:
             logger.info("Deliberation cancelled for session %s", session_id)
-            session = self.sessions.get(session_id)
             if session:
                 session.status = SessionStatus.PAUSED
         except Exception as e:
             logger.error("Deliberation error for session %s: %s", session_id, e)
+            if session:
+                session.status = SessionStatus.COMPLETED
             await self._broadcast(session_id, {
                 "type": "error",
                 "data": {"message": str(e)},
@@ -201,12 +211,21 @@ class SessionManager:
                 f"Session {session_id} is not running (status: {session.status.value})"
             )
 
-        posts = self.posts[session_id]
-        energy_history = self.energy_history[session_id]
+        lock = self._session_locks.get(session_id)
+        if lock:
+            async with lock:
+                posts = self.posts[session_id]
+                energy_history = self.energy_history[session_id]
+                result_posts = await engine.handle_intervention(
+                    session, intervention, posts, energy_history
+                )
+        else:
+            posts = self.posts[session_id]
+            energy_history = self.energy_history[session_id]
+            result_posts = await engine.handle_intervention(
+                session, intervention, posts, energy_history
+            )
 
-        result_posts = await engine.handle_intervention(
-            session, intervention, posts, energy_history
-        )
         for post in result_posts:
             await self._broadcast(session_id, {
                 "type": "post",

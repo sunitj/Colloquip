@@ -10,6 +10,7 @@ from colloquip.models import (
     AgentStance,
     ConsensusMap,
     EnergyUpdate,
+    HumanIntervention,
     Phase,
     PhaseSignal,
     Post,
@@ -181,3 +182,87 @@ class TestMockBounds:
         for _ in range(50):
             novelty = mock._pick_novelty()
             assert 0.05 <= novelty <= 0.3
+
+
+class TestHandleIntervention:
+    """Tests for human intervention handling."""
+
+    @pytest.mark.asyncio
+    async def test_question_intervention_creates_posts(self):
+        engine = _create_engine(max_turns=5, min_posts=6)
+        session = create_session()
+
+        # Build some posts first by running a few turns
+        posts = []
+        energy_history = []
+        async for event in engine.run_deliberation(session, session.hypothesis):
+            if isinstance(event, Post):
+                posts.append(event)
+            elif isinstance(event, EnergyUpdate):
+                energy_history.append(event.energy)
+            if len(posts) >= 6:
+                break
+
+        intervention = HumanIntervention(
+            session_id=session.id,
+            type="question",
+            content="What about the blood-brain barrier crossing?",
+        )
+        result = await engine.handle_intervention(
+            session, intervention, posts, energy_history
+        )
+
+        # Should return human post + agent responses
+        assert len(result) >= 1
+        assert result[0].agent_id == "human"
+        assert result[0].content == "What about the blood-brain barrier crossing?"
+        assert result[0].stance == AgentStance.NEUTRAL
+
+    @pytest.mark.asyncio
+    async def test_terminate_intervention_returns_empty(self):
+        engine = _create_engine(max_turns=5, min_posts=6)
+        session = create_session()
+
+        energy_history = [0.5, 0.6]
+        posts = []
+
+        intervention = HumanIntervention(
+            session_id=session.id,
+            type="terminate",
+            content="Stop deliberation",
+        )
+        result = await engine.handle_intervention(
+            session, intervention, posts, energy_history
+        )
+
+        assert result == []
+        # Energy should be set to 0 for termination
+        assert energy_history[-1] == 0.0
+
+    @pytest.mark.asyncio
+    async def test_intervention_injects_energy(self):
+        engine = _create_engine(max_turns=5, min_posts=6)
+        session = create_session()
+
+        energy_history = [0.3]
+
+        intervention = HumanIntervention(
+            session_id=session.id,
+            type="data",
+            content="New clinical trial data shows significant improvement.",
+        )
+        # Need some posts for the engine to work with
+        posts = []
+        async for event in engine.run_deliberation(session, session.hypothesis):
+            if isinstance(event, Post):
+                posts.append(event)
+            if len(posts) >= 6:
+                break
+
+        energy_before = energy_history[-1]
+        await engine.handle_intervention(
+            session, intervention, posts, energy_history
+        )
+
+        # Energy should have been injected (boosted)
+        assert energy_history[-1] >= energy_before

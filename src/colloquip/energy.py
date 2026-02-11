@@ -10,8 +10,9 @@ from colloquip.models import AgentStance, EnergySource, EnergyUpdate, Post
 class EnergyCalculator:
     """Calculate conversation energy from post dynamics."""
 
-    def __init__(self, config: Optional[EnergyConfig] = None):
+    def __init__(self, config: Optional[EnergyConfig] = None, num_agents: int = 6):
         self.config = config or EnergyConfig()
+        self.num_agents = num_agents
 
     def _compute_energy_and_components(
         self, posts: List[Post]
@@ -94,7 +95,7 @@ class EnergyCalculator:
 
         # Condition 3: All agents contributed and energy declining
         unique_agents = len(set(p.agent_id for p in posts))
-        if unique_agents >= 6 and len(energy_history) >= 3:
+        if unique_agents >= self.num_agents and len(energy_history) >= 3:
             trend = energy_history[-1] - energy_history[-3]
             if trend < -0.2 and energy_history[-1] < 0.4:
                 return True, "declining_energy: all agents contributed, energy declining"

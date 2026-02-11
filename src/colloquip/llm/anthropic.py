@@ -161,6 +161,8 @@ class AnthropicLLM:
         self._total_input_tokens += message.usage.input_tokens
         self._total_output_tokens += message.usage.output_tokens
 
+        if not message.content:
+            raise ValueError("LLM returned empty content (possibly filtered or rate-limited)")
         raw_text = message.content[0].text
         return parse_agent_response(raw_text)
 
@@ -183,6 +185,8 @@ class AnthropicLLM:
         self._total_input_tokens += message.usage.input_tokens
         self._total_output_tokens += message.usage.output_tokens
 
+        if not message.content:
+            raise ValueError("LLM returned empty synthesis content")
         return message.content[0].text
 
     @property

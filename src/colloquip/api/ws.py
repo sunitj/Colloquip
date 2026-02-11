@@ -1,6 +1,7 @@
 """WebSocket endpoint for real-time deliberation streaming."""
 
 import asyncio
+import json
 import logging
 from uuid import UUID
 
@@ -111,7 +112,16 @@ async def _receive_messages(
     """Handle incoming messages from the WebSocket client."""
     try:
         while True:
-            data = await websocket.receive_json()
+            try:
+                data = await websocket.receive_json()
+            except json.JSONDecodeError:
+                await websocket.send_json({
+                    "type": "error",
+                    "data": {"message": "Invalid JSON"},
+                    "seq": -1,
+                })
+                continue
+
             msg_type = data.get("type")
 
             if msg_type == "replay":
@@ -163,4 +173,4 @@ async def _receive_messages(
     except WebSocketDisconnect:
         raise
     except Exception as e:
-        logger.error("Error receiving WebSocket message: %s", e)
+        logger.error("Error in WebSocket receive loop: %s", e)

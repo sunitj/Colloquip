@@ -6,10 +6,11 @@ import { EnergyChart } from './components/EnergyChart';
 import { PhaseTimeline } from './components/PhaseTimeline';
 import { TriggerLog } from './components/TriggerLog';
 import { ConsensusView } from './components/ConsensusView';
+import { InterventionBar } from './components/InterventionBar';
 import './App.css';
 
 function App() {
-  const { state, createAndStart } = useDeliberation();
+  const { state, createAndStart, intervene } = useDeliberation();
 
   return (
     <div className="app">
@@ -53,6 +54,9 @@ function App() {
           />
         </aside>
       </div>
+
+      {/* Intervention bar */}
+      <InterventionBar onIntervene={intervene} status={state.status} />
 
       {/* Bottom panel: Trigger Log */}
       <footer className="panel-bottom">

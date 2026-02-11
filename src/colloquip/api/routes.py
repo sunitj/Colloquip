@@ -3,7 +3,7 @@
 import asyncio
 import json
 import logging
-from typing import Optional
+from typing import Literal, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request
@@ -21,8 +21,8 @@ router = APIRouter(prefix="/api")
 # --- Request / Response schemas ---
 
 class CreateSessionRequest(BaseModel):
-    hypothesis: str
-    mode: str = "mock"
+    hypothesis: str = Field(min_length=1, max_length=2000)
+    mode: Literal["mock", "real"] = "mock"
     seed: int = 42
     model: Optional[str] = None
     max_turns: int = Field(default=30, ge=1, le=100)
@@ -35,8 +35,8 @@ class CreateSessionResponse(BaseModel):
 
 
 class InterventionRequest(BaseModel):
-    type: str  # question, data, redirect, terminate
-    content: str
+    type: Literal["question", "data", "redirect", "terminate"]
+    content: str = Field(min_length=1, max_length=5000)
 
 
 class SessionStateResponse(BaseModel):
@@ -91,7 +91,11 @@ async def start_deliberation(session_id: UUID, request: Request):
     queue = manager.subscribe(session_id)
 
     # Start the deliberation in the background
-    await manager.start_deliberation(session_id)
+    try:
+        await manager.start_deliberation(session_id)
+    except ValueError as e:
+        manager.unsubscribe(session_id, queue)
+        raise HTTPException(status_code=400, detail=str(e))
 
     async def event_stream():
         try:

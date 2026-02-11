@@ -629,6 +629,50 @@ body {
 
 .connection-indicator.connected { color: #22c55e; }
 
+/* ---- Intervention Bar ---- */
+.intervention-bar {
+  display: flex;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border);
+  align-items: center;
+}
+.intervention-type-select {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 0.8rem;
+}
+.intervention-input {
+  flex: 1;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+}
+.intervention-input::placeholder { color: var(--text-muted); }
+.intervention-input:focus { outline: none; border-color: var(--accent); }
+.intervention-submit {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.intervention-submit:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.intervention-submit:hover:not(:disabled) { background: #7c3aed; }
+
 /* ---- Scrollbar ---- */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
