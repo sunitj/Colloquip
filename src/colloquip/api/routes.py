@@ -107,6 +107,7 @@ async def start_deliberation(session_id: UUID, request: Request):
             yield f"event: timeout\ndata: {{}}\n\n"
         finally:
             manager.unsubscribe(session_id, queue)
+            manager.cancel_if_no_subscribers(session_id)
 
     return StreamingResponse(
         event_stream(),

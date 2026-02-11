@@ -16,11 +16,11 @@ def create_app(session_manager: SessionManager | None = None) -> FastAPI:
         version="0.1.0",
     )
 
-    # CORS for web dashboard
+    # CORS for web dashboard (credentials=False with wildcard origin per spec)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
-        allow_credentials=True,
+        allow_credentials=False,
         allow_methods=["*"],
         allow_headers=["*"],
     )

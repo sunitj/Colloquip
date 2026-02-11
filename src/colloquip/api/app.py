@@ -23,6 +23,9 @@ from colloquip.observer import ObserverAgent
 
 logger = logging.getLogger(__name__)
 
+# Max events queued per subscriber before dropping
+_SUBSCRIBER_QUEUE_SIZE = 256
+
 
 class SessionManager:
     """Manages active deliberation sessions and their state."""
@@ -77,17 +80,20 @@ class SessionManager:
         return self.sessions.get(session_id)
 
     def get_posts(self, session_id: UUID) -> list:
-        return self.posts.get(session_id, [])
+        """Return a snapshot copy of the posts list."""
+        return list(self.posts.get(session_id, []))
 
     def get_energy_history(self, session_id: UUID) -> list:
-        return self.energy_history.get(session_id, [])
+        """Return a snapshot copy of the energy history."""
+        return list(self.energy_history.get(session_id, []))
 
     def get_events(self, session_id: UUID) -> list:
-        return self.events.get(session_id, [])
+        """Return a snapshot copy of the events list."""
+        return list(self.events.get(session_id, []))
 
     def subscribe(self, session_id: UUID) -> asyncio.Queue:
         """Subscribe to real-time events for a session."""
-        queue: asyncio.Queue = asyncio.Queue()
+        queue: asyncio.Queue = asyncio.Queue(maxsize=_SUBSCRIBER_QUEUE_SIZE)
         if session_id not in self.subscribers:
             self.subscribers[session_id] = []
         self.subscribers[session_id].append(queue)
@@ -101,9 +107,18 @@ class SessionManager:
             except ValueError:
                 pass
 
+    def cancel_if_no_subscribers(self, session_id: UUID):
+        """Cancel the deliberation task if no subscribers remain."""
+        if not self.subscribers.get(session_id):
+            task = self._running_tasks.get(session_id)
+            if task and not task.done():
+                task.cancel()
+                logger.info("Cancelled deliberation for session %s (no subscribers)", session_id)
+
     async def _broadcast(self, session_id: UUID, event: dict):
         """Broadcast an event to all subscribers of a session."""
-        self.events[session_id].append(event)
+        if session_id in self.events:
+            self.events[session_id].append(event)
         for queue in self.subscribers.get(session_id, []):
             try:
                 queue.put_nowait(event)
@@ -120,16 +135,19 @@ class SessionManager:
         if session.status == SessionStatus.RUNNING:
             raise ValueError(f"Session {session_id} is already running")
 
+        # Set status BEFORE creating the task to prevent race conditions
+        session.status = SessionStatus.RUNNING
+
         task = asyncio.create_task(self._run_deliberation(session_id))
         self._running_tasks[session_id] = task
 
     async def _run_deliberation(self, session_id: UUID):
         """Internal deliberation runner that broadcasts events."""
-        session = self.sessions[session_id]
-        engine = self.engines[session_id]
-        posts = self.posts[session_id]
-
         try:
+            session = self.sessions[session_id]
+            engine = self.engines[session_id]
+            posts = self.posts[session_id]
+
             async for event in engine.run_deliberation(session, session.hypothesis):
                 if isinstance(event, Post):
                     posts.append(event)
@@ -155,12 +173,19 @@ class SessionManager:
                     })
 
             await self._broadcast(session_id, {"type": "done", "data": None})
+        except asyncio.CancelledError:
+            logger.info("Deliberation cancelled for session %s", session_id)
+            session = self.sessions.get(session_id)
+            if session:
+                session.status = SessionStatus.PAUSED
         except Exception as e:
             logger.error("Deliberation error for session %s: %s", session_id, e)
             await self._broadcast(session_id, {
                 "type": "error",
                 "data": {"message": str(e)},
             })
+        finally:
+            self._running_tasks.pop(session_id, None)
 
     async def intervene(
         self, session_id: UUID, intervention: HumanIntervention
@@ -170,6 +195,11 @@ class SessionManager:
         engine = self.engines.get(session_id)
         if not session or not engine:
             raise ValueError(f"Session {session_id} not found")
+
+        if session.status != SessionStatus.RUNNING:
+            raise ValueError(
+                f"Session {session_id} is not running (status: {session.status.value})"
+            )
 
         posts = self.posts[session_id]
         energy_history = self.energy_history[session_id]

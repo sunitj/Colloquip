@@ -1,7 +1,6 @@
 """WebSocket endpoint for real-time deliberation streaming."""
 
 import asyncio
-import json
 import logging
 from uuid import UUID
 
@@ -22,8 +21,6 @@ async def deliberation_websocket(websocket: WebSocket, session_id: UUID):
     - post: New agent post (agent, stance, content, claims, questions)
     - phase_change: Phase transition (from, to, confidence, observation)
     - energy_update: Energy value + component breakdown
-    - trigger_fired: Agent trigger activation (embedded in post events)
-    - agent_status: Agent state change (active, refractory, idle)
     - session_complete: Deliberation finished (consensus map)
     - done: Stream finished
     - error: An error occurred
@@ -76,6 +73,7 @@ async def deliberation_websocket(websocket: WebSocket, session_id: UUID):
         logger.error("WebSocket error for session %s: %s", session_id, e)
     finally:
         manager.unsubscribe(session_id, queue)
+        manager.cancel_if_no_subscribers(session_id)
 
 
 async def _send_events(
@@ -117,7 +115,7 @@ async def _receive_messages(
             msg_type = data.get("type")
 
             if msg_type == "replay":
-                # Client requesting missed events from a sequence number
+                # Client requesting missed events — use snapshot
                 since = data.get("since", 0)
                 events = manager.get_events(session_id)
                 for i, event in enumerate(events[since:], start=since):
@@ -128,7 +126,6 @@ async def _receive_messages(
                     })
 
             elif msg_type == "start":
-                # Client requesting to start the deliberation
                 try:
                     await manager.start_deliberation(session_id)
                     await websocket.send_json({
@@ -136,6 +133,8 @@ async def _receive_messages(
                         "data": {"action": "start"},
                         "seq": -1,
                     })
+                except WebSocketDisconnect:
+                    raise
                 except ValueError as e:
                     await websocket.send_json({
                         "type": "error",
@@ -144,7 +143,6 @@ async def _receive_messages(
                     })
 
             elif msg_type == "intervene":
-                # Client submitting a human intervention
                 from colloquip.models import HumanIntervention
                 try:
                     intervention = HumanIntervention(
@@ -153,6 +151,8 @@ async def _receive_messages(
                         content=data.get("content", ""),
                     )
                     await manager.intervene(session_id, intervention)
+                except WebSocketDisconnect:
+                    raise
                 except Exception as e:
                     await websocket.send_json({
                         "type": "error",

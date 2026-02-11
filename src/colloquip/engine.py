@@ -214,7 +214,7 @@ class EmergentDeliberationEngine:
             session=session,
             phase=Phase.EXPLORE,
             phase_signal=seed_signal,
-            posts=posts,
+            posts=list(posts),  # snapshot for concurrent agents
         )
 
         tasks = []
@@ -257,7 +257,7 @@ class EmergentDeliberationEngine:
             session=session,
             phase=phase_signal.current_phase,
             phase_signal=phase_signal,
-            posts=posts,
+            posts=list(posts),  # snapshot for concurrent agents
         )
 
         tasks = []
