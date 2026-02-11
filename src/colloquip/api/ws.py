@@ -154,6 +154,7 @@ async def _receive_messages(
 
             elif msg_type == "intervene":
                 from colloquip.models import HumanIntervention
+                from pydantic import ValidationError
                 try:
                     intervention = HumanIntervention(
                         session_id=session_id,
@@ -161,6 +162,13 @@ async def _receive_messages(
                         content=data.get("content", ""),
                     )
                     await manager.intervene(session_id, intervention)
+                except ValidationError as ve:
+                    await websocket.send_json({
+                        "type": "error",
+                        "data": {"message": f"Invalid intervention: {ve.error_count()} error(s)"},
+                        "seq": -1,
+                    })
+                    continue
                 except WebSocketDisconnect:
                     raise
                 except Exception as e:

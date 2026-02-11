@@ -178,6 +178,10 @@ export function useDeliberation() {
           clearTimeout(timer);
           resolve();
         }, { once: true });
+        ws.addEventListener('error', () => {
+          clearTimeout(timer);
+          reject(new Error('WebSocket connection failed'));
+        }, { once: true });
       });
 
       await waitForOpen;

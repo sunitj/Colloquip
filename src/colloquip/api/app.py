@@ -145,6 +145,11 @@ class SessionManager:
         if session.status == SessionStatus.RUNNING:
             raise ValueError(f"Session {session_id} is already running")
 
+        # Guard against a completed task that hasn't been cleaned up yet
+        existing_task = self._running_tasks.get(session_id)
+        if existing_task and not existing_task.done():
+            raise ValueError(f"Session {session_id} already has a running task")
+
         # Set status BEFORE creating the task to prevent race conditions
         session.status = SessionStatus.RUNNING
 

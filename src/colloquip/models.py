@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict, List, Literal, Optional
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
@@ -126,8 +126,8 @@ class EngineConfig(BaseModel):
 
 class HumanIntervention(BaseModel):
     session_id: UUID
-    type: str  # question, data, redirect, terminate
-    content: str
+    type: Literal["question", "data", "redirect", "terminate"]
+    content: str = Field(min_length=1)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 

@@ -1,6 +1,5 @@
 """Repository pattern for database operations."""
 
-import json
 import logging
 from typing import Dict, List, Optional
 from uuid import UUID

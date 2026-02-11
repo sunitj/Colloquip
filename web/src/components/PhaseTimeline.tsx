@@ -8,35 +8,33 @@ interface PhaseTimelineProps {
 
 const PHASES: Phase[] = ['explore', 'debate', 'deepen', 'converge', 'synthesis'];
 
-const PHASE_ORDER: Record<Phase, number> = {
-  explore: 0,
-  debate: 1,
-  deepen: 2,
-  converge: 3,
-  synthesis: 4,
-};
-
 export function PhaseTimeline({ currentPhase, phaseHistory }: PhaseTimelineProps) {
-  const currentIdx = PHASE_ORDER[currentPhase] ?? 0;
   const latestSignal = phaseHistory[phaseHistory.length - 1];
   const confidence = latestSignal?.confidence ?? 1.0;
+
+  // Track which phases have actually been visited (emergent order, not linear)
+  const visitedPhases = new Set<Phase>();
+  for (const signal of phaseHistory) {
+    visitedPhases.add(signal.current_phase);
+  }
+  // Current phase is always considered visited
+  visitedPhases.add(currentPhase);
 
   return (
     <div className="phase-timeline">
       <h2 className="panel-title">Phase</h2>
       <div className="phase-list">
-        {PHASES.map((phase, i) => {
+        {PHASES.map((phase) => {
           const isCurrent = phase === currentPhase;
-          const isCompleted = i < currentIdx;
-          const isFuture = i > currentIdx;
+          const isVisited = visitedPhases.has(phase) && !isCurrent;
 
           return (
             <div
               key={phase}
-              className={`phase-item ${isCurrent ? 'current' : ''} ${isCompleted ? 'completed' : ''} ${isFuture ? 'future' : ''}`}
+              className={`phase-item ${isCurrent ? 'current' : ''} ${isVisited ? 'completed' : ''} ${!isCurrent && !isVisited ? 'future' : ''}`}
             >
               <div className="phase-dot">
-                {isCompleted ? '✓' : isCurrent ? '●' : '○'}
+                {isVisited ? '✓' : isCurrent ? '●' : '○'}
               </div>
               <div className="phase-label">
                 {PHASE_LABELS[phase]}
