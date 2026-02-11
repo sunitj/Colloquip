@@ -106,7 +106,11 @@ function App() {
           {state.consensus ? (
             <ConsensusView consensus={state.consensus} />
           ) : (
-            <ConversationStream posts={state.posts} />
+            <ConversationStream
+              posts={state.posts}
+              status={state.status}
+              thinking={state.thinking}
+            />
           )}
         </main>
 

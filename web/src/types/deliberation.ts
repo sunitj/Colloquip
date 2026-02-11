@@ -92,6 +92,8 @@ export interface DeliberationState {
   consensus: ConsensusMap | null;
   connected: boolean;
   error: string | null;
+  /** True while waiting for the next round of posts (between rounds or before first post). */
+  thinking: boolean;
 }
 
 export type WSEvent =

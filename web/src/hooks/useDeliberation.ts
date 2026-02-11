@@ -35,6 +35,7 @@ const initialState: DeliberationState = {
   consensus: null,
   connected: false,
   error: null,
+  thinking: false,
 };
 
 export function useDeliberation() {
@@ -70,6 +71,7 @@ export function useDeliberation() {
           trigger.postIndex = newPosts.length - 1;
           return {
             ...s,
+            thinking: false,
             posts: newPosts,
             triggers: [...s.triggers, trigger],
           };
@@ -88,6 +90,7 @@ export function useDeliberation() {
       case 'energy_update':
         setState(s => ({
           ...s,
+          thinking: true,
           energyHistory: [...s.energyHistory, evt.data as EnergyUpdate],
         }));
         break;
@@ -96,16 +99,17 @@ export function useDeliberation() {
         setState(s => ({
           ...s,
           status: 'completed',
+          thinking: false,
           consensus: evt.data as ConsensusMap,
         }));
         break;
 
       case 'done':
-        setState(s => ({ ...s, status: 'completed' }));
+        setState(s => ({ ...s, status: 'completed', thinking: false }));
         break;
 
       case 'error':
-        setState(s => ({ ...s, error: (evt.data as { message: string }).message }));
+        setState(s => ({ ...s, thinking: false, error: (evt.data as { message: string }).message }));
         break;
 
       case 'timeout':
@@ -194,7 +198,7 @@ export function useDeliberation() {
 
       await waitForOpen;
       ws.send(JSON.stringify({ type: 'start' }));
-      setState(s => ({ ...s, status: 'running' }));
+      setState(s => ({ ...s, status: 'running', thinking: true }));
 
     } catch (err) {
       setState(s => ({ ...s, error: String(err) }));
@@ -254,6 +258,7 @@ export function useDeliberation() {
         consensus: data.consensus,
         connected: false,
         error: null,
+        thinking: false,
       });
     } catch (err) {
       setState(s => ({ ...s, error: String(err) }));
