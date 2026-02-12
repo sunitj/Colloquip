@@ -41,16 +41,18 @@ async def deliberation_websocket(websocket: WebSocket, session_id: UUID):
 
     try:
         # Send initial session state
-        await websocket.send_json({
-            "type": "session_state",
-            "data": {
-                "id": str(session.id),
-                "hypothesis": session.hypothesis,
-                "status": session.status.value,
-                "phase": session.phase.value,
-            },
-            "seq": 0,
-        })
+        await websocket.send_json(
+            {
+                "type": "session_state",
+                "data": {
+                    "id": str(session.id),
+                    "hypothesis": session.hypothesis,
+                    "status": session.status.value,
+                    "phase": session.phase.value,
+                },
+                "seq": 0,
+            }
+        )
 
         # Two concurrent tasks: sending events and receiving client messages
         send_task = asyncio.create_task(_send_events(websocket, queue, manager, session_id))
@@ -89,19 +91,23 @@ async def _send_events(
         while True:
             event = await asyncio.wait_for(queue.get(), timeout=120)
             seq += 1
-            await websocket.send_json({
-                "type": event.get("type", "message"),
-                "data": event.get("data"),
-                "seq": seq,
-            })
+            await websocket.send_json(
+                {
+                    "type": event.get("type", "message"),
+                    "data": event.get("data"),
+                    "seq": seq,
+                }
+            )
             if event.get("type") in ("done", "error"):
                 break
     except asyncio.TimeoutError:
-        await websocket.send_json({
-            "type": "timeout",
-            "data": {"message": "No events for 120 seconds"},
-            "seq": seq + 1,
-        })
+        await websocket.send_json(
+            {
+                "type": "timeout",
+                "data": {"message": "No events for 120 seconds"},
+                "seq": seq + 1,
+            }
+        )
 
 
 async def _receive_messages(
@@ -115,11 +121,13 @@ async def _receive_messages(
             try:
                 data = await websocket.receive_json()
             except json.JSONDecodeError:
-                await websocket.send_json({
-                    "type": "error",
-                    "data": {"message": "Invalid JSON"},
-                    "seq": -1,
-                })
+                await websocket.send_json(
+                    {
+                        "type": "error",
+                        "data": {"message": "Invalid JSON"},
+                        "seq": -1,
+                    }
+                )
                 continue
 
             msg_type = data.get("type")
@@ -129,32 +137,40 @@ async def _receive_messages(
                 since = data.get("since", 0)
                 events = manager.get_events(session_id)
                 for i, event in enumerate(events[since:], start=since):
-                    await websocket.send_json({
-                        "type": event.get("type", "message"),
-                        "data": event.get("data"),
-                        "seq": i + 1,
-                    })
+                    await websocket.send_json(
+                        {
+                            "type": event.get("type", "message"),
+                            "data": event.get("data"),
+                            "seq": i + 1,
+                        }
+                    )
 
             elif msg_type == "start":
                 try:
                     await manager.start_deliberation(session_id)
-                    await websocket.send_json({
-                        "type": "ack",
-                        "data": {"action": "start"},
-                        "seq": -1,
-                    })
+                    await websocket.send_json(
+                        {
+                            "type": "ack",
+                            "data": {"action": "start"},
+                            "seq": -1,
+                        }
+                    )
                 except WebSocketDisconnect:
                     raise
                 except ValueError as e:
-                    await websocket.send_json({
-                        "type": "error",
-                        "data": {"message": str(e)},
-                        "seq": -1,
-                    })
+                    await websocket.send_json(
+                        {
+                            "type": "error",
+                            "data": {"message": str(e)},
+                            "seq": -1,
+                        }
+                    )
 
             elif msg_type == "intervene":
-                from colloquip.models import HumanIntervention
                 from pydantic import ValidationError
+
+                from colloquip.models import HumanIntervention
+
                 try:
                     intervention = HumanIntervention(
                         session_id=session_id,
@@ -163,20 +179,26 @@ async def _receive_messages(
                     )
                     await manager.intervene(session_id, intervention)
                 except ValidationError as ve:
-                    await websocket.send_json({
-                        "type": "error",
-                        "data": {"message": f"Invalid intervention: {ve.error_count()} error(s)"},
-                        "seq": -1,
-                    })
+                    await websocket.send_json(
+                        {
+                            "type": "error",
+                            "data": {
+                                "message": f"Invalid intervention: {ve.error_count()} error(s)"
+                            },
+                            "seq": -1,
+                        }
+                    )
                     continue
                 except WebSocketDisconnect:
                     raise
                 except Exception as e:
-                    await websocket.send_json({
-                        "type": "error",
-                        "data": {"message": str(e)},
-                        "seq": -1,
-                    })
+                    await websocket.send_json(
+                        {
+                            "type": "error",
+                            "data": {"message": str(e)},
+                            "seq": -1,
+                        }
+                    )
 
     except WebSocketDisconnect:
         raise

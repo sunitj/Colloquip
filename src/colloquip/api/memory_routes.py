@@ -19,6 +19,7 @@ router = APIRouter(prefix="/api")
 
 # --- Helpers ---
 
+
 def _get_store(request: Request) -> MemoryStore:
     """Get the memory store from app state, raising 503 if not initialized."""
     store = getattr(request.app.state, "memory_store", None)
@@ -36,6 +37,7 @@ def _parse_uuid(value: str, label: str = "ID") -> UUID:
 
 
 # --- Request / Response schemas ---
+
 
 class AnnotateMemoryRequest(BaseModel):
     annotation_type: Literal["outdated", "correction", "confirmed", "context"]
@@ -74,6 +76,7 @@ class MemoryListResponse(BaseModel):
 
 
 # --- Endpoints ---
+
 
 @router.get("/memories")
 async def list_memories(
@@ -171,6 +174,7 @@ async def get_subreddit_memories(
 
 
 # --- Helpers ---
+
 
 def _format_memory(mem, annotations: list) -> MemoryResponse:
     return MemoryResponse(

@@ -6,7 +6,6 @@ will produce. Templates are matched to subreddits via their ThinkingType.
 
 from colloquip.models import OutputSection, OutputTemplate, ThinkingType
 
-
 # ---------------------------------------------------------------------------
 # ASSESSMENT — "Should we pursue this target/compound/approach?"
 # ---------------------------------------------------------------------------
@@ -68,11 +67,11 @@ ASSESSMENT_TEMPLATE = OutputTemplate(
         ),
     ],
     metadata_fields=[
-        "confidence_level",       # high, medium, low
-        "evidence_quality",       # strong, moderate, weak
-        "consensus_strength",     # unanimous, majority, divided
-        "red_team_severity",      # critical, moderate, minor
-        "estimated_timeline",     # if applicable
+        "confidence_level",  # high, medium, low
+        "evidence_quality",  # strong, moderate, weak
+        "consensus_strength",  # unanimous, majority, divided
+        "red_team_severity",  # critical, moderate, minor
+        "estimated_timeline",  # if applicable
     ],
 )
 
@@ -173,8 +172,7 @@ ANALYSIS_TEMPLATE = OutputTemplate(
         OutputSection(
             name="resource_requirements",
             description=(
-                "What resources (people, time, budget, tools) are needed "
-                "to act on the findings?"
+                "What resources (people, time, budget, tools) are needed to act on the findings?"
             ),
             required=False,
         ),

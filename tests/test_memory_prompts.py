@@ -3,8 +3,6 @@
 from datetime import datetime, timezone
 from uuid import uuid4
 
-import pytest
-
 from colloquip.agents.prompts import build_memory_context, build_v3_system_prompt
 from colloquip.memory.retriever import RetrievedMemories
 from colloquip.memory.store import SynthesisMemory

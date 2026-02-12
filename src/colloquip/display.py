@@ -48,9 +48,8 @@ class RichDisplay:
     def __init__(self, max_content_width: int = 200):
         try:
             from rich.console import Console
-            from rich.panel import Panel
-            from rich.table import Table
-            from rich.text import Text
+            from rich.panel import Panel  # noqa: F401
+            from rich.table import Table  # noqa: F401
         except ImportError:
             raise ImportError(
                 "The 'rich' package is required for rich display. "
@@ -99,20 +98,22 @@ class RichDisplay:
         # Content (truncated for display)
         content = post.content
         if len(content) > self.max_content_width:
-            content = content[:self.max_content_width] + "..."
+            content = content[: self.max_content_width] + "..."
 
         body = Text()
         body.append(f"Triggers: {triggers}\n", style="dim")
         body.append(f"Novelty: {post.novelty_score:.2f}\n", style="dim")
         body.append(content)
 
-        self.console.print(Panel(
-            body,
-            title=title,
-            title_align="left",
-            border_style=agent_color,
-            padding=(0, 1),
-        ))
+        self.console.print(
+            Panel(
+                body,
+                title=title,
+                title_align="left",
+                border_style=agent_color,
+                padding=(0, 1),
+            )
+        )
 
     def show_phase_transition(self, signal: PhaseSignal) -> None:
         from rich.text import Text
@@ -175,13 +176,15 @@ class RichDisplay:
         from rich.text import Text
 
         # Summary panel
-        self.console.print(Panel(
-            consensus.summary,
-            title="SYNTHESIS - Consensus Map",
-            title_align="center",
-            border_style="bright_magenta",
-            padding=(1, 2),
-        ))
+        self.console.print(
+            Panel(
+                consensus.summary,
+                title="SYNTHESIS - Consensus Map",
+                title_align="center",
+                border_style="bright_magenta",
+                padding=(1, 2),
+            )
+        )
 
         # Agreements & Disagreements table
         if consensus.agreements or consensus.disagreements:
@@ -241,11 +244,11 @@ class PlainDisplay:
         self._current_phase = Phase.EXPLORE
 
     def show_header(self, hypothesis: str) -> None:
-        print(f"\n{'='*70}")
+        print(f"\n{'=' * 70}")
         print("COLLOQUIP - Emergent Deliberation")
-        print(f"{'='*70}")
+        print(f"{'=' * 70}")
         print(f"Hypothesis: {hypothesis}")
-        print(f"{'='*70}\n")
+        print(f"{'=' * 70}\n")
 
     def show_post(self, post: Post) -> None:
         self._post_count += 1
@@ -253,7 +256,9 @@ class PlainDisplay:
         agent_label = post.agent_id.upper()
         triggers = ", ".join(post.triggered_by) if post.triggered_by else "seed"
 
-        print(f"[{self._post_count:02d}] {agent_label} | {post.phase.value.upper()} | {stance_label}")
+        print(
+            f"[{self._post_count:02d}] {agent_label} | {post.phase.value.upper()} | {stance_label}"
+        )
         print(f"     Triggers: {triggers}")
         print(f"     Novelty: {post.novelty_score:.2f}")
         content = post.content[:200] + "..." if len(post.content) > 200 else post.content
@@ -264,8 +269,10 @@ class PlainDisplay:
         if signal.current_phase == self._current_phase:
             return
         self._current_phase = signal.current_phase
-        print(f"  >>> PHASE TRANSITION: {self._current_phase.value.upper()} "
-              f"(confidence: {signal.confidence:.2f})")
+        print(
+            f"  >>> PHASE TRANSITION: {self._current_phase.value.upper()} "
+            f"(confidence: {signal.confidence:.2f})"
+        )
         if signal.observation:
             print(f"  >>> Observer: {signal.observation}")
         print()
@@ -277,9 +284,9 @@ class PlainDisplay:
         print()
 
     def show_consensus(self, consensus: ConsensusMap) -> None:
-        print(f"\n{'='*70}")
+        print(f"\n{'=' * 70}")
         print("SYNTHESIS - Consensus Map")
-        print(f"{'='*70}")
+        print(f"{'=' * 70}")
         print(f"\nSummary: {consensus.summary}\n")
         if consensus.agreements:
             print("Agreements:")
@@ -294,7 +301,7 @@ class PlainDisplay:
             for m in consensus.minority_positions:
                 print(f"  ? {m}")
         print(f"\nFinal Stances: {consensus.final_stances}")
-        print(f"\n{'='*70}")
+        print(f"\n{'=' * 70}")
 
     def show_footer(self, post_count: int, token_usage: Optional[dict] = None) -> None:
         msg = f"\nDeliberation complete: {post_count} posts generated."

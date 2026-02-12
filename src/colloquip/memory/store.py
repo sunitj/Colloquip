@@ -210,13 +210,15 @@ class InMemoryStore(MemoryStore):
         if memory_id not in self._by_id:
             raise ValueError(f"Memory {memory_id} not found")
         ann_id = str(uuid4())
-        self._annotations.setdefault(memory_id, []).append({
-            "id": ann_id,
-            "annotation_type": annotation_type,
-            "content": content,
-            "created_by": created_by,
-            "created_at": datetime.now(timezone.utc),
-        })
+        self._annotations.setdefault(memory_id, []).append(
+            {
+                "id": ann_id,
+                "annotation_type": annotation_type,
+                "content": content,
+                "created_by": created_by,
+                "created_at": datetime.now(timezone.utc),
+            }
+        )
 
     async def get_annotations(self, memory_id: UUID) -> List[Dict]:
         return self._annotations.get(memory_id, [])

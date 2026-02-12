@@ -3,7 +3,7 @@
 import logging
 from typing import Any, Dict, List, Optional, Type
 
-from colloquip.tools.interface import AgentTool, BaseSearchTool
+from colloquip.tools.interface import BaseSearchTool
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +22,8 @@ class ToolRegistry:
 
     def _register_defaults(self):
         """Register the built-in tool types."""
-        from colloquip.tools.pubmed import MockPubMedTool, PubMedTool
         from colloquip.tools.company_docs import CompanyDocsTool, MockCompanyDocsTool
+        from colloquip.tools.pubmed import MockPubMedTool, PubMedTool
         from colloquip.tools.web_search import MockWebSearchTool, WebSearchTool
 
         self._tool_factories["pubmed_search"] = {
@@ -59,8 +59,7 @@ class ToolRegistry:
         """Create a tool instance by ID with optional configuration."""
         if tool_id not in self._tool_factories:
             raise ValueError(
-                f"Unknown tool '{tool_id}'. "
-                f"Available: {list(self._tool_factories.keys())}"
+                f"Unknown tool '{tool_id}'. Available: {list(self._tool_factories.keys())}"
             )
 
         factory = self._tool_factories[tool_id]

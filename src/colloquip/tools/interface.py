@@ -1,7 +1,6 @@
 """Tool interface and result models for agent research tools."""
 
 from abc import ABC, abstractmethod
-from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
@@ -9,21 +8,23 @@ from pydantic import BaseModel, Field
 
 class SearchResult(BaseModel):
     """A single search result from a literature or data source."""
+
     title: str
     authors: List[str] = Field(default_factory=list)
     abstract: str = ""
     url: str = ""
     doi: str = ""
     year: Optional[int] = None
-    source_id: str = ""          # PMID, internal record ID, etc.
-    source_type: str = ""        # "pubmed", "internal", "web"
+    source_id: str = ""  # PMID, internal record ID, etc.
+    source_type: str = ""  # "pubmed", "internal", "web"
     relevance_score: float = 0.0
     snippet: str = ""
 
 
 class ToolResult(BaseModel):
     """Structured result from a tool invocation."""
-    source: str                  # "pubmed", "company_docs", "web"
+
+    source: str  # "pubmed", "company_docs", "web"
     query: str
     results: List[SearchResult] = Field(default_factory=list)
     truncated: bool = False

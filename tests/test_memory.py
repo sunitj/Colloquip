@@ -1,6 +1,5 @@
 """Tests for memory store and retriever."""
 
-from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
@@ -8,7 +7,6 @@ import pytest
 from colloquip.embeddings.mock import MockEmbeddingProvider
 from colloquip.memory.retriever import MemoryRetriever, RetrievedMemories
 from colloquip.memory.store import InMemoryStore, SynthesisMemory
-
 
 # --- Fixtures ---
 
@@ -204,7 +202,9 @@ class TestMemoryRetriever:
         await store.save(make_memory("arena mem", subreddit_id=SUB_A, embedding=emb_a))
         await store.save(
             make_memory(
-                "global mem", subreddit_id=SUB_B, subreddit_name="chemistry",
+                "global mem",
+                subreddit_id=SUB_B,
+                subreddit_name="chemistry",
                 embedding=emb_b,
             )
         )
@@ -230,7 +230,10 @@ class TestMemoryRetriever:
             await store.save(make_memory(f"topic {i}", subreddit_id=SUB_A, embedding=emb))
 
         result = await retriever.retrieve(
-            "biology", subreddit_id=SUB_A, max_arena=2, max_global=1,
+            "biology",
+            subreddit_id=SUB_A,
+            max_arena=2,
+            max_global=1,
         )
         assert len(result.arena) <= 2
 
@@ -305,10 +308,7 @@ class TestRetrievedMemoriesFormatting:
         assert "Confidence:" not in text
 
     def test_format_multiple_arena_memories(self):
-        mems = [
-            make_memory(f"topic {i}", key_conclusions=[f"Conclusion {i}"])
-            for i in range(3)
-        ]
+        mems = [make_memory(f"topic {i}", key_conclusions=[f"Conclusion {i}"]) for i in range(3)]
         memories = RetrievedMemories(arena=mems)
         text = memories.format_for_prompt()
 

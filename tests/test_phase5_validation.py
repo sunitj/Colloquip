@@ -11,7 +11,6 @@ from colloquip.memory.cross_references import CrossReferenceDetector, extract_en
 from colloquip.memory.differ import DeliberationDiff, MockDeliberationDiffer
 from colloquip.memory.store import InMemoryStore, SynthesisMemory
 
-
 SUB_A = uuid4()
 SUB_B = uuid4()
 SUB_C = uuid4()
@@ -166,21 +165,25 @@ class TestPhase5FeedbackPipeline:
 
         # Agent correct in oncology, incorrect in chemistry
         for _ in range(5):
-            await tracker.save_outcome(OutcomeReport(
-                thread_id=uuid4(),
-                subreddit_id=SUB_A,
-                outcome_type="confirmed",
-                summary="Oncology outcome",
-                agent_assessments={"agent_x": "correct"},
-            ))
+            await tracker.save_outcome(
+                OutcomeReport(
+                    thread_id=uuid4(),
+                    subreddit_id=SUB_A,
+                    outcome_type="confirmed",
+                    summary="Oncology outcome",
+                    agent_assessments={"agent_x": "correct"},
+                )
+            )
         for _ in range(5):
-            await tracker.save_outcome(OutcomeReport(
-                thread_id=uuid4(),
-                subreddit_id=SUB_B,
-                outcome_type="contradicted",
-                summary="Chemistry outcome",
-                agent_assessments={"agent_x": "incorrect"},
-            ))
+            await tracker.save_outcome(
+                OutcomeReport(
+                    thread_id=uuid4(),
+                    subreddit_id=SUB_B,
+                    outcome_type="contradicted",
+                    summary="Chemistry outcome",
+                    agent_assessments={"agent_x": "incorrect"},
+                )
+            )
 
         outcomes = await tracker.list_all()
         calibration = AgentCalibration()

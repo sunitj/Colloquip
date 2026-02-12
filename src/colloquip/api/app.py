@@ -6,7 +6,7 @@ from typing import Callable, Dict, List, Optional
 from uuid import UUID
 
 from colloquip.agents.base import BaseDeliberationAgent
-from colloquip.config import EnergyConfig, ObserverConfig
+from colloquip.config import EnergyConfig
 from colloquip.energy import EnergyCalculator
 from colloquip.engine import EmergentDeliberationEngine
 from colloquip.llm.mock import MockBehavior, MockLLM
@@ -171,29 +171,41 @@ class SessionManager:
                             posts.append(event)
                     else:
                         posts.append(event)
-                    await self._broadcast(session_id, {
-                        "type": "post",
-                        "data": event.model_dump(mode="json"),
-                    })
+                    await self._broadcast(
+                        session_id,
+                        {
+                            "type": "post",
+                            "data": event.model_dump(mode="json"),
+                        },
+                    )
                     await self._persist_post(event)
                 elif isinstance(event, PhaseSignal):
-                    await self._broadcast(session_id, {
-                        "type": "phase_change",
-                        "data": event.model_dump(mode="json"),
-                    })
+                    await self._broadcast(
+                        session_id,
+                        {
+                            "type": "phase_change",
+                            "data": event.model_dump(mode="json"),
+                        },
+                    )
                 elif isinstance(event, EnergyUpdate):
                     # Store float for engine use; broadcast full dict for frontend
                     self.energy_history[session_id].append(event.energy)
-                    await self._broadcast(session_id, {
-                        "type": "energy_update",
-                        "data": event.model_dump(mode="json"),
-                    })
+                    await self._broadcast(
+                        session_id,
+                        {
+                            "type": "energy_update",
+                            "data": event.model_dump(mode="json"),
+                        },
+                    )
                     await self._persist_energy(session_id, event)
                 elif isinstance(event, ConsensusMap):
-                    await self._broadcast(session_id, {
-                        "type": "session_complete",
-                        "data": event.model_dump(mode="json"),
-                    })
+                    await self._broadcast(
+                        session_id,
+                        {
+                            "type": "session_complete",
+                            "data": event.model_dump(mode="json"),
+                        },
+                    )
                     await self._persist_consensus(event)
 
             await self._broadcast(session_id, {"type": "done", "data": None})
@@ -207,17 +219,18 @@ class SessionManager:
             logger.error("Deliberation error for session %s: %s", session_id, e)
             if session:
                 session.status = SessionStatus.COMPLETED
-            await self._broadcast(session_id, {
-                "type": "error",
-                "data": {"message": str(e)},
-            })
+            await self._broadcast(
+                session_id,
+                {
+                    "type": "error",
+                    "data": {"message": str(e)},
+                },
+            )
             await self._persist_session_status(session_id)
         finally:
             self._running_tasks.pop(session_id, None)
 
-    async def intervene(
-        self, session_id: UUID, intervention: HumanIntervention
-    ) -> list:
+    async def intervene(self, session_id: UUID, intervention: HumanIntervention) -> list:
         """Handle human intervention in an active session."""
         session = self.sessions.get(session_id)
         engine = self.engines.get(session_id)
@@ -245,10 +258,13 @@ class SessionManager:
             )
 
         for post in result_posts:
-            await self._broadcast(session_id, {
-                "type": "post",
-                "data": post.model_dump(mode="json"),
-            })
+            await self._broadcast(
+                session_id,
+                {
+                    "type": "post",
+                    "data": post.model_dump(mode="json"),
+                },
+            )
             await self._persist_post(post)
         return result_posts
 
@@ -260,6 +276,7 @@ class SessionManager:
             return
         try:
             from colloquip.db.repository import SessionRepository
+
             async with self._db_factory() as db:
                 repo = SessionRepository(db)
                 await repo.save_session(session)
@@ -272,6 +289,7 @@ class SessionManager:
             return
         try:
             from colloquip.db.repository import SessionRepository
+
             async with self._db_factory() as db:
                 repo = SessionRepository(db)
                 await repo.save_post(post)
@@ -284,6 +302,7 @@ class SessionManager:
             return
         try:
             from colloquip.db.repository import SessionRepository
+
             async with self._db_factory() as db:
                 repo = SessionRepository(db)
                 await repo.save_energy_update(session_id, update)
@@ -296,6 +315,7 @@ class SessionManager:
             return
         try:
             from colloquip.db.repository import SessionRepository
+
             async with self._db_factory() as db:
                 repo = SessionRepository(db)
                 await repo.save_consensus(consensus)
@@ -311,6 +331,7 @@ class SessionManager:
             return
         try:
             from colloquip.db.repository import SessionRepository
+
             async with self._db_factory() as db:
                 repo = SessionRepository(db)
                 await repo.update_session_status(session_id, session.status, session.phase)
@@ -324,6 +345,7 @@ class SessionManager:
             return []
         try:
             from colloquip.db.repository import SessionRepository
+
             async with self._db_factory() as db:
                 repo = SessionRepository(db)
                 return await repo.list_sessions(limit=limit)
@@ -337,6 +359,7 @@ class SessionManager:
             return None
         try:
             from colloquip.db.repository import SessionRepository
+
             async with self._db_factory() as db:
                 repo = SessionRepository(db)
                 session = await repo.get_session(session_id)
@@ -359,10 +382,12 @@ class SessionManager:
         if mode == "mock":
             return MockLLM(behavior=MockBehavior.MIXED, seed=seed)
         from colloquip.llm.anthropic import AnthropicLLM
+
         return AnthropicLLM(model=model or "claude-sonnet-4-5-20250929")
 
     def _create_agents(self, llm) -> Dict[str, BaseDeliberationAgent]:
         from colloquip.cli import create_default_agents
+
         return create_default_agents(llm)
 
 

@@ -15,15 +15,6 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional
 from uuid import UUID
 
-from colloquip.models import (
-    Notification,
-    NotificationAction,
-    NotificationStatus,
-    TriageDecision,
-    TriageSignal,
-    WatcherConfig,
-)
-
 logger = logging.getLogger(__name__)
 
 # Policy constants
@@ -95,9 +86,7 @@ class AutoDeliberationPolicy:
         # Check 2: Minimum events processed
         event_count = self._event_counts.get(watcher_id, 0)
         if event_count < self.min_events:
-            reasons.append(
-                f"Only {event_count}/{self.min_events} events processed"
-            )
+            reasons.append(f"Only {event_count}/{self.min_events} events processed")
 
         # Check 3: Useful outcome rate
         useful_count = self._useful_counts.get(watcher_id, 0)
@@ -106,16 +95,12 @@ class AutoDeliberationPolicy:
         else:
             useful_rate = 0.0
         if useful_rate < self.min_useful_rate:
-            reasons.append(
-                f"Useful rate {useful_rate:.0%} < {self.min_useful_rate:.0%} required"
-            )
+            reasons.append(f"Useful rate {useful_rate:.0%} < {self.min_useful_rate:.0%} required")
 
         # Check 4: Rate limit
         recent_threads = self._auto_thread_times.get(watcher_id, [])
         one_hour_ago = now.timestamp() - 3600
-        recent_in_hour = [
-            t for t in recent_threads if t.timestamp() > one_hour_ago
-        ]
+        recent_in_hour = [t for t in recent_threads if t.timestamp() > one_hour_ago]
         if len(recent_in_hour) >= self.max_threads_per_hour:
             reasons.append(
                 f"Rate limit: {len(recent_in_hour)}/{self.max_threads_per_hour} "
@@ -132,9 +117,7 @@ class AutoDeliberationPolicy:
             reasons=reasons,
         )
 
-    def record_auto_thread(
-        self, watcher_id: UUID, now: Optional[datetime] = None
-    ) -> None:
+    def record_auto_thread(self, watcher_id: UUID, now: Optional[datetime] = None) -> None:
         """Record that an auto-thread was created."""
         now = now or datetime.now(timezone.utc)
         self._auto_thread_times[watcher_id].append(now)
@@ -149,9 +132,7 @@ class AutoDeliberationPolicy:
             "events_processed": event_count,
             "useful_outcomes": useful_count,
             "useful_rate": useful_count / event_count if event_count > 0 else 0.0,
-            "auto_threads_created": len(
-                self._auto_thread_times.get(watcher_id, [])
-            ),
+            "auto_threads_created": len(self._auto_thread_times.get(watcher_id, [])),
         }
 
 

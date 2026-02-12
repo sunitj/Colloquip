@@ -73,10 +73,7 @@ class AgentCalibration:
         subreddit_names = subreddit_names or {}
 
         # Filter to outcomes that evaluate this agent
-        agent_outcomes = [
-            o for o in outcomes
-            if agent_id in o.agent_assessments
-        ]
+        agent_outcomes = [o for o in outcomes if agent_id in o.agent_assessments]
 
         correct = 0
         incorrect = 0
@@ -118,8 +115,12 @@ class AgentCalibration:
 
         # Detect systematic biases
         biases = self._detect_biases(
-            agent_id, correct, incorrect, partial,
-            outcome_type_counts, domain_accuracy,
+            agent_id,
+            correct,
+            incorrect,
+            partial,
+            outcome_type_counts,
+            domain_accuracy,
         )
 
         is_meaningful = len(agent_outcomes) >= self.min_outcomes
@@ -181,8 +182,7 @@ class AgentCalibration:
         # Overconfidence bias
         if incorrect > 0 and incorrect / total > 0.4:
             biases.append(
-                f"High incorrect rate ({incorrect}/{total}): "
-                f"may be overconfident in conclusions"
+                f"High incorrect rate ({incorrect}/{total}): may be overconfident in conclusions"
             )
 
         # Domain-specific weakness
@@ -194,9 +194,6 @@ class AgentCalibration:
         # Contradicted outcome tendency
         contradicted = outcome_type_counts.get("contradicted", 0)
         if contradicted > 0 and contradicted / max(total, 1) > 0.3:
-            biases.append(
-                f"Conclusions frequently contradicted "
-                f"({contradicted}/{total} outcomes)"
-            )
+            biases.append(f"Conclusions frequently contradicted ({contradicted}/{total} outcomes)")
 
         return biases

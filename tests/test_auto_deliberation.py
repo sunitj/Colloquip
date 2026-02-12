@@ -1,6 +1,6 @@
 """Tests for auto-deliberation policy."""
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
@@ -69,9 +69,7 @@ class TestAutoDeliberationPolicy:
         now = datetime.now(timezone.utc)
         # Record 5 auto-threads in the last hour
         for i in range(5):
-            policy.record_auto_thread(
-                watcher_id, now=now - timedelta(minutes=i * 5)
-            )
+            policy.record_auto_thread(watcher_id, now=now - timedelta(minutes=i * 5))
 
         check = policy.can_auto_create(watcher_id, now=now)
         assert not check.allowed
@@ -87,9 +85,7 @@ class TestAutoDeliberationPolicy:
         now = datetime.now(timezone.utc)
         # Record threads >1 hour ago
         for i in range(5):
-            policy.record_auto_thread(
-                watcher_id, now=now - timedelta(hours=2, minutes=i)
-            )
+            policy.record_auto_thread(watcher_id, now=now - timedelta(hours=2, minutes=i))
 
         check = policy.can_auto_create(watcher_id, now=now)
         assert check.allowed

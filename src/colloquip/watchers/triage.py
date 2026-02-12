@@ -112,23 +112,16 @@ class MockTriageAgent(TriageAgent):
             suggested_hypothesis=hypothesis,
         )
 
-    def _is_duplicate(
-        self, event: WatcherEvent, recent: List[WatcherEvent]
-    ) -> bool:
+    def _is_duplicate(self, event: WatcherEvent, recent: List[WatcherEvent]) -> bool:
         """Check if event is a duplicate of a recent event."""
         for prev in recent:
-            if (
-                event.source.source_id
-                and event.source.source_id == prev.source.source_id
-            ):
+            if event.source.source_id and event.source.source_id == prev.source.source_id:
                 return True
             if event.title == prev.title and event.summary == prev.summary:
                 return True
         return False
 
-    def _score_novelty(
-        self, event: WatcherEvent, recent: List[WatcherEvent]
-    ) -> float:
+    def _score_novelty(self, event: WatcherEvent, recent: List[WatcherEvent]) -> float:
         """Score novelty based on title uniqueness vs recent events."""
         if not recent:
             return 0.8  # First event is novel by default
@@ -138,17 +131,13 @@ class MockTriageAgent(TriageAgent):
         for prev in recent:
             prev_words = set(prev.title.lower().split())
             if event_words and prev_words:
-                overlap = len(event_words & prev_words) / max(
-                    len(event_words), len(prev_words)
-                )
+                overlap = len(event_words & prev_words) / max(len(event_words), len(prev_words))
                 max_overlap = max(max_overlap, overlap)
 
         # Less overlap = more novel
         return max(0.0, min(1.0, 1.0 - max_overlap))
 
-    def _score_relevance(
-        self, event: WatcherEvent, config: WatcherConfig
-    ) -> float:
+    def _score_relevance(self, event: WatcherEvent, config: WatcherConfig) -> float:
         """Score relevance based on keyword overlap with watcher query."""
         if not config.query:
             return 0.5  # Default relevance if no query
@@ -171,14 +160,9 @@ class MockTriageAgent(TriageAgent):
         matches = sum(1 for kw in urgency_keywords if kw in text)
         return min(1.0, matches * 0.3)
 
-    def _suggest_hypothesis(
-        self, event: WatcherEvent, config: WatcherConfig
-    ) -> str:
+    def _suggest_hypothesis(self, event: WatcherEvent, config: WatcherConfig) -> str:
         """Generate a suggested deliberation hypothesis from the event."""
-        return (
-            f"Evaluate the implications of: {event.title}. "
-            f"Context: {event.summary[:200]}"
-        )
+        return f"Evaluate the implications of: {event.title}. Context: {event.summary[:200]}"
 
     def _build_reasoning(
         self,

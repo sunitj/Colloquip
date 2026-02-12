@@ -7,7 +7,6 @@ Tracks last-checked state to return only genuinely new results.
 import logging
 from datetime import datetime, timezone
 from typing import List, Set
-from uuid import uuid4
 
 from colloquip.models import WatcherConfig, WatcherEvent, WatcherSource
 from colloquip.watchers.interface import BaseWatcher
@@ -61,37 +60,37 @@ class LiteratureWatcher(BaseWatcher):
             if sr.source_id:
                 self._seen_pmids.add(sr.source_id)
 
-            events.append(WatcherEvent(
-                watcher_id=self.watcher_id,
-                subreddit_id=self.subreddit_id,
-                title=sr.title,
-                summary=sr.abstract or sr.snippet or "",
-                source=WatcherSource(
-                    source_type="pubmed",
-                    source_id=sr.source_id or "",
-                    url=sr.url,
-                    metadata={
+            events.append(
+                WatcherEvent(
+                    watcher_id=self.watcher_id,
+                    subreddit_id=self.subreddit_id,
+                    title=sr.title,
+                    summary=sr.abstract or sr.snippet or "",
+                    source=WatcherSource(
+                        source_type="pubmed",
+                        source_id=sr.source_id or "",
+                        url=sr.url,
+                        metadata={
+                            "authors": sr.authors,
+                            "year": sr.year,
+                            "doi": sr.doi,
+                        },
+                    ),
+                    raw_data={
+                        "title": sr.title,
                         "authors": sr.authors,
+                        "abstract": sr.abstract,
                         "year": sr.year,
                         "doi": sr.doi,
+                        "source_id": sr.source_id,
+                        "url": sr.url,
                     },
-                ),
-                raw_data={
-                    "title": sr.title,
-                    "authors": sr.authors,
-                    "abstract": sr.abstract,
-                    "year": sr.year,
-                    "doi": sr.doi,
-                    "source_id": sr.source_id,
-                    "url": sr.url,
-                },
-            ))
+                )
+            )
 
         self._last_checked = datetime.now(timezone.utc)
         if events:
-            logger.info(
-                "Watcher %s found %d new papers", self.config.name, len(events)
-            )
+            logger.info("Watcher %s found %d new papers", self.config.name, len(events))
         return events
 
     async def validate_config(self) -> bool:

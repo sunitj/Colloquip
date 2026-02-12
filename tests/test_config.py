@@ -8,7 +8,6 @@ from colloquip.config import (
     ColloquipConfig,
     EnergyConfig,
     ObserverConfig,
-    TriggerConfig,
     load_config,
 )
 

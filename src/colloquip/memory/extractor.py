@@ -13,19 +13,13 @@ from colloquip.embeddings.interface import EmbeddingProvider
 from colloquip.memory.store import SynthesisMemory
 from colloquip.models import Synthesis
 
-
 # Citation patterns: [PUBMED:xxx], [INTERNAL:xxx], [WEB:xxx]
-_CITATION_PATTERN = re.compile(
-    r"\[(PUBMED|INTERNAL|WEB):([^\]]+)\]"
-)
+_CITATION_PATTERN = re.compile(r"\[(PUBMED|INTERNAL|WEB):([^\]]+)\]")
 
 
 def extract_citations(text: str) -> List[str]:
     """Extract citation references from text."""
-    return [
-        f"{match.group(1)}:{match.group(2)}"
-        for match in _CITATION_PATTERN.finditer(text)
-    ]
+    return [f"{match.group(1)}:{match.group(2)}" for match in _CITATION_PATTERN.finditer(text)]
 
 
 def extract_key_conclusions(
@@ -152,7 +146,8 @@ class SynthesisMemoryExtractor:
 
         # Determine agents involved
         resolved_agents = agents_involved or extract_agents_involved(
-            synthesis.audit_chains, synthesis.metadata,
+            synthesis.audit_chains,
+            synthesis.metadata,
         )
 
         # Extract confidence and evidence quality from metadata

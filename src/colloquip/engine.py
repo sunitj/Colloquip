@@ -3,7 +3,7 @@
 import asyncio
 import logging
 from collections import Counter, defaultdict
-from typing import AsyncIterator, Dict, List, Optional, Union
+from typing import AsyncIterator, Dict, List, Union
 
 from colloquip.agents.base import BaseDeliberationAgent
 from colloquip.agents.prompts import build_synthesis_prompt
@@ -88,9 +88,7 @@ class EmergentDeliberationEngine:
             yield phase_signal
 
             # 2. Termination check
-            should_stop, reason = self.energy_calculator.should_terminate(
-                posts, energy_history
-            )
+            should_stop, reason = self.energy_calculator.should_terminate(posts, energy_history)
             if should_stop:
                 logger.info("Terminating: %s", reason)
                 break
@@ -102,9 +100,7 @@ class EmergentDeliberationEngine:
                 logger.debug("No agents triggered on turn %d", turn)
                 # If no one triggers and we're past min_posts, energy decays
                 if len(posts) >= self.min_posts:
-                    energy_update = self.energy_calculator.calculate_energy_update(
-                        posts, turn
-                    )
+                    energy_update = self.energy_calculator.calculate_energy_update(posts, turn)
                     energy_history.append(energy_update.energy)
                     yield energy_update
                 # Yield control so CancelledError can be delivered
@@ -112,9 +108,7 @@ class EmergentDeliberationEngine:
                 continue
 
             # 4. Generate posts concurrently
-            new_posts = await self._generate_posts(
-                responding, session, phase_signal, posts
-            )
+            new_posts = await self._generate_posts(responding, session, phase_signal, posts)
 
             for post in new_posts:
                 posts.append(post)
@@ -126,9 +120,7 @@ class EmergentDeliberationEngine:
             yield energy_update
 
             # 6. Energy injection for novel posts (at most one boost per turn)
-            max_novelty = max(
-                (p.novelty_score for p in new_posts), default=0.0
-            )
+            max_novelty = max((p.novelty_score for p in new_posts), default=0.0)
             if max_novelty > 0.7:
                 boosted = self.energy_calculator.inject_energy(
                     EnergySource.NOVEL_POST, energy_history[-1]
@@ -185,9 +177,7 @@ class EmergentDeliberationEngine:
         # Get responses from triggered agents
         phase_signal = self.observer.detect_phase(posts)
         responding = self._evaluate_triggers(posts, phase_signal.current_phase)
-        new_posts = await self._generate_posts(
-            responding, session, phase_signal, posts
-        )
+        new_posts = await self._generate_posts(responding, session, phase_signal, posts)
         return [human_post] + new_posts
 
     async def _run_seed_phase(
@@ -400,9 +390,7 @@ class EmergentDeliberationEngine:
 
         # A minority stance is one held by fewer than half the agents
         minority_stances = {
-            stance
-            for stance, count in stance_agent_count.items()
-            if count < total_agents / 2
+            stance for stance, count in stance_agent_count.items() if count < total_agents / 2
         }
 
         # Collect claims from agents whose dominant stance is a minority
@@ -423,8 +411,10 @@ class EmergentDeliberationEngine:
         for post in posts:
             if post.stance == AgentStance.NOVEL_CONNECTION:
                 for conn in post.connections_identified:
-                    connections.append({
-                        "agent": post.agent_id,
-                        "connection": conn,
-                    })
+                    connections.append(
+                        {
+                            "agent": post.agent_id,
+                            "connection": conn,
+                        }
+                    )
         return connections[:5]

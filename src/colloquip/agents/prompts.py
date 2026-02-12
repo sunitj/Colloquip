@@ -3,11 +3,10 @@
 Supports versioned prompt sets for systematic tuning.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, List, Optional, Union
 
 from colloquip.models import AgentConfig, Phase, Post
-
 
 # Phase mandates appended to each agent's system prompt
 PHASE_MANDATES: Dict[Phase, str] = {
@@ -48,8 +47,7 @@ PHASE_MANDATES: Dict[Phase, str] = {
         "Your goal is to crystallize your assessment for synthesis."
     ),
     Phase.SYNTHESIS: (
-        "## Current Phase: SYNTHESIS\n\n"
-        "The deliberation is concluding. Provide your final summary."
+        "## Current Phase: SYNTHESIS\n\nThe deliberation is concluding. Provide your final summary."
     ),
 }
 
@@ -119,8 +117,7 @@ def build_user_prompt(
         recent = posts[-max_history:]
         for post in recent:
             parts.append(
-                f"\n**{post.agent_id}** ({post.stance.value}, {post.phase.value}):\n"
-                f"{post.content}"
+                f"\n**{post.agent_id}** ({post.stance.value}, {post.phase.value}):\n{post.content}"
             )
 
     parts.append(
@@ -177,6 +174,7 @@ def build_synthesis_prompt(hypothesis: str, posts: List[Post]) -> str:
 
 
 # ---- Prompt Version Registry ----
+
 
 @dataclass
 class PromptVersion:
@@ -298,8 +296,7 @@ def get_prompt_version(version: str = "v1") -> PromptVersion:
     """Retrieve a prompt version by name."""
     if version not in PROMPT_VERSIONS:
         raise ValueError(
-            f"Unknown prompt version '{version}'. "
-            f"Available: {list(PROMPT_VERSIONS.keys())}"
+            f"Unknown prompt version '{version}'. Available: {list(PROMPT_VERSIONS.keys())}"
         )
     return PROMPT_VERSIONS[version]
 
@@ -323,7 +320,8 @@ _V3_CITATION_INSTRUCTIONS = """
 ## Citation Requirements
 
 - EVERY factual claim MUST cite a source
-- Format: [PUBMED:PMID] for literature, [INTERNAL:record-id] for internal data, [WEB:url] for web sources
+- Format: [PUBMED:PMID] for literature, [INTERNAL:record-id] for internal data,
+  [WEB:url] for web sources
 - If you cannot find evidence, say so explicitly: "No published evidence found for..."
 - Distinguish evidence types:
   - DIRECT EVIDENCE: Published data directly supporting/contradicting the claim

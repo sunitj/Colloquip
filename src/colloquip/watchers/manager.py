@@ -6,7 +6,6 @@ Each watcher is polled independently with error isolation.
 
 import asyncio
 import logging
-from datetime import datetime, timezone
 from typing import Callable, Dict, List, Optional
 from uuid import UUID
 
@@ -14,7 +13,6 @@ from colloquip.models import (
     Notification,
     TriageDecision,
     TriageSignal,
-    WatcherConfig,
     WatcherEvent,
 )
 from colloquip.watchers.interface import BaseWatcher, WatcherRegistry
@@ -89,7 +87,9 @@ class WatcherManager:
             except Exception as e:
                 logger.error(
                     "Error polling watcher %s (%s): %s",
-                    watcher.config.name, watcher.watcher_id, e,
+                    watcher.config.name,
+                    watcher.watcher_id,
+                    e,
                 )
 
         return notifications

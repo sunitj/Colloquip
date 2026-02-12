@@ -184,14 +184,10 @@ class ObserverAgent:
                 "The points of contention may warrant focused analysis."
             )
         elif metrics.novelty_avg > 0.7:
-            observation = (
-                "High novelty in recent posts. "
-                "Cross-domain connections may be emerging."
-            )
+            observation = "High novelty in recent posts. Cross-domain connections may be emerging."
         elif metrics.topic_diversity < 0.3 and metrics.energy > 0.5:
             observation = (
-                "Discussion is focused but energetic. "
-                "Deep analysis of this thread may be valuable."
+                "Discussion is focused but energetic. Deep analysis of this thread may be valuable."
             )
 
         if observation:

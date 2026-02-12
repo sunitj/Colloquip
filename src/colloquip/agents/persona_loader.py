@@ -21,9 +21,15 @@ def load_persona_file(path: Path) -> dict:
         raise ValueError(f"Empty persona file: {path}")
 
     required_fields = [
-        "agent_type", "display_name", "expertise_tags", "knowledge_scope",
-        "persona_prompt", "evaluation_criteria", "phase_mandates",
-        "domain_keywords", "is_red_team",
+        "agent_type",
+        "display_name",
+        "expertise_tags",
+        "knowledge_scope",
+        "persona_prompt",
+        "evaluation_criteria",
+        "phase_mandates",
+        "domain_keywords",
+        "is_red_team",
     ]
     missing = [f for f in required_fields if f not in data]
     if missing:
@@ -33,25 +39,19 @@ def load_persona_file(path: Path) -> dict:
     criteria = data["evaluation_criteria"]
     total = sum(criteria.values())
     if not (0.95 <= total <= 1.05):
-        raise ValueError(
-            f"Persona {path.name}: evaluation_criteria sum to {total}, expected ~1.0"
-        )
+        raise ValueError(f"Persona {path.name}: evaluation_criteria sum to {total}, expected ~1.0")
 
     # Validate phase mandates
     expected_phases = {"explore", "debate", "deepen", "converge"}
     actual_phases = set(data["phase_mandates"].keys())
     if not expected_phases.issubset(actual_phases):
         missing_phases = expected_phases - actual_phases
-        raise ValueError(
-            f"Persona {path.name} missing phase mandates: {missing_phases}"
-        )
+        raise ValueError(f"Persona {path.name} missing phase mandates: {missing_phases}")
 
     # Validate non-empty list fields (critical for registry matching)
     for list_field in ("expertise_tags", "domain_keywords"):
         if not data.get(list_field):
-            raise ValueError(
-                f"Persona {path.name}: '{list_field}' must be a non-empty list"
-            )
+            raise ValueError(f"Persona {path.name}: '{list_field}' must be a non-empty list")
 
     # Validate persona_prompt is non-trivial
     if not data.get("persona_prompt", "").strip():
@@ -80,7 +80,8 @@ def load_all_personas(
             if agent_type in personas:
                 logger.warning(
                     "Duplicate agent_type '%s' in %s (overwriting previous)",
-                    agent_type, path.name,
+                    agent_type,
+                    path.name,
                 )
             personas[agent_type] = data
             logger.debug("Loaded persona: %s from %s", agent_type, path.name)
@@ -112,9 +113,7 @@ def persona_to_agent_identity(persona: dict) -> "BaseAgentIdentity":
             is_red_team=persona["is_red_team"],
         )
     except KeyError as e:
-        raise ValueError(
-            f"Persona '{agent_type}' missing required field: {e}"
-        ) from e
+        raise ValueError(f"Persona '{agent_type}' missing required field: {e}") from e
 
 
 def load_agent_identities(

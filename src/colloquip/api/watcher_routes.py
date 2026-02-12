@@ -4,7 +4,7 @@ Endpoints for creating watchers, viewing events, and acting on notifications.
 """
 
 import logging
-from typing import Dict, List, Literal, Optional
+from typing import Dict, List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request
@@ -13,7 +13,6 @@ from pydantic import BaseModel, Field
 from colloquip.models import (
     NotificationAction,
     NotificationStatus,
-    TriageSignal,
     WatcherType,
 )
 
@@ -24,6 +23,7 @@ router = APIRouter(prefix="/api")
 
 # --- Helpers ---
 
+
 def _parse_uuid(value: str, label: str = "ID") -> UUID:
     """Parse a UUID string, raising 400 if invalid."""
     try:
@@ -33,6 +33,7 @@ def _parse_uuid(value: str, label: str = "ID") -> UUID:
 
 
 # --- Request / Response schemas ---
+
 
 class CreateWatcherRequest(BaseModel):
     watcher_type: WatcherType
@@ -96,6 +97,7 @@ class WebhookPayload(BaseModel):
 
 # --- Watcher endpoints ---
 
+
 @router.get("/subreddits/{subreddit_name}/watchers")
 async def list_subreddit_watchers(
     request: Request,
@@ -108,10 +110,7 @@ async def list_subreddit_watchers(
 
     all_watchers = registry.all()
     # Filter by subreddit name stored in watcher config
-    watchers = [
-        w for w in all_watchers
-        if w.config.config.get("subreddit_name") == subreddit_name
-    ]
+    watchers = [w for w in all_watchers if w.config.config.get("subreddit_name") == subreddit_name]
 
     return WatcherListResponse(
         watchers=[_format_watcher(w) for w in watchers],
@@ -137,6 +136,7 @@ async def create_watcher(
 
     # Look up subreddit_id from name (via app state or generate UUID)
     from uuid import uuid4
+
     subreddit_id = uuid4()
     # Store subreddit_name in config for filtering
     watcher_config = dict(body.config)
@@ -184,6 +184,7 @@ async def delete_watcher(request: Request, watcher_id: str) -> Dict:
 
 
 # --- Notification endpoints ---
+
 
 @router.get("/notifications")
 async def list_notifications(
@@ -241,6 +242,7 @@ async def act_on_notification(
 
 # --- Webhook endpoint ---
 
+
 @router.post("/webhooks/{watcher_id}")
 async def receive_webhook(
     request: Request,
@@ -258,6 +260,7 @@ async def receive_webhook(
         raise HTTPException(status_code=404, detail="Watcher not found")
 
     from colloquip.watchers.webhook import WebhookWatcher
+
     if not isinstance(watcher, WebhookWatcher):
         raise HTTPException(status_code=400, detail="Watcher is not a webhook watcher")
 
@@ -279,6 +282,7 @@ async def receive_webhook(
 
 
 # --- Formatters ---
+
 
 def _format_watcher(watcher) -> WatcherResponse:
     config = watcher.config
@@ -303,9 +307,9 @@ def _format_notification(notif) -> NotificationResponse:
         subreddit_id=str(notif.subreddit_id),
         title=notif.title,
         summary=notif.summary,
-        signal=notif.signal.value if hasattr(notif.signal, 'value') else str(notif.signal),
+        signal=notif.signal.value if hasattr(notif.signal, "value") else str(notif.signal),
         suggested_hypothesis=notif.suggested_hypothesis,
-        status=notif.status.value if hasattr(notif.status, 'value') else str(notif.status),
+        status=notif.status.value if hasattr(notif.status, "value") else str(notif.status),
         action_taken=notif.action_taken.value if notif.action_taken else None,
         thread_id=str(notif.thread_id) if notif.thread_id else None,
         created_at=str(notif.created_at),

@@ -1,6 +1,5 @@
 """Phase 4 validation: end-to-end tests for the event-driven trigger system."""
 
-from datetime import datetime, timezone
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
@@ -12,8 +11,6 @@ from colloquip.models import (
     NotificationStatus,
     TriageSignal,
     WatcherConfig,
-    WatcherEvent,
-    WatcherSource,
     WatcherType,
 )
 from colloquip.notifications.store import InMemoryNotificationStore
@@ -25,7 +22,6 @@ from colloquip.watchers.manager import WatcherManager
 from colloquip.watchers.scheduled import ScheduledWatcher
 from colloquip.watchers.triage import MockTriageAgent
 from colloquip.watchers.webhook import WebhookWatcher
-
 
 SUB_A = uuid4()
 
@@ -40,21 +36,23 @@ class TestPhase4EndToEnd:
         """Literature watcher -> triage -> notification -> create thread."""
         # Set up mock PubMed tool
         mock_pubmed = AsyncMock()
-        mock_pubmed.execute = AsyncMock(return_value=ToolResult(
-            source="pubmed",
-            query="GLP-1",
-            results=[
-                SearchResult(
-                    title="Breakthrough novel GLP-1 receptor agonist findings",
-                    authors=["Smith", "Jones"],
-                    abstract="A critical breakthrough study demonstrating novel effects.",
-                    url="https://pubmed.ncbi.nlm.nih.gov/99999/",
-                    source_id="PMID:99999",
-                    source_type="pubmed",
-                    year=2026,
-                ),
-            ],
-        ))
+        mock_pubmed.execute = AsyncMock(
+            return_value=ToolResult(
+                source="pubmed",
+                query="GLP-1",
+                results=[
+                    SearchResult(
+                        title="Breakthrough novel GLP-1 receptor agonist findings",
+                        authors=["Smith", "Jones"],
+                        abstract="A critical breakthrough study demonstrating novel effects.",
+                        url="https://pubmed.ncbi.nlm.nih.gov/99999/",
+                        source_id="PMID:99999",
+                        source_type="pubmed",
+                        year=2026,
+                    ),
+                ],
+            )
+        )
 
         # Set up watcher
         config = WatcherConfig(
@@ -110,11 +108,13 @@ class TestPhase4EndToEnd:
         registry.register(webhook)
 
         # Receive webhook
-        webhook.receive_webhook({
-            "title": "Breakthrough novel clinical trial results for receptor agonist",
-            "summary": "Phase 3 trial showed breakthrough novel efficacy.",
-            "url": "https://clinicaltrials.gov/ct2/show/NCT99999",
-        })
+        webhook.receive_webhook(
+            {
+                "title": "Breakthrough novel clinical trial results for receptor agonist",
+                "summary": "Phase 3 trial showed breakthrough novel efficacy.",
+                "url": "https://clinicaltrials.gov/ct2/show/NCT99999",
+            }
+        )
 
         # Run triage
         triage = MockTriageAgent()
@@ -199,17 +199,19 @@ class TestPhase4EndToEnd:
     async def test_deduplication_across_polls(self):
         """Events are deduplicated across consecutive polls."""
         mock_pubmed = AsyncMock()
-        mock_pubmed.execute = AsyncMock(return_value=ToolResult(
-            source="pubmed",
-            query="test",
-            results=[
-                SearchResult(
-                    title="Paper A",
-                    source_id="PMID:001",
-                    source_type="pubmed",
-                ),
-            ],
-        ))
+        mock_pubmed.execute = AsyncMock(
+            return_value=ToolResult(
+                source="pubmed",
+                query="test",
+                results=[
+                    SearchResult(
+                        title="Paper A",
+                        source_id="PMID:001",
+                        source_type="pubmed",
+                    ),
+                ],
+            )
+        )
 
         config = WatcherConfig(
             watcher_type=WatcherType.LITERATURE,
@@ -256,20 +258,24 @@ class TestPhase4EndToEnd:
     @pytest.mark.asyncio
     async def test_watcher_error_doesnt_block_others(self):
         """A failing watcher doesn't prevent others from running."""
+
         class FailingWatcher(BaseWatcher):
             async def poll(self):
                 raise RuntimeError("Boom!")
+
             async def validate_config(self):
                 return True
 
         registry = WatcherRegistry()
         fail_config = WatcherConfig(
             watcher_type=WatcherType.LITERATURE,
-            subreddit_id=SUB_A, name="failing",
+            subreddit_id=SUB_A,
+            name="failing",
         )
         good_config = WatcherConfig(
             watcher_type=WatcherType.WEBHOOK,
-            subreddit_id=SUB_A, name="good",
+            subreddit_id=SUB_A,
+            name="good",
         )
         good_watcher = WebhookWatcher(good_config)
         good_watcher.receive_webhook({"title": "Good event"})

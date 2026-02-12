@@ -33,12 +33,14 @@ def create_app(
         # Startup
         if db_url:
             from colloquip.db.engine import create_engine_and_tables, get_async_session
+
             await create_engine_and_tables(db_url)
             app.state.session_manager._db_factory = get_async_session
         yield
         # Shutdown
         if db_url:
             from colloquip.db.engine import dispose_engine
+
             await dispose_engine()
 
     app = FastAPI(
@@ -72,6 +74,7 @@ def create_app(
 
     # Platform manager (lazy init — call POST /api/platform/init to activate)
     from colloquip.api.platform_manager import PlatformManager
+
     app.state.platform_manager = PlatformManager()
 
     @app.get("/health")

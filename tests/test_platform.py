@@ -7,7 +7,6 @@ platform manager, and API routes.
 
 import asyncio
 from pathlib import Path
-from typing import Dict, List
 from uuid import UUID, uuid4
 
 import pytest
@@ -15,20 +14,15 @@ import pytest
 from colloquip.models import (
     AgentStance,
     AgentStatus,
-    AuditChain,
     BaseAgentIdentity,
     CitationVerification,
     CostRecord,
-    CostSummary,
     ExpertiseGap,
-    HumanPostType,
-    ModelPricing,
     OutputSection,
     OutputTemplate,
     ParticipationModel,
     Phase,
     RecruitmentResult,
-    StructuredCitation,
     SubredditConfig,
     SubredditMembership,
     SubredditPurpose,
@@ -37,10 +31,8 @@ from colloquip.models import (
     ThinkingType,
     Thread,
     ThreadStatus,
-    ToolConfig,
     ToolType,
 )
-
 
 # =========================================================================
 # Model tests
@@ -187,9 +179,16 @@ class TestPersonaLoader:
         assert len(personas) >= 10
         # Check expected persona types
         expected = {
-            "molecular_biology", "medicinal_chemistry", "admet", "clinical",
-            "regulatory", "computational_biology", "protein_engineering",
-            "synthetic_biology", "red_team_general", "red_team_biology",
+            "molecular_biology",
+            "medicinal_chemistry",
+            "admet",
+            "clinical",
+            "regulatory",
+            "computational_biology",
+            "protein_engineering",
+            "synthetic_biology",
+            "red_team_general",
+            "red_team_biology",
         }
         assert expected.issubset(set(personas.keys())), (
             f"Missing: {expected - set(personas.keys())}"
@@ -492,24 +491,20 @@ class TestToolInterface:
         # BaseSearchTool is now ABC — use a concrete subclass for testing
         tool = MockPubMedTool()
 
-        pubmed_result = SearchResult(
-            title="Paper", source_type="pubmed", source_id="12345"
-        )
+        pubmed_result = SearchResult(title="Paper", source_type="pubmed", source_id="12345")
         assert tool._format_citation_ref(pubmed_result) == "[PUBMED:12345]"
 
-        internal_result = SearchResult(
-            title="Doc", source_type="internal", source_id="INT-001"
-        )
+        internal_result = SearchResult(title="Doc", source_type="internal", source_id="INT-001")
         assert tool._format_citation_ref(internal_result) == "[INTERNAL:INT-001]"
 
-        web_result = SearchResult(
-            title="Web", source_type="web", url="https://example.com"
-        )
+        web_result = SearchResult(title="Web", source_type="web", url="https://example.com")
         assert tool._format_citation_ref(web_result) == "[WEB:https://example.com]"
 
     def test_base_search_tool_is_abc(self):
-        from colloquip.tools.interface import BaseSearchTool
         import abc
+
+        from colloquip.tools.interface import BaseSearchTool
+
         assert issubclass(BaseSearchTool, abc.ABC)
 
 
@@ -627,9 +622,7 @@ class TestToolRegistry:
 
         reg = ToolRegistry(mock_mode=True)
         tools = [reg.create_tool("pubmed_search")]
-        result = await reg.execute_tool_call(
-            "pubmed_search", {"query": "BRAF"}, tools
-        )
+        result = await reg.execute_tool_call("pubmed_search", {"query": "BRAF"}, tools)
         assert "source" in result
         assert result["source"] == "pubmed"
 
@@ -867,7 +860,7 @@ consensus_strength: majority
 
     def test_build_synthesis_prompt(self):
         from colloquip.synthesis import _build_synthesis_prompt
-        from tests.conftest import create_post, TEST_SESSION_ID
+        from tests.conftest import create_post
 
         posts = [
             create_post(
@@ -1015,7 +1008,9 @@ class TestPlatformManager:
     def test_get_subreddit_by_name(self):
         pm = self._make_pm()
         pm.create_subreddit(
-            name="test_sub", display_name="Test", required_expertise=["molecular_biology"],
+            name="test_sub",
+            display_name="Test",
+            required_expertise=["molecular_biology"],
         )
         sub = pm.get_subreddit_by_name("test_sub")
         assert sub is not None
@@ -1049,7 +1044,9 @@ class TestPlatformManager:
     def test_create_thread(self):
         pm = self._make_pm()
         result = pm.create_subreddit(
-            name="thread_test", display_name="Thread Test", required_expertise=[],
+            name="thread_test",
+            display_name="Thread Test",
+            required_expertise=[],
         )
         sub_id = result["subreddit"]["id"]
         thread = pm.create_thread(
@@ -1101,6 +1098,7 @@ class TestPlatformAPI:
     @pytest.fixture
     def client(self):
         from fastapi.testclient import TestClient
+
         from colloquip.api import create_app
 
         app = create_app()
@@ -1133,15 +1131,18 @@ class TestPlatformAPI:
 
     def test_create_subreddit(self, client):
         client.post("/api/platform/init")
-        resp = client.post("/api/subreddits", json={
-            "name": "api_test_sub",
-            "display_name": "API Test Sub",
-            "description": "Testing via API",
-            "thinking_type": "assessment",
-            "required_expertise": ["molecular_biology", "medicinal_chemistry"],
-            "primary_domain": "drug_discovery",
-            "tool_ids": ["pubmed_search"],
-        })
+        resp = client.post(
+            "/api/subreddits",
+            json={
+                "name": "api_test_sub",
+                "display_name": "API Test Sub",
+                "description": "Testing via API",
+                "thinking_type": "assessment",
+                "required_expertise": ["molecular_biology", "medicinal_chemistry"],
+                "primary_domain": "drug_discovery",
+                "tool_ids": ["pubmed_search"],
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["name"] == "api_test_sub"
@@ -1150,22 +1151,31 @@ class TestPlatformAPI:
 
     def test_create_subreddit_duplicate(self, client):
         client.post("/api/platform/init")
-        client.post("/api/subreddits", json={
-            "name": "dup_sub",
-            "display_name": "Dup Sub",
-        })
-        resp = client.post("/api/subreddits", json={
-            "name": "dup_sub",
-            "display_name": "Dup Sub Again",
-        })
+        client.post(
+            "/api/subreddits",
+            json={
+                "name": "dup_sub",
+                "display_name": "Dup Sub",
+            },
+        )
+        resp = client.post(
+            "/api/subreddits",
+            json={
+                "name": "dup_sub",
+                "display_name": "Dup Sub Again",
+            },
+        )
         assert resp.status_code == 409
 
     def test_get_subreddit(self, client):
         client.post("/api/platform/init")
-        client.post("/api/subreddits", json={
-            "name": "get_test",
-            "display_name": "Get Test",
-        })
+        client.post(
+            "/api/subreddits",
+            json={
+                "name": "get_test",
+                "display_name": "Get Test",
+            },
+        )
         resp = client.get("/api/subreddits/get_test")
         assert resp.status_code == 200
         data = resp.json()
@@ -1178,14 +1188,20 @@ class TestPlatformAPI:
 
     def test_list_subreddits(self, client):
         client.post("/api/platform/init")
-        client.post("/api/subreddits", json={
-            "name": "list_test_a",
-            "display_name": "List A",
-        })
-        client.post("/api/subreddits", json={
-            "name": "list_test_b",
-            "display_name": "List B",
-        })
+        client.post(
+            "/api/subreddits",
+            json={
+                "name": "list_test_a",
+                "display_name": "List A",
+            },
+        )
+        client.post(
+            "/api/subreddits",
+            json={
+                "name": "list_test_b",
+                "display_name": "List B",
+            },
+        )
         resp = client.get("/api/subreddits")
         assert resp.status_code == 200
         names = {s["name"] for s in resp.json()}
@@ -1194,11 +1210,14 @@ class TestPlatformAPI:
 
     def test_get_subreddit_members(self, client):
         client.post("/api/platform/init")
-        client.post("/api/subreddits", json={
-            "name": "member_test",
-            "display_name": "Member Test",
-            "required_expertise": ["molecular_biology"],
-        })
+        client.post(
+            "/api/subreddits",
+            json={
+                "name": "member_test",
+                "display_name": "Member Test",
+                "required_expertise": ["molecular_biology"],
+            },
+        )
         resp = client.get("/api/subreddits/member_test/members")
         assert resp.status_code == 200
         data = resp.json()
@@ -1207,14 +1226,20 @@ class TestPlatformAPI:
 
     def test_create_thread(self, client):
         client.post("/api/platform/init")
-        client.post("/api/subreddits", json={
-            "name": "thread_test_api",
-            "display_name": "Thread Test",
-        })
-        resp = client.post("/api/subreddits/thread_test_api/threads", json={
-            "title": "Does GLP-1 work?",
-            "hypothesis": "GLP-1 agonists improve cognition in AD patients.",
-        })
+        client.post(
+            "/api/subreddits",
+            json={
+                "name": "thread_test_api",
+                "display_name": "Thread Test",
+            },
+        )
+        resp = client.post(
+            "/api/subreddits/thread_test_api/threads",
+            json={
+                "title": "Does GLP-1 work?",
+                "hypothesis": "GLP-1 agonists improve cognition in AD patients.",
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["title"] == "Does GLP-1 work?"
@@ -1223,14 +1248,20 @@ class TestPlatformAPI:
 
     def test_list_threads(self, client):
         client.post("/api/platform/init")
-        client.post("/api/subreddits", json={
-            "name": "list_threads",
-            "display_name": "List Threads",
-        })
-        client.post("/api/subreddits/list_threads/threads", json={
-            "title": "Thread 1",
-            "hypothesis": "H1",
-        })
+        client.post(
+            "/api/subreddits",
+            json={
+                "name": "list_threads",
+                "display_name": "List Threads",
+            },
+        )
+        client.post(
+            "/api/subreddits/list_threads/threads",
+            json={
+                "title": "Thread 1",
+                "hypothesis": "H1",
+            },
+        )
         resp = client.get("/api/subreddits/list_threads/threads")
         assert resp.status_code == 200
         assert len(resp.json()["threads"]) == 1
@@ -1265,10 +1296,13 @@ class TestPlatformAPI:
 
     def test_subreddit_name_validation(self, client):
         client.post("/api/platform/init")
-        resp = client.post("/api/subreddits", json={
-            "name": "Invalid Name!",
-            "display_name": "Invalid",
-        })
+        resp = client.post(
+            "/api/subreddits",
+            json={
+                "name": "Invalid Name!",
+                "display_name": "Invalid",
+            },
+        )
         assert resp.status_code == 422  # Pydantic validation error
 
     def test_platform_not_initialized(self, client):
@@ -1289,16 +1323,10 @@ class TestBackwardCompatibility:
     def test_existing_models_unchanged(self):
         """Ensure original models still work with their original fields."""
         from colloquip.models import (
-            AgentConfig,
             AgentStance,
-            ConsensusMap,
-            ConversationMetrics,
             DeliberationSession,
-            EnergySource,
             EngineConfig,
-            HumanIntervention,
             Phase,
-            PhaseSignal,
             Post,
             SessionStatus,
         )
@@ -1319,7 +1347,7 @@ class TestBackwardCompatibility:
         assert engine_config.max_turns == 30
 
     def test_original_agent_config_still_works(self):
-        from colloquip.models import AgentConfig, Phase
+        from colloquip.models import AgentConfig
 
         config = AgentConfig(
             agent_id="test",
@@ -1334,14 +1362,15 @@ class TestBackwardCompatibility:
     def test_existing_tests_count(self):
         """Meta-test: we should still have at least 188 existing tests."""
         import subprocess
+
         result = subprocess.run(
-            ["python", "-m", "pytest", "tests/", "--co", "-q",
-             "--ignore=tests/test_platform.py"],
-            capture_output=True, text=True,
+            ["python", "-m", "pytest", "tests/", "--co", "-q", "--ignore=tests/test_platform.py"],
+            capture_output=True,
+            text=True,
             cwd="/home/user/Colloquip",
         )
         # Count lines matching "test_" pattern
-        test_lines = [l for l in result.stdout.strip().split("\n") if "test_" in l]
+        test_lines = [line for line in result.stdout.strip().split("\n") if "test_" in line]
         assert len(test_lines) >= 188
 
 
@@ -1389,7 +1418,7 @@ evidence_quality: moderate
 
     def test_parse_synthesis_with_posts_and_audit_chains(self):
         from colloquip.synthesis import parse_synthesis
-        from tests.conftest import create_post, TEST_SESSION_ID
+        from tests.conftest import create_post
 
         posts = [
             create_post(
@@ -1453,18 +1482,17 @@ evidence_quality: moderate
             template_type="assessment",
             sections=[OutputSection(name="evidence_for", description="")],
         )
-        text = "### Evidence For\n- Target validated by comprehensive GWAS meta-analysis across populations"
+        text = (
+            "### Evidence For\n"
+            "- Target validated by comprehensive GWAS meta-analysis across populations"
+        )
 
         # With very high threshold, no chains should match
-        result_strict = parse_synthesis(
-            text, template, posts=posts, overlap_threshold=0.99
-        )
+        result_strict = parse_synthesis(text, template, posts=posts, overlap_threshold=0.99)
         assert len(result_strict.audit_chains) == 0
 
         # With low threshold, chains should match
-        result_loose = parse_synthesis(
-            text, template, posts=posts, overlap_threshold=0.1
-        )
+        result_loose = parse_synthesis(text, template, posts=posts, overlap_threshold=0.1)
         assert len(result_loose.audit_chains) >= 0  # May or may not match
 
 
@@ -1522,14 +1550,17 @@ class TestScoringWeights:
 class TestMockInheritance:
     def test_mock_pubmed_inherits(self):
         from colloquip.tools.pubmed import MockPubMedTool, PubMedTool
+
         assert issubclass(MockPubMedTool, PubMedTool)
 
     def test_mock_web_search_inherits(self):
         from colloquip.tools.web_search import MockWebSearchTool, WebSearchTool
+
         assert issubclass(MockWebSearchTool, WebSearchTool)
 
     def test_mock_company_docs_inherits(self):
         from colloquip.tools.company_docs import CompanyDocsTool, MockCompanyDocsTool
+
         assert issubclass(MockCompanyDocsTool, CompanyDocsTool)
 
     def test_mock_pubmed_shares_schema_structure(self):
@@ -1542,8 +1573,10 @@ class TestMockInheritance:
         assert "input_schema" in mock.tool_schema
 
     def test_verification_report_is_pydantic(self):
-        from colloquip.tools.citation_verifier import VerificationReport
         from pydantic import BaseModel
+
+        from colloquip.tools.citation_verifier import VerificationReport
+
         assert issubclass(VerificationReport, BaseModel)
 
         report = VerificationReport(total_citations=3, verified=2, flagged=1)

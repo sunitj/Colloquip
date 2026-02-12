@@ -8,26 +8,23 @@ Validates the full memory pipeline:
 5. Phase 3b models are defined and valid
 """
 
-from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
 
-from colloquip.agents.prompts import build_memory_context, build_v3_system_prompt
+from colloquip.agents.prompts import build_v3_system_prompt
 from colloquip.embeddings.mock import MockEmbeddingProvider
 from colloquip.memory.extractor import SynthesisMemoryExtractor
 from colloquip.memory.retriever import MemoryRetriever
-from colloquip.memory.store import InMemoryStore, SynthesisMemory
+from colloquip.memory.store import InMemoryStore
 from colloquip.models import (
     AuditChain,
-    MemoryAnnotationType,
     MemoryScope,
     MemoryType,
     Phase,
     Synthesis,
     TypedMemory,
 )
-
 
 SUB_VALIDATION = uuid4()
 SUB_ONCOLOGY = uuid4()
@@ -125,9 +122,7 @@ class TestPhase3EndToEnd:
         await store.save(memory)
 
         # Human marks the IC50 as outdated
-        await store.annotate(
-            memory.id, "outdated", "IC50 was revised to 50nM in latest assay."
-        )
+        await store.annotate(memory.id, "outdated", "IC50 was revised to 50nM in latest assay.")
 
         # Retrieve and format
         result = await retriever.retrieve(

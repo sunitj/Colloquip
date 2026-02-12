@@ -14,6 +14,7 @@ router = APIRouter(prefix="/api")
 
 # --- Helpers ---
 
+
 def _parse_uuid(value: str, label: str = "ID") -> UUID:
     try:
         return UUID(value)
@@ -23,8 +24,11 @@ def _parse_uuid(value: str, label: str = "ID") -> UUID:
 
 # --- Schemas ---
 
+
 class OutcomeReportRequest(BaseModel):
-    outcome_type: str = Field(pattern=r"^(confirmed|partially_confirmed|contradicted|inconclusive)$")
+    outcome_type: str = Field(
+        pattern=r"^(confirmed|partially_confirmed|contradicted|inconclusive)$"
+    )
     summary: str = Field(min_length=1, max_length=5000)
     evidence: str = ""
     conclusions_evaluated: List[str] = Field(default_factory=list)
@@ -66,6 +70,7 @@ class CalibrationOverviewResponse(BaseModel):
 
 # --- Endpoints ---
 
+
 @router.post("/threads/{thread_id}/outcome")
 async def report_outcome(
     request: Request,
@@ -82,6 +87,7 @@ async def report_outcome(
     tid = _parse_uuid(thread_id, "thread_id")
     # subreddit_id would be looked up from the thread in production
     from uuid import uuid4
+
     outcome = OutcomeReport(
         thread_id=tid,
         subreddit_id=uuid4(),
@@ -163,6 +169,7 @@ async def get_calibration_overview(
 
 
 # --- Formatters ---
+
 
 def _format_outcome(o) -> OutcomeResponse:
     return OutcomeResponse(

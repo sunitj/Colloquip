@@ -5,8 +5,8 @@ capabilities. All new endpoints are under /api/subreddits and /api/agents.
 """
 
 import logging
-from typing import TYPE_CHECKING, Dict, List, Literal, Optional
-from uuid import UUID, uuid4
+from typing import TYPE_CHECKING, List, Literal, Optional
+from uuid import UUID
 
 if TYPE_CHECKING:
     from colloquip.api.platform_manager import PlatformManager
@@ -16,11 +16,8 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from colloquip.models import (
-    OutputTemplate,
     ParticipationModel,
-    SubredditPurpose,
     ThinkingType,
-    ToolConfig,
 )
 
 logger = logging.getLogger(__name__)
@@ -31,6 +28,7 @@ router = APIRouter(prefix="/api")
 # ---------------------------------------------------------------------------
 # Request / Response schemas
 # ---------------------------------------------------------------------------
+
 
 class CreateSubredditRequest(BaseModel):
     name: str = Field(min_length=1, max_length=100, pattern=r"^[a-z0-9_]+$")
@@ -109,6 +107,7 @@ class HumanPostRequest(BaseModel):
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _get_platform(request: Request):
     """Get the PlatformManager from app state, ensuring it's initialized."""
     pm = getattr(request.app.state, "platform_manager", None)
@@ -128,6 +127,7 @@ def _get_platform(request: Request):
 # ---------------------------------------------------------------------------
 # Subreddit endpoints
 # ---------------------------------------------------------------------------
+
 
 @router.post("/subreddits", response_model=SubredditDetailResponse)
 async def create_subreddit(body: CreateSubredditRequest, request: Request):
@@ -235,6 +235,7 @@ async def create_thread(name: str, body: CreateThreadRequest, request: Request):
 # Agent endpoints
 # ---------------------------------------------------------------------------
 
+
 @router.get("/agents", response_model=List[AgentResponse])
 async def list_agents(request: Request):
     """List all agents in the global pool."""
@@ -284,6 +285,7 @@ async def get_agent(agent_id: str, request: Request):
 # Cost endpoints
 # ---------------------------------------------------------------------------
 
+
 @router.get("/threads/{thread_id}/costs")
 async def get_thread_costs(thread_id: str, request: Request):
     """Get cost breakdown for a thread."""
@@ -299,6 +301,7 @@ async def get_thread_costs(thread_id: str, request: Request):
 # ---------------------------------------------------------------------------
 # Platform init
 # ---------------------------------------------------------------------------
+
 
 @router.post("/platform/init")
 async def init_platform(request: Request):
@@ -318,6 +321,7 @@ async def init_platform(request: Request):
 def _get_platform_or_create(request: Request):
     """Get or create the PlatformManager."""
     from colloquip.api.platform_manager import PlatformManager
+
     pm = getattr(request.app.state, "platform_manager", None)
     if pm is None:
         pm = PlatformManager()
@@ -328,6 +332,7 @@ def _get_platform_or_create(request: Request):
 # ---------------------------------------------------------------------------
 # Response builders
 # ---------------------------------------------------------------------------
+
 
 def _subreddit_common(pm: "PlatformManager", subreddit: dict) -> tuple:
     """Shared data extraction for subreddit responses."""
@@ -361,7 +366,11 @@ def _build_subreddit_detail_response(
     recruitment: Optional["RecruitmentResult"] = None,
 ) -> SubredditDetailResponse:
     members, has_red_team, threads, purpose, tool_ids = _subreddit_common(pm, subreddit)
-    gaps = [g.model_dump() for g in recruitment.gaps] if recruitment and hasattr(recruitment, "gaps") else []
+    gaps = (
+        [g.model_dump() for g in recruitment.gaps]
+        if recruitment and hasattr(recruitment, "gaps")
+        else []
+    )
     return SubredditDetailResponse(
         id=subreddit["id"],
         name=subreddit["name"],

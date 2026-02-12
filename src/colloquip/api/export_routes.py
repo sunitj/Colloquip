@@ -1,8 +1,7 @@
 """API routes for exporting deliberation results."""
 
-import json
 import logging
-from typing import Dict, Optional
+from typing import Dict
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request
@@ -14,6 +13,7 @@ router = APIRouter(prefix="/api")
 
 
 # --- Helpers ---
+
 
 def _parse_uuid(value: str, label: str = "ID") -> UUID:
     try:
@@ -36,6 +36,7 @@ async def _get_synthesis_data(request: Request, thread_id: str) -> Dict:
 
 
 # --- Endpoints ---
+
 
 @router.get("/threads/{thread_id}/export/markdown")
 async def export_markdown(request: Request, thread_id: str) -> PlainTextResponse:

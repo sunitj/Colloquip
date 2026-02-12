@@ -8,6 +8,7 @@ from colloquip.models import AgentStance
 @runtime_checkable
 class LLMResponse(Protocol):
     """Structured response from an LLM call."""
+
     content: str
     stance: AgentStance
     key_claims: List[str]

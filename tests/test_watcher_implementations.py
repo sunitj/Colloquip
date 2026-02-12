@@ -1,7 +1,7 @@
 """Tests for concrete watcher implementations: literature, scheduled, webhook."""
 
-from datetime import datetime, timezone, timedelta
-from unittest.mock import AsyncMock, MagicMock
+from datetime import datetime, timedelta, timezone
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
@@ -11,7 +11,6 @@ from colloquip.tools.interface import SearchResult, ToolResult
 from colloquip.watchers.literature import LiteratureWatcher
 from colloquip.watchers.scheduled import ScheduledWatcher
 from colloquip.watchers.webhook import WebhookWatcher
-
 
 SUB_A = uuid4()
 
@@ -41,18 +40,21 @@ def make_search_result(source_id="PMID:001", title="Paper Title") -> SearchResul
 
 # --- LiteratureWatcher ---
 
+
 class TestLiteratureWatcher:
     @pytest.fixture
     def mock_pubmed(self):
         tool = AsyncMock()
-        tool.execute = AsyncMock(return_value=ToolResult(
-            source="pubmed",
-            query="GLP-1",
-            results=[
-                make_search_result("PMID:001", "GLP-1 study 1"),
-                make_search_result("PMID:002", "GLP-1 study 2"),
-            ],
-        ))
+        tool.execute = AsyncMock(
+            return_value=ToolResult(
+                source="pubmed",
+                query="GLP-1",
+                results=[
+                    make_search_result("PMID:001", "GLP-1 study 1"),
+                    make_search_result("PMID:002", "GLP-1 study 2"),
+                ],
+            )
+        )
         return tool
 
     @pytest.mark.asyncio
@@ -145,6 +147,7 @@ class TestLiteratureWatcher:
 
 # --- ScheduledWatcher ---
 
+
 class TestScheduledWatcher:
     @pytest.mark.asyncio
     async def test_fires_on_first_poll(self):
@@ -236,6 +239,7 @@ class TestScheduledWatcher:
 
 # --- WebhookWatcher ---
 
+
 class TestWebhookWatcher:
     @pytest.mark.asyncio
     async def test_receive_and_poll(self):
@@ -274,15 +278,11 @@ class TestWebhookWatcher:
         watcher = WebhookWatcher(config)
 
         # Trusted sender
-        event = watcher.receive_webhook(
-            {"title": "Good event"}, sender="trusted_source"
-        )
+        event = watcher.receive_webhook({"title": "Good event"}, sender="trusted_source")
         assert event is not None
 
         # Untrusted sender
-        event2 = watcher.receive_webhook(
-            {"title": "Bad event"}, sender="untrusted"
-        )
+        event2 = watcher.receive_webhook({"title": "Bad event"}, sender="untrusted")
         assert event2 is None
         assert watcher.buffer_size == 1  # Only the trusted event
 
@@ -291,12 +291,14 @@ class TestWebhookWatcher:
         config = make_config(watcher_type=WatcherType.WEBHOOK)
         watcher = WebhookWatcher(config)
 
-        event = watcher.receive_webhook({
-            "title": "Finding",
-            "summary": "Details",
-            "url": "https://example.com",
-            "custom_field": "value",
-        })
+        event = watcher.receive_webhook(
+            {
+                "title": "Finding",
+                "summary": "Details",
+                "url": "https://example.com",
+                "custom_field": "value",
+            }
+        )
         assert event.source.source_type == "webhook"
         assert event.source.url == "https://example.com"
         assert event.raw_data["custom_field"] == "value"

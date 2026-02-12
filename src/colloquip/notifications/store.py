@@ -14,7 +14,6 @@ from colloquip.models import (
     Notification,
     NotificationAction,
     NotificationStatus,
-    TriageSignal,
 )
 
 logger = logging.getLogger(__name__)
@@ -89,9 +88,7 @@ class InMemoryNotificationStore(NotificationStore):
 
     async def save(self, notification: Notification) -> None:
         if notification.id in self._by_id:
-            self._notifications = [
-                n for n in self._notifications if n.id != notification.id
-            ]
+            self._notifications = [n for n in self._notifications if n.id != notification.id]
         self._notifications.append(notification)
         self._by_id[notification.id] = notification
 
@@ -104,10 +101,7 @@ class InMemoryNotificationStore(NotificationStore):
         status: Optional[NotificationStatus] = None,
         limit: int = 50,
     ) -> List[Notification]:
-        results = [
-            n for n in self._notifications
-            if n.subreddit_id == subreddit_id
-        ]
+        results = [n for n in self._notifications if n.subreddit_id == subreddit_id]
         if status is not None:
             results = [n for n in results if n.status == status]
         results.sort(key=lambda n: n.created_at, reverse=True)

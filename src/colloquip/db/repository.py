@@ -1,7 +1,7 @@
 """Repository pattern for database operations."""
 
 import logging
-from typing import Dict, List, Optional
+from typing import List, Optional
 from uuid import UUID
 
 from sqlalchemy import select
@@ -76,17 +76,17 @@ class SessionRepository:
 
     async def list_sessions(self, limit: int = 50, offset: int = 0) -> List[DeliberationSession]:
         """List sessions ordered by creation time (newest first)."""
-        stmt = (
-            select(DBSession)
-            .order_by(DBSession.created_at.desc())
-            .limit(limit)
-            .offset(offset)
-        )
+        stmt = select(DBSession).order_by(DBSession.created_at.desc()).limit(limit).offset(offset)
         result = await self.db.execute(stmt)
         rows = result.scalars().all()
         return [_row_to_session(r) for r in rows]
 
-    async def update_session_status(self, session_id: UUID, status: SessionStatus, phase: Phase) -> None:
+    async def update_session_status(
+        self,
+        session_id: UUID,
+        status: SessionStatus,
+        phase: Phase,
+    ) -> None:
         """Update just the status and phase of a session."""
         row = await self.db.get(DBSession, str(session_id))
         if row:
@@ -124,9 +124,7 @@ class SessionRepository:
     async def get_posts(self, session_id: UUID) -> List[Post]:
         """Load all posts for a session, ordered by creation time."""
         stmt = (
-            select(DBPost)
-            .where(DBPost.session_id == str(session_id))
-            .order_by(DBPost.created_at)
+            select(DBPost).where(DBPost.session_id == str(session_id)).order_by(DBPost.created_at)
         )
         result = await self.db.execute(stmt)
         rows = result.scalars().all()
@@ -176,9 +174,7 @@ class SessionRepository:
     async def save_consensus(self, consensus: ConsensusMap) -> None:
         """Insert or replace the consensus map for a session."""
         existing = await self.db.execute(
-            select(DBConsensusMap).where(
-                DBConsensusMap.session_id == str(consensus.session_id)
-            )
+            select(DBConsensusMap).where(DBConsensusMap.session_id == str(consensus.session_id))
         )
         row = existing.scalar_one_or_none()
         if row:
@@ -204,9 +200,7 @@ class SessionRepository:
 
     async def get_consensus(self, session_id: UUID) -> Optional[ConsensusMap]:
         """Load the consensus map for a session."""
-        stmt = select(DBConsensusMap).where(
-            DBConsensusMap.session_id == str(session_id)
-        )
+        stmt = select(DBConsensusMap).where(DBConsensusMap.session_id == str(session_id))
         result = await self.db.execute(stmt)
         row = result.scalar_one_or_none()
         if not row:
@@ -215,17 +209,24 @@ class SessionRepository:
 
     # ---- Subreddits ----
 
-    async def save_subreddit(self, subreddit_id: str, name: str, display_name: str,
-                             description: str = "", purpose: dict = None,
-                             output_template: dict = None,
-                             participation_model: str = "guided",
-                             tool_configs: list = None,
-                             min_agents: int = 3, max_agents: int = 8,
-                             always_include_red_team: bool = True,
-                             max_cost_per_thread_usd: float = 5.0,
-                             monthly_budget_usd: float = None,
-                             engine_overrides: dict = None,
-                             created_by: str = None) -> None:
+    async def save_subreddit(
+        self,
+        subreddit_id: str,
+        name: str,
+        display_name: str,
+        description: str = "",
+        purpose: dict = None,
+        output_template: dict = None,
+        participation_model: str = "guided",
+        tool_configs: list = None,
+        min_agents: int = 3,
+        max_agents: int = 8,
+        always_include_red_team: bool = True,
+        max_cost_per_thread_usd: float = 5.0,
+        monthly_budget_usd: float = None,
+        engine_overrides: dict = None,
+        created_by: str = None,
+    ) -> None:
         """Insert or update a subreddit."""
         row = await self.db.get(DBSubreddit, subreddit_id)
         if row:
@@ -370,21 +371,23 @@ class SessionRepository:
 
     async def get_agent_subreddits(self, agent_id: str) -> List[SubredditMembership]:
         """Get all subreddits an agent belongs to."""
-        stmt = (
-            select(DBSubredditMembership)
-            .where(DBSubredditMembership.agent_id == agent_id)
-        )
+        stmt = select(DBSubredditMembership).where(DBSubredditMembership.agent_id == agent_id)
         result = await self.db.execute(stmt)
         return [_row_to_membership(r) for r in result.scalars().all()]
 
     # ---- Synthesis ----
 
-    async def save_synthesis(self, session_id: str, template_type: str,
-                             sections: dict, metadata: dict = None,
-                             audit_chains: list = None,
-                             total_citations: int = 0,
-                             citation_verification: dict = None,
-                             tokens_used: int = 0) -> None:
+    async def save_synthesis(
+        self,
+        session_id: str,
+        template_type: str,
+        sections: dict,
+        metadata: dict = None,
+        audit_chains: list = None,
+        total_citations: int = 0,
+        citation_verification: dict = None,
+        tokens_used: int = 0,
+    ) -> None:
         """Save a synthesis for a session."""
         existing = await self.db.execute(
             select(DBSynthesis).where(DBSynthesis.session_id == session_id)
@@ -434,9 +437,14 @@ class SessionRepository:
 
     # ---- Cost Records ----
 
-    async def save_cost_record(self, session_id: str, input_tokens: int,
-                                output_tokens: int, model: str = "default",
-                                estimated_cost_usd: float = 0.0) -> None:
+    async def save_cost_record(
+        self,
+        session_id: str,
+        input_tokens: int,
+        output_tokens: int,
+        model: str = "default",
+        estimated_cost_usd: float = 0.0,
+    ) -> None:
         """Save a cost record."""
         row = DBCostRecord(
             session_id=session_id,
@@ -471,7 +479,6 @@ class SessionRepository:
 
     async def save_memory(self, memory: "SynthesisMemory") -> None:
         """Save a synthesis memory."""
-        from colloquip.memory.store import SynthesisMemory
 
         row = await self.db.get(DBSynthesisMemory, str(memory.id))
         if row:
@@ -520,10 +527,12 @@ class SessionRepository:
         result = await self.db.execute(stmt)
         return [_row_to_memory_dict(r) for r in result.scalars().all()]
 
-    async def save_annotation(self, memory_id: str, annotation_type: str,
-                              content: str, created_by: str = None) -> str:
+    async def save_annotation(
+        self, memory_id: str, annotation_type: str, content: str, created_by: str = None
+    ) -> str:
         """Save a memory annotation. Returns the annotation ID."""
         import uuid
+
         ann_id = str(uuid.uuid4())
         row = DBMemoryAnnotation(
             id=ann_id,
@@ -564,6 +573,7 @@ class SessionRepository:
 
 
 # ---- Row-to-Pydantic converters ----
+
 
 def _row_to_session(row: DBSession) -> DeliberationSession:
     return DeliberationSession(

@@ -50,10 +50,24 @@ class DBSession(Base):
 
     # Relationships
     posts = relationship("DBPost", back_populates="session", cascade="all, delete-orphan")
-    energy_entries = relationship("DBEnergyHistory", back_populates="session", cascade="all, delete-orphan")
-    consensus = relationship("DBConsensusMap", back_populates="session", uselist=False, cascade="all, delete-orphan")
+    energy_entries = relationship(
+        "DBEnergyHistory",
+        back_populates="session",
+        cascade="all, delete-orphan",
+    )
+    consensus = relationship(
+        "DBConsensusMap",
+        back_populates="session",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
     subreddit = relationship("DBSubreddit", back_populates="threads")
-    synthesis = relationship("DBSynthesis", back_populates="session", uselist=False, cascade="all, delete-orphan")
+    synthesis = relationship(
+        "DBSynthesis",
+        back_populates="session",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
 
 
 class DBPost(Base):
@@ -87,9 +101,7 @@ class DBEnergyHistory(Base):
     """energy_history table."""
 
     __tablename__ = "energy_history"
-    __table_args__ = (
-        Index("idx_energy_session", "session_id"),
-    )
+    __table_args__ = (Index("idx_energy_session", "session_id"),)
 
     id = Column(String(36), primary_key=True, default=_uuid)
     session_id = Column(String(36), ForeignKey("deliberation_sessions.id"), nullable=False)
@@ -108,9 +120,7 @@ class DBConsensusMap(Base):
     """consensus_maps table."""
 
     __tablename__ = "consensus_maps"
-    __table_args__ = (
-        UniqueConstraint("session_id", name="uq_consensus_session"),
-    )
+    __table_args__ = (UniqueConstraint("session_id", name="uq_consensus_session"),)
 
     id = Column(String(36), primary_key=True, default=_uuid)
     session_id = Column(String(36), ForeignKey("deliberation_sessions.id"), nullable=False)
@@ -155,16 +165,18 @@ class DBSubreddit(Base):
 
     # Relationships
     threads = relationship("DBSession", back_populates="subreddit")
-    memberships = relationship("DBSubredditMembership", back_populates="subreddit", cascade="all, delete-orphan")
+    memberships = relationship(
+        "DBSubredditMembership",
+        back_populates="subreddit",
+        cascade="all, delete-orphan",
+    )
 
 
 class DBAgentIdentity(Base):
     """agent_identities table — persistent agents in the global pool."""
 
     __tablename__ = "agent_identities"
-    __table_args__ = (
-        Index("idx_agent_type", "agent_type"),
-    )
+    __table_args__ = (Index("idx_agent_type", "agent_type"),)
 
     id = Column(String(36), primary_key=True, default=_uuid)
     agent_type = Column(String(100), unique=True, nullable=False)
@@ -213,9 +225,7 @@ class DBSynthesis(Base):
     """syntheses table — structured output from deliberations."""
 
     __tablename__ = "syntheses"
-    __table_args__ = (
-        UniqueConstraint("session_id", name="uq_synthesis_session"),
-    )
+    __table_args__ = (UniqueConstraint("session_id", name="uq_synthesis_session"),)
 
     id = Column(String(36), primary_key=True, default=_uuid)
     session_id = Column(String(36), ForeignKey("deliberation_sessions.id"), nullable=False)
@@ -261,9 +271,7 @@ class DBMemoryAnnotation(Base):
     """memory_annotations table — human corrections to memories."""
 
     __tablename__ = "memory_annotations"
-    __table_args__ = (
-        Index("idx_annotation_memory", "memory_id"),
-    )
+    __table_args__ = (Index("idx_annotation_memory", "memory_id"),)
 
     id = Column(String(36), primary_key=True, default=_uuid)
     memory_id = Column(String(36), ForeignKey("synthesis_memories.id"), nullable=False)
@@ -277,9 +285,7 @@ class DBCostRecord(Base):
     """cost_records table — per-call token usage tracking."""
 
     __tablename__ = "cost_records"
-    __table_args__ = (
-        Index("idx_cost_session", "session_id"),
-    )
+    __table_args__ = (Index("idx_cost_session", "session_id"),)
 
     id = Column(String(36), primary_key=True, default=_uuid)
     session_id = Column(String(36), ForeignKey("deliberation_sessions.id"), nullable=False)
@@ -299,9 +305,7 @@ class DBWatcher(Base):
     """watchers table — event monitoring configurations."""
 
     __tablename__ = "watchers"
-    __table_args__ = (
-        Index("idx_watcher_subreddit", "subreddit_id"),
-    )
+    __table_args__ = (Index("idx_watcher_subreddit", "subreddit_id"),)
 
     id = Column(String(36), primary_key=True, default=_uuid)
     watcher_type = Column(String(20), nullable=False)  # literature, scheduled, webhook
@@ -320,7 +324,11 @@ class DBWatcher(Base):
 
     # Relationships
     events = relationship("DBWatcherEvent", back_populates="watcher", cascade="all, delete-orphan")
-    notifications = relationship("DBNotification", back_populates="watcher", cascade="all, delete-orphan")
+    notifications = relationship(
+        "DBNotification",
+        back_populates="watcher",
+        cascade="all, delete-orphan",
+    )
 
 
 class DBWatcherEvent(Base):
@@ -416,7 +424,8 @@ class DBOutcomeReport(Base):
     id = Column(String(36), primary_key=True, default=_uuid)
     thread_id = Column(String(36), nullable=False)
     subreddit_id = Column(String(36), nullable=False)
-    outcome_type = Column(String(30), nullable=False)  # confirmed, partially_confirmed, contradicted, inconclusive
+    # confirmed, partially_confirmed, contradicted, inconclusive
+    outcome_type = Column(String(30), nullable=False)
     summary = Column(Text, nullable=False)
     evidence = Column(Text, nullable=False, default="")
     conclusions_evaluated = Column(JSON, nullable=False, default=list)

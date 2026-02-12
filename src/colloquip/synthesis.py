@@ -36,7 +36,7 @@ def _build_synthesis_prompt(
     all_claims = []
     for i, post in enumerate(posts):
         for claim in post.key_claims:
-            all_claims.append(f"- [Post #{i+1}, {post.agent_id}] {claim}")
+            all_claims.append(f"- [Post #{i + 1}, {post.agent_id}] {claim}")
 
     all_questions = []
     for post in posts:
@@ -47,9 +47,7 @@ def _build_synthesis_prompt(
     section_instructions = []
     for section in template.sections:
         req = "(REQUIRED)" if section.required else "(OPTIONAL)"
-        section_instructions.append(
-            f"### {section.name} {req}\n{section.description}"
-        )
+        section_instructions.append(f"### {section.name} {req}\n{section.description}")
 
     sections_text = "\n\n".join(section_instructions)
 
@@ -63,13 +61,12 @@ def _build_synthesis_prompt(
         )
 
     trajectories = "\n".join(
-        f'- **{agent}**: {" → ".join(stances)}'
-        for agent, stances in stance_summary.items()
+        f"- **{agent}**: {' → '.join(stances)}" for agent, stances in stance_summary.items()
     )
     claims_block = "\n".join(all_claims[:30])
     questions_block = "\n".join(all_questions[:15])
     conversation_block = "\n".join(
-        f"**Post #{i+1} [{post.agent_id}] ({post.stance.value}, {post.phase.value}):**\n"
+        f"**Post #{i + 1} [{post.agent_id}] ({post.stance.value}, {post.phase.value}):**\n"
         f"{post.content}\n"
         for i, post in enumerate(posts[-20:])
     )
@@ -201,16 +198,81 @@ def _parse_metadata(text: str, metadata_fields: List[str]) -> Dict[str, str]:
     return metadata
 
 
-_STOP_WORDS = frozenset({
-    "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for",
-    "of", "with", "by", "from", "is", "are", "was", "were", "be", "been",
-    "has", "have", "had", "do", "does", "did", "not", "no", "this", "that",
-    "it", "its", "as", "if", "can", "may", "will", "should", "would",
-    "could", "also", "than", "more", "most", "very", "all", "any", "both",
-    "each", "other", "such", "into", "over", "only", "some", "these",
-    "those", "which", "who", "whom", "what", "when", "where", "how",
-    "about", "between", "through", "during", "before", "after",
-})
+_STOP_WORDS = frozenset(
+    {
+        "the",
+        "a",
+        "an",
+        "and",
+        "or",
+        "but",
+        "in",
+        "on",
+        "at",
+        "to",
+        "for",
+        "of",
+        "with",
+        "by",
+        "from",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "has",
+        "have",
+        "had",
+        "do",
+        "does",
+        "did",
+        "not",
+        "no",
+        "this",
+        "that",
+        "it",
+        "its",
+        "as",
+        "if",
+        "can",
+        "may",
+        "will",
+        "should",
+        "would",
+        "could",
+        "also",
+        "than",
+        "more",
+        "most",
+        "very",
+        "all",
+        "any",
+        "both",
+        "each",
+        "other",
+        "such",
+        "into",
+        "over",
+        "only",
+        "some",
+        "these",
+        "those",
+        "which",
+        "who",
+        "whom",
+        "what",
+        "when",
+        "where",
+        "how",
+        "about",
+        "between",
+        "through",
+        "during",
+        "before",
+        "after",
+    }
+)
 
 
 def _extract_audit_chains(
@@ -256,11 +318,13 @@ def _extract_audit_chains(
                         supporting.append(post.id)
 
             if supporting or dissenting:
-                chains.append(AuditChain(
-                    claim=claim[:200],
-                    supporting_post_ids=supporting[:5],
-                    dissenting_agents=list(set(dissenting)),
-                ))
+                chains.append(
+                    AuditChain(
+                        claim=claim[:200],
+                        supporting_post_ids=supporting[:5],
+                        dissenting_agents=list(set(dissenting)),
+                    )
+                )
 
     return chains[:max_chains]
 
@@ -338,8 +402,7 @@ class SynthesisGenerator:
         except Exception as e:
             logger.error("Synthesis generation failed: %s", e)
             raw_text = (
-                "Synthesis generation failed. Please review the deliberation posts. "
-                f"Error: {e}"
+                f"Synthesis generation failed. Please review the deliberation posts. Error: {e}"
             )
 
         return parse_synthesis(

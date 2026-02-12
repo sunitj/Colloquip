@@ -74,7 +74,8 @@ class PubMedTool(BaseSearchTool):
 
         if not query:
             return ToolResult(
-                source="pubmed", query=query,
+                source="pubmed",
+                query=query,
                 error="Empty query provided",
             )
 
@@ -83,7 +84,8 @@ class PubMedTool(BaseSearchTool):
             pmids = await self._esearch(query, max_results)
             if not pmids:
                 return ToolResult(
-                    source="pubmed", query=query,
+                    source="pubmed",
+                    query=query,
                     execution_time_ms=(time.monotonic() - start_time) * 1000,
                 )
 
@@ -98,7 +100,8 @@ class PubMedTool(BaseSearchTool):
         except Exception as e:
             logger.error("PubMed search failed: %s", e)
             return ToolResult(
-                source="pubmed", query=query,
+                source="pubmed",
+                query=query,
                 error=str(e),
                 execution_time_ms=(time.monotonic() - start_time) * 1000,
             )
@@ -217,7 +220,7 @@ class PubMedTool(BaseSearchTool):
 
         # Journal and year
         journal_el = art.find(".//Journal/Title")
-        journal = journal_el.text if journal_el is not None else ""
+        _journal = journal_el.text if journal_el is not None else ""
 
         year = None
         year_el = art.find(".//PubDate/Year")
@@ -275,8 +278,8 @@ class MockPubMedTool(PubMedTool):
                 title=f"Evidence for {query} in preclinical models",
                 authors=["Smith J", "Jones A", "Wilson B"],
                 abstract=f"This study demonstrates significant findings related to {query}. "
-                         f"Results from multiple preclinical models show consistent effects "
-                         f"supporting further investigation.",
+                f"Results from multiple preclinical models show consistent effects "
+                f"supporting further investigation.",
                 url="https://pubmed.ncbi.nlm.nih.gov/12345678/",
                 doi="10.1234/mock.2024.001",
                 year=2024,
@@ -288,8 +291,8 @@ class MockPubMedTool(PubMedTool):
                 title=f"Systematic review: {query} therapeutic potential",
                 authors=["Brown C", "Davis M"],
                 abstract=f"A systematic review of {query} across 42 studies reveals "
-                         f"mixed but promising evidence. Meta-analysis indicates a "
-                         f"statistically significant effect (p<0.01).",
+                f"mixed but promising evidence. Meta-analysis indicates a "
+                f"statistically significant effect (p<0.01).",
                 url="https://pubmed.ncbi.nlm.nih.gov/23456789/",
                 doi="10.1234/mock.2024.002",
                 year=2023,
@@ -301,8 +304,8 @@ class MockPubMedTool(PubMedTool):
                 title=f"Safety and tolerability of {query}: Phase I data",
                 authors=["Lee K", "Park S", "Chen W"],
                 abstract=f"Phase I clinical trial evaluating {query}. "
-                         f"Favorable safety profile observed with dose-dependent "
-                         f"pharmacokinetic properties and no serious adverse events.",
+                f"Favorable safety profile observed with dose-dependent "
+                f"pharmacokinetic properties and no serious adverse events.",
                 url="https://pubmed.ncbi.nlm.nih.gov/34567890/",
                 doi="10.1234/mock.2024.003",
                 year=2024,

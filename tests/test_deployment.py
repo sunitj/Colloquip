@@ -4,14 +4,13 @@ import json
 import os
 from unittest.mock import patch
 
-import pytest
-
-
 # --- Settings ---
+
 
 class TestSettings:
     def test_default_settings(self):
         from colloquip.settings import load_settings
+
         settings = load_settings()
         assert settings.deployment.environment == "development"
         assert settings.embedding.provider == "mock"
@@ -19,14 +18,18 @@ class TestSettings:
 
     def test_settings_from_env(self):
         from colloquip.settings import load_settings
-        with patch.dict(os.environ, {
-            "ENVIRONMENT": "production",
-            "EMBEDDING_PROVIDER": "openai",
-            "MEMORY_STORE": "pgvector",
-            "LOG_LEVEL": "WARNING",
-            "WATCHER_POLL_INTERVAL": "600",
-            "MAX_COST_PER_THREAD_USD": "10.0",
-        }):
+
+        with patch.dict(
+            os.environ,
+            {
+                "ENVIRONMENT": "production",
+                "EMBEDDING_PROVIDER": "openai",
+                "MEMORY_STORE": "pgvector",
+                "LOG_LEVEL": "WARNING",
+                "WATCHER_POLL_INTERVAL": "600",
+                "MAX_COST_PER_THREAD_USD": "10.0",
+            },
+        ):
             settings = load_settings()
             assert settings.deployment.environment == "production"
             assert settings.embedding.provider == "openai"
@@ -37,34 +40,44 @@ class TestSettings:
 
     def test_cors_origins_parsing(self):
         from colloquip.settings import load_settings
-        with patch.dict(os.environ, {
-            "CORS_ORIGINS": "https://app.example.com,https://admin.example.com",
-        }):
+
+        with patch.dict(
+            os.environ,
+            {
+                "CORS_ORIGINS": "https://app.example.com,https://admin.example.com",
+            },
+        ):
             settings = load_settings()
             assert len(settings.deployment.cors_origins) == 2
             assert "https://app.example.com" in settings.deployment.cors_origins
 
     def test_database_settings_default(self):
         from colloquip.settings import load_settings
+
         settings = load_settings()
         assert "sqlite" in settings.database.url
 
 
 # --- Logging ---
 
+
 class TestLogging:
     def test_configure_text_logging(self):
         from colloquip.logging_config import configure_logging
+
         configure_logging(level="DEBUG", fmt="text")
 
     def test_configure_json_logging(self):
         from colloquip.logging_config import configure_logging
+
         configure_logging(level="INFO", fmt="json")
 
     def test_request_id_filter(self):
         from colloquip.logging_config import RequestIdFilter, request_id_var
+
         filt = RequestIdFilter()
         import logging
+
         record = logging.LogRecord("test", logging.INFO, "", 0, "msg", (), None)
         result = filt.filter(record)
         assert result is True
@@ -76,8 +89,10 @@ class TestLogging:
         request_id_var.reset(token)
 
     def test_json_formatter(self):
-        from colloquip.logging_config import JsonFormatter
         import logging
+
+        from colloquip.logging_config import JsonFormatter
+
         formatter = JsonFormatter()
         record = logging.LogRecord("test", logging.INFO, "", 0, "test message", (), None)
         record.request_id = "test-id"
@@ -89,6 +104,7 @@ class TestLogging:
 
     def test_generate_request_id(self):
         from colloquip.logging_config import generate_request_id
+
         rid = generate_request_id()
         assert len(rid) == 12
         assert rid.isalnum()
@@ -96,14 +112,16 @@ class TestLogging:
 
 # --- Metrics ---
 
+
 class TestMetrics:
     def test_metrics_counters(self):
         from colloquip.metrics import (
             deliberations_total,
             memory_retrievals_total,
-            watcher_events_total,
             notifications_total,
+            watcher_events_total,
         )
+
         # These should be callable without error (NoOp or real)
         deliberations_total.inc()
         memory_retrievals_total.inc()
@@ -112,16 +130,18 @@ class TestMetrics:
 
     def test_metrics_histograms(self):
         from colloquip.metrics import (
-            deliberation_duration_seconds,
             deliberation_cost_usd,
+            deliberation_duration_seconds,
             memory_retrieval_latency_seconds,
         )
+
         deliberation_duration_seconds.observe(5.0)
         deliberation_cost_usd.observe(0.5)
         memory_retrieval_latency_seconds.observe(0.01)
 
     def test_metrics_gauge(self):
         from colloquip.metrics import memory_store_size
+
         memory_store_size.set(42)
 
     def test_track_duration(self):
@@ -129,16 +149,19 @@ class TestMetrics:
             memory_retrieval_latency_seconds,
             track_duration,
         )
+
         with track_duration(memory_retrieval_latency_seconds):
             pass  # Simulate fast operation
 
     def test_get_metrics_text(self):
         from colloquip.metrics import get_metrics_text
+
         output = get_metrics_text()
         assert isinstance(output, bytes)
 
 
 # --- Docker/Config file existence ---
+
 
 class TestFileExistence:
     def test_dockerfile_exists(self):

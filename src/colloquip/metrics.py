@@ -9,7 +9,6 @@ Metrics are only collected when prometheus_client is installed.
 import logging
 import time
 from contextlib import contextmanager
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -22,11 +21,20 @@ except ImportError:
 
     # Stub classes for when prometheus_client is not installed
     class _NoOp:
-        def inc(self, *a, **kw): pass
-        def dec(self, *a, **kw): pass
-        def set(self, *a, **kw): pass
-        def observe(self, *a, **kw): pass
-        def labels(self, **kw): return self
+        def inc(self, *a, **kw):
+            pass
+
+        def dec(self, *a, **kw):
+            pass
+
+        def set(self, *a, **kw):
+            pass
+
+        def observe(self, *a, **kw):
+            pass
+
+        def labels(self, **kw):
+            return self
 
     def generate_latest() -> bytes:
         return b"# prometheus_client not installed\n"

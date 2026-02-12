@@ -4,13 +4,12 @@ from uuid import uuid4
 
 import pytest
 
-from colloquip.feedback.calibration import AgentCalibration, CalibrationReport
+from colloquip.feedback.calibration import AgentCalibration
 from colloquip.feedback.outcome import (
     InMemoryOutcomeTracker,
     OutcomeReport,
     OutcomeType,
 )
-
 
 SUB_A = uuid4()
 SUB_B = uuid4()
@@ -34,6 +33,7 @@ def make_outcome(
 
 
 # --- InMemoryOutcomeTracker ---
+
 
 class TestInMemoryOutcomeTracker:
     @pytest.fixture
@@ -80,6 +80,7 @@ class TestInMemoryOutcomeTracker:
 
 
 # --- AgentCalibration ---
+
 
 class TestAgentCalibration:
     @pytest.fixture

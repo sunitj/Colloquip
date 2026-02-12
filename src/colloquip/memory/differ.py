@@ -6,7 +6,7 @@ resolved disagreements, and persistent uncertainties.
 
 import logging
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
@@ -31,7 +31,7 @@ class DeliberationDiff(BaseModel):
 
     def format_for_prompt(self) -> str:
         """Format the diff for injection into agent prompts."""
-        sections = [f"## Changes Since Previous Deliberation"]
+        sections = ["## Changes Since Previous Deliberation"]
 
         if self.new_evidence:
             sections.append("### New Evidence")
@@ -81,7 +81,7 @@ class MockDeliberationDiffer:
         dropped = [c for c in earlier.key_conclusions if c not in later_conclusions]
 
         # Shared conclusions
-        shared = earlier_conclusions & later_conclusions
+        _shared = earlier_conclusions & later_conclusions
 
         # Build changed conclusions
         changed: List[str] = []
@@ -95,9 +95,7 @@ class MockDeliberationDiffer:
         new_cites = later_cites - earlier_cites
 
         if new_cites:
-            new_evidence.append(
-                f"New citations: {', '.join(sorted(new_cites)[:5])}"
-            )
+            new_evidence.append(f"New citations: {', '.join(sorted(new_cites)[:5])}")
 
         # Determine trajectory
         if len(new_evidence) > len(dropped):

@@ -7,7 +7,6 @@ import pytest
 from colloquip.memory.differ import DeliberationDiff, MockDeliberationDiffer
 from colloquip.memory.store import SynthesisMemory
 
-
 SUB_A = uuid4()
 
 

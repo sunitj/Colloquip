@@ -28,9 +28,7 @@ class RetrievedMemories(BaseModel):
         if self.arena:
             sections.append("## Relevant Past Deliberations (This Subreddit)")
             for mem in self.arena:
-                sections.append(
-                    f"### {mem.topic} ({mem.created_at.strftime('%Y-%m-%d')})"
-                )
+                sections.append(f"### {mem.topic} ({mem.created_at.strftime('%Y-%m-%d')})")
                 if mem.confidence_level:
                     sections.append(f"Confidence: {mem.confidence_level}")
                 sections.append("Key conclusions:")
@@ -42,17 +40,11 @@ class RetrievedMemories(BaseModel):
                     ann_type = ann.get("annotation_type", "")
                     ann_content = ann.get("content", "")
                     if ann_type == "outdated":
-                        sections.append(
-                            f"**[WARNING - OUTDATED]**: {ann_content}"
-                        )
+                        sections.append(f"**[WARNING - OUTDATED]**: {ann_content}")
                     elif ann_type == "correction":
-                        sections.append(
-                            f"**[Human correction]**: {ann_content}"
-                        )
+                        sections.append(f"**[Human correction]**: {ann_content}")
                     elif ann_type == "context":
-                        sections.append(
-                            f"**[Additional context]**: {ann_content}"
-                        )
+                        sections.append(f"**[Additional context]**: {ann_content}")
                 sections.append("")
 
         if self.global_results:
@@ -70,17 +62,11 @@ class RetrievedMemories(BaseModel):
                     ann_type = ann.get("annotation_type", "")
                     ann_content = ann.get("content", "")
                     if ann_type == "outdated":
-                        sections.append(
-                            f"**[WARNING - OUTDATED]**: {ann_content}"
-                        )
+                        sections.append(f"**[WARNING - OUTDATED]**: {ann_content}")
                     elif ann_type == "correction":
-                        sections.append(
-                            f"**[Human correction]**: {ann_content}"
-                        )
+                        sections.append(f"**[Human correction]**: {ann_content}")
                     elif ann_type == "context":
-                        sections.append(
-                            f"**[Additional context]**: {ann_content}"
-                        )
+                        sections.append(f"**[Additional context]**: {ann_content}")
                 sections.append("")
 
         if not sections:

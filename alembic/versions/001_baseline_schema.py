@@ -4,10 +4,12 @@ Revision ID: 001
 Revises: None
 Create Date: 2026-02-12
 """
+
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision: str = "001"
 down_revision: Union[str, None] = None
@@ -55,7 +57,12 @@ def upgrade() -> None:
     op.create_table(
         "posts",
         sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column("session_id", sa.String(36), sa.ForeignKey("deliberation_sessions.id"), nullable=False),
+        sa.Column(
+            "session_id",
+            sa.String(36),
+            sa.ForeignKey("deliberation_sessions.id"),
+            nullable=False,
+        ),
         sa.Column("agent_id", sa.String(50), nullable=False),
         sa.Column("content", sa.Text, nullable=False),
         sa.Column("stance", sa.String(20), nullable=False),
@@ -75,7 +82,12 @@ def upgrade() -> None:
     op.create_table(
         "energy_history",
         sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column("session_id", sa.String(36), sa.ForeignKey("deliberation_sessions.id"), nullable=False),
+        sa.Column(
+            "session_id",
+            sa.String(36),
+            sa.ForeignKey("deliberation_sessions.id"),
+            nullable=False,
+        ),
         sa.Column("turn", sa.Integer, nullable=False),
         sa.Column("energy", sa.Float, nullable=False),
         sa.Column("novelty", sa.Float),
@@ -89,7 +101,12 @@ def upgrade() -> None:
     op.create_table(
         "consensus_maps",
         sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column("session_id", sa.String(36), sa.ForeignKey("deliberation_sessions.id"), nullable=False),
+        sa.Column(
+            "session_id",
+            sa.String(36),
+            sa.ForeignKey("deliberation_sessions.id"),
+            nullable=False,
+        ),
         sa.Column("summary", sa.Text, nullable=False),
         sa.Column("agreements", sa.JSON, nullable=False, server_default="[]"),
         sa.Column("disagreements", sa.JSON, nullable=False, server_default="[]"),
@@ -131,7 +148,11 @@ def upgrade() -> None:
         sa.Column("total_posts", sa.Integer, nullable=False, server_default="0"),
         sa.Column("joined_at", sa.DateTime(timezone=True), nullable=False),
     )
-    op.create_unique_constraint("uq_agent_subreddit", "subreddit_memberships", ["agent_id", "subreddit_id"])
+    op.create_unique_constraint(
+        "uq_agent_subreddit",
+        "subreddit_memberships",
+        ["agent_id", "subreddit_id"],
+    )
     op.create_index("idx_membership_subreddit", "subreddit_memberships", ["subreddit_id"])
     op.create_index("idx_membership_agent", "subreddit_memberships", ["agent_id"])
 
@@ -139,7 +160,12 @@ def upgrade() -> None:
     op.create_table(
         "syntheses",
         sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column("session_id", sa.String(36), sa.ForeignKey("deliberation_sessions.id"), nullable=False),
+        sa.Column(
+            "session_id",
+            sa.String(36),
+            sa.ForeignKey("deliberation_sessions.id"),
+            nullable=False,
+        ),
         sa.Column("template_type", sa.String(50), nullable=False),
         sa.Column("sections", sa.JSON, nullable=False, server_default="{}"),
         sa.Column("metadata_json", sa.JSON, nullable=False, server_default="{}"),
@@ -154,7 +180,12 @@ def upgrade() -> None:
     op.create_table(
         "cost_records",
         sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column("session_id", sa.String(36), sa.ForeignKey("deliberation_sessions.id"), nullable=False),
+        sa.Column(
+            "session_id",
+            sa.String(36),
+            sa.ForeignKey("deliberation_sessions.id"),
+            nullable=False,
+        ),
         sa.Column("input_tokens", sa.Integer, nullable=False, server_default="0"),
         sa.Column("output_tokens", sa.Integer, nullable=False, server_default="0"),
         sa.Column("model", sa.String(100), nullable=False, server_default="default"),

@@ -11,17 +11,12 @@ import logging
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
+from colloquip.cost_tracker import CostTracker
 from colloquip.models import (
     BaseAgentIdentity,
-    OutputTemplate,
     ParticipationModel,
-    RecruitmentResult,
-    SubredditMembership,
-    SubredditRole,
     ThinkingType,
-    ToolConfig,
 )
-from colloquip.cost_tracker import CostTracker
 from colloquip.output_templates import get_template
 from colloquip.registry import AgentRegistry
 from colloquip.tools.registry import ToolRegistry
@@ -89,16 +84,18 @@ class PlatformManager:
 
         # Build tool configs
         tool_configs = []
-        for tool_id in (tool_ids or []):
+        for tool_id in tool_ids or []:
             if tool_id in self.tool_registry.available_tools():
-                tool_configs.append({
-                    "tool_id": tool_id,
-                    "display_name": tool_id.replace("_", " ").title(),
-                    "description": f"Search via {tool_id}",
-                    "tool_type": "literature_search",
-                    "connection_config": {},
-                    "enabled": True,
-                })
+                tool_configs.append(
+                    {
+                        "tool_id": tool_id,
+                        "display_name": tool_id.replace("_", " ").title(),
+                        "description": f"Search via {tool_id}",
+                        "tool_type": "literature_search",
+                        "connection_config": {},
+                        "enabled": True,
+                    }
+                )
 
         # Build purpose
         purpose = {
@@ -140,14 +137,16 @@ class PlatformManager:
 
         # Store memberships
         for m in recruitment.memberships:
-            self._memberships[subreddit_id].append({
-                "id": str(m.id),
-                "agent_id": str(m.agent_id),
-                "subreddit_id": subreddit_id,
-                "role": m.role.value,
-                "role_prompt": m.role_prompt,
-                "tool_access": [tc["tool_id"] for tc in tool_configs],
-            })
+            self._memberships[subreddit_id].append(
+                {
+                    "id": str(m.id),
+                    "agent_id": str(m.agent_id),
+                    "subreddit_id": subreddit_id,
+                    "role": m.role.value,
+                    "role_prompt": m.role_prompt,
+                    "tool_access": [tc["tool_id"] for tc in tool_configs],
+                }
+            )
             # Track count
             self._agent_subreddit_count[m.agent_id] = (
                 self._agent_subreddit_count.get(m.agent_id, 0) + 1

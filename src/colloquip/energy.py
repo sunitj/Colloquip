@@ -14,9 +14,7 @@ class EnergyCalculator:
         self.config = config or EnergyConfig()
         self.num_agents = num_agents
 
-    def _compute_energy_and_components(
-        self, posts: List[Post]
-    ) -> Tuple[float, Dict[str, float]]:
+    def _compute_energy_and_components(self, posts: List[Post]) -> Tuple[float, Dict[str, float]]:
         """Core computation: returns (energy, components).
 
         Used by both calculate_energy() and calculate_energy_update()
@@ -71,9 +69,7 @@ class EnergyCalculator:
         energy, components = self._compute_energy_and_components(posts)
         return EnergyUpdate(turn=turn, energy=energy, components=components)
 
-    def should_terminate(
-        self, posts: List[Post], energy_history: List[float]
-    ) -> Tuple[bool, str]:
+    def should_terminate(self, posts: List[Post], energy_history: List[float]) -> Tuple[bool, str]:
         """Determine if deliberation should end."""
         # Guard: minimum posts before allowing termination
         if len(posts) < self.config.min_posts:
@@ -85,8 +81,7 @@ class EnergyCalculator:
             recent_energy = energy_history[-rounds:]
             if all(e < self.config.energy_threshold for e in recent_energy):
                 return True, (
-                    f"low_energy: energy < {self.config.energy_threshold} "
-                    f"for {rounds} rounds"
+                    f"low_energy: energy < {self.config.energy_threshold} for {rounds} rounds"
                 )
 
         # Condition 2: Maximum posts reached (hard cap)
@@ -114,9 +109,7 @@ class EnergyCalculator:
 
         avg_novelty = sum(p.novelty_score for p in recent) / len(recent)
 
-        novel_connections = sum(
-            1 for p in recent if p.stance == AgentStance.NOVEL_CONNECTION
-        )
+        novel_connections = sum(1 for p in recent if p.stance == AgentStance.NOVEL_CONNECTION)
         connection_bonus = min(
             novel_connections * self.config.novelty_bonus_per_connection,
             self.config.max_novelty_bonus,
@@ -143,9 +136,7 @@ class EnergyCalculator:
         else:
             return 1.0 - 0.5 * (disagreement_rate - 0.5) / 0.5
 
-    def _calculate_question_component(
-        self, recent: List[Post], all_posts: List[Post]
-    ) -> float:
+    def _calculate_question_component(self, recent: List[Post], all_posts: List[Post]) -> float:
         """Open questions component."""
         recent_questions: List[Tuple[Post, str]] = []
         for post in recent:
@@ -164,7 +155,7 @@ class EnergyCalculator:
                 q_index = all_posts.index(q_post)
             except ValueError:
                 continue
-            subsequent = all_posts[q_index + 1:]
+            subsequent = all_posts[q_index + 1 :]
 
             # Strip punctuation from keywords for matching
             q_keywords = set(re.sub(r"[^\w\s]", "", question.lower()).split())
@@ -182,9 +173,7 @@ class EnergyCalculator:
 
         return min(unanswered / self.config.max_open_questions, 1.0)
 
-    def _calculate_staleness_penalty(
-        self, recent: List[Post], all_posts: List[Post]
-    ) -> float:
+    def _calculate_staleness_penalty(self, recent: List[Post], all_posts: List[Post]) -> float:
         """Staleness penalty for repetition and circular arguments."""
         if len(recent) < 3:
             return 0.0
@@ -197,9 +186,7 @@ class EnergyCalculator:
             if post.novelty_score > 0.7:
                 break
             posts_since_novel += 1
-        novelty_penalty = min(
-            posts_since_novel / self.config.posts_since_novel_threshold, 1.0
-        )
+        novelty_penalty = min(posts_since_novel / self.config.posts_since_novel_threshold, 1.0)
         penalties.append(novelty_penalty)
 
         # Penalty 2: Semantic repetition

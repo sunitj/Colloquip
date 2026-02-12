@@ -1,6 +1,5 @@
 """Tests for cross-subreddit reference detection."""
 
-from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
@@ -12,7 +11,6 @@ from colloquip.memory.cross_references import (
     extract_entities,
 )
 from colloquip.memory.store import InMemoryStore, SynthesisMemory
-
 
 SUB_A = uuid4()
 SUB_B = uuid4()
@@ -33,13 +31,16 @@ def make_memory(
         subreddit_name=subreddit_name,
         topic=topic,
         synthesis_content=synthesis_content,
-        key_conclusions=key_conclusions if key_conclusions is not None else [f"Conclusion about {topic}"],
+        key_conclusions=(
+            key_conclusions if key_conclusions is not None else [f"Conclusion about {topic}"]
+        ),
         embedding=embedding or [],
         **kwargs,
     )
 
 
 # --- Entity extraction ---
+
 
 class TestEntityExtraction:
     def test_extract_pmids(self):
@@ -78,6 +79,7 @@ class TestEntityExtraction:
 
 # --- CrossReference model ---
 
+
 class TestCrossReferenceModel:
     def test_create_cross_reference(self):
         ref = CrossReference(
@@ -96,6 +98,7 @@ class TestCrossReferenceModel:
 
 
 # --- CrossReferenceDetector ---
+
 
 class TestCrossReferenceDetector:
     @pytest.fixture

@@ -5,10 +5,10 @@ poll for results without using the web interface.
 """
 
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Header, Request
+from fastapi import APIRouter, Header, HTTPException, Request
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -17,6 +17,7 @@ router = APIRouter(prefix="/api/external")
 
 
 # --- Schemas ---
+
 
 class SubmitHypothesisRequest(BaseModel):
     hypothesis: str = Field(min_length=5, max_length=2000)
@@ -41,6 +42,7 @@ class ThreadResultResponse(BaseModel):
 
 # --- API key validation ---
 
+
 def _validate_api_key(api_key: Optional[str]) -> None:
     """Validate the API key. For now, any non-empty key is accepted."""
     if not api_key:
@@ -51,6 +53,7 @@ def _validate_api_key(api_key: Optional[str]) -> None:
 
 
 # --- Endpoints ---
+
 
 @router.post("/submit")
 async def submit_hypothesis(

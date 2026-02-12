@@ -19,6 +19,7 @@ def create_embedding_provider(provider: str | None = None) -> EmbeddingProvider:
         return MockEmbeddingProvider()
     elif provider == "openai":
         from colloquip.embeddings.openai import OpenAIEmbeddingProvider
+
         return OpenAIEmbeddingProvider()
     else:
         raise ValueError(f"Unknown embedding provider: {provider}")

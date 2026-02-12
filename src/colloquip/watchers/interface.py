@@ -82,10 +82,7 @@ class WatcherRegistry:
 
     def get_by_subreddit(self, subreddit_id: UUID) -> List[BaseWatcher]:
         """Get all watchers for a subreddit."""
-        return [
-            w for w in self._watchers.values()
-            if w.subreddit_id == subreddit_id
-        ]
+        return [w for w in self._watchers.values() if w.subreddit_id == subreddit_id]
 
     def get_enabled(self) -> List[BaseWatcher]:
         """Get all enabled watchers."""

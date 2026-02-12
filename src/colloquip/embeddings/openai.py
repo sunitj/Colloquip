@@ -32,6 +32,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
 
         try:
             import openai
+
             key = api_key or os.environ.get("OPENAI_API_KEY")
             if key:
                 self._client = openai.AsyncOpenAI(api_key=key)
@@ -42,8 +43,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
                 )
         except ImportError:
             logger.warning(
-                "openai package not installed. Install with: "
-                "pip install colloquip[embeddings]"
+                "openai package not installed. Install with: pip install colloquip[embeddings]"
             )
 
     async def embed(self, text: str) -> List[float]:

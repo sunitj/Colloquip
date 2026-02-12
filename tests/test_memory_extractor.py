@@ -13,7 +13,6 @@ from colloquip.memory.extractor import (
 )
 from colloquip.models import AuditChain, Synthesis
 
-
 # --- extract_citations ---
 
 
@@ -141,13 +140,15 @@ class TestExtractAgentsInvolved:
 
     def test_from_metadata_list(self):
         result = extract_agents_involved(
-            [], {"agents_involved": ["biology", "chemistry"]},
+            [],
+            {"agents_involved": ["biology", "chemistry"]},
         )
         assert set(result) == {"biology", "chemistry"}
 
     def test_from_metadata_string(self):
         result = extract_agents_involved(
-            [], {"agents_involved": "biology, chemistry, admet"},
+            [],
+            {"agents_involved": "biology, chemistry, admet"},
         )
         assert set(result) == {"admet", "biology", "chemistry"}
 

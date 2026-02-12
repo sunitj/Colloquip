@@ -67,7 +67,8 @@ class CompanyDocsTool(BaseSearchTool):
 
         if not self.doc_path or not self.doc_path.exists():
             return ToolResult(
-                source="company_docs", query=query,
+                source="company_docs",
+                query=query,
                 error="Document path not configured or does not exist",
             )
 
@@ -83,7 +84,9 @@ class CompanyDocsTool(BaseSearchTool):
         except Exception as e:
             logger.error("Company docs search failed: %s", e)
             return ToolResult(
-                source="company_docs", query=query, error=str(e),
+                source="company_docs",
+                query=query,
+                error=str(e),
                 execution_time_ms=(time.monotonic() - start_time) * 1000,
             )
 
@@ -118,14 +121,16 @@ class CompanyDocsTool(BaseSearchTool):
             snippet = self._extract_snippet(content, query_tokens)
             record_id = path.stem.replace(" ", "_")
 
-            results.append(SearchResult(
-                title=path.stem.replace("_", " ").replace("-", " ").title(),
-                abstract=snippet,
-                source_id=record_id,
-                source_type="internal",
-                relevance_score=min(score / len(query_tokens), 1.0) if query_tokens else 0.0,
-                snippet=snippet[:300],
-            ))
+            results.append(
+                SearchResult(
+                    title=path.stem.replace("_", " ").replace("-", " ").title(),
+                    abstract=snippet,
+                    source_id=record_id,
+                    source_type="internal",
+                    relevance_score=min(score / len(query_tokens), 1.0) if query_tokens else 0.0,
+                    snippet=snippet[:300],
+                )
+            )
 
         return results
 
@@ -139,7 +144,7 @@ class CompanyDocsTool(BaseSearchTool):
             pos = content_lower.find(token)
             if pos >= 0:
                 # Count nearby tokens
-                local = content_lower[max(0, pos - window):pos + window]
+                local = content_lower[max(0, pos - window) : pos + window]
                 local_score = sum(1 for t in query_tokens if t in local)
                 if local_score > best_score:
                     best_score = local_score
@@ -176,8 +181,8 @@ class MockCompanyDocsTool(CompanyDocsTool):
             SearchResult(
                 title=f"Internal Report: {query} Program Assessment",
                 abstract=f"Internal analysis of {query} from the discovery team. "
-                         f"Key findings include favorable selectivity profile and "
-                         f"preliminary in vivo efficacy in disease-relevant models.",
+                f"Key findings include favorable selectivity profile and "
+                f"preliminary in vivo efficacy in disease-relevant models.",
                 source_id="INT-2024-0142",
                 source_type="internal",
                 relevance_score=0.9,
@@ -186,8 +191,8 @@ class MockCompanyDocsTool(CompanyDocsTool):
             SearchResult(
                 title=f"Assay Protocol: {query} Screening Campaign",
                 abstract=f"Standardized protocol for high-throughput screening of "
-                         f"{query}-related compounds. Includes IC50 determination "
-                         f"and counter-screening methodology.",
+                f"{query}-related compounds. Includes IC50 determination "
+                f"and counter-screening methodology.",
                 source_id="INT-2024-0089",
                 source_type="internal",
                 relevance_score=0.7,

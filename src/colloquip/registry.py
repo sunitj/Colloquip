@@ -62,6 +62,7 @@ _DOMAIN_FOCUS_AREAS = {
 @dataclass
 class ScoringWeights:
     """Configurable weights for expertise matching."""
+
     exact_type_match: float = 0.5
     expertise_tag_match: float = 0.3
     keyword_overlap: float = 0.2
@@ -129,7 +130,8 @@ class AgentRegistry:
             existing_id = self._by_type[agent.agent_type]
             logger.debug(
                 "Agent type '%s' already registered (id=%s); returning existing instance.",
-                agent.agent_type, existing_id,
+                agent.agent_type,
+                existing_id,
             )
             return self._pool[existing_id]
 
@@ -218,7 +220,9 @@ class AgentRegistry:
             best_agent, best_score = matches[0]
             logger.info(
                 "Found existing agent '%s' for expertise '%s' (score=%.2f)",
-                best_agent.agent_type, expertise, best_score,
+                best_agent.agent_type,
+                expertise,
+                best_score,
             )
             return best_agent
 
@@ -276,14 +280,16 @@ class AgentRegistry:
             if not placed:
                 # Check if we have a curated persona for this
                 has_template = self.get_agent_by_type(expertise) is not None
-                gaps.append(ExpertiseGap(
-                    expertise=expertise,
-                    domain=subreddit_domain,
-                    has_curated_template=has_template,
-                ))
+                gaps.append(
+                    ExpertiseGap(
+                        expertise=expertise,
+                        domain=subreddit_domain,
+                        has_curated_template=has_template,
+                    )
+                )
 
         # Recruit optional expertise (best-effort, within cap minus 1 for red team)
-        for expertise in (optional_expertise or []):
+        for expertise in optional_expertise or []:
             if len(memberships) >= max_agents - 1:
                 break  # Reserve slot for red team
             matches = self.find_by_expertise(expertise, min_score=0.2)
@@ -299,12 +305,12 @@ class AgentRegistry:
                     break
 
         # Ensure red team
-        has_red_team = any(
-            m.role == SubredditRole.RED_TEAM for m in memberships
-        )
+        has_red_team = any(m.role == SubredditRole.RED_TEAM for m in memberships)
         if not has_red_team:
             red_team_membership = self._recruit_red_team(
-                subreddit_id, subreddit_domain, recruited_ids,
+                subreddit_id,
+                subreddit_domain,
+                recruited_ids,
             )
             if red_team_membership:
                 memberships.append(red_team_membership)

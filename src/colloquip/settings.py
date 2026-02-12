@@ -5,7 +5,7 @@ All settings have sensible defaults for development.
 """
 
 import os
-from typing import List, Optional
+from typing import List
 
 from pydantic import BaseModel, Field
 

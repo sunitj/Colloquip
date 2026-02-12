@@ -6,7 +6,7 @@ Tracks token usage and estimated costs per thread, with budget enforcement.
 import logging
 from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Dict, List
 from uuid import UUID
 
 logger = logging.getLogger(__name__)
@@ -47,24 +47,20 @@ class CostTracker:
         model: str = "default",
     ):
         """Record a single LLM call's token usage."""
-        cost = (
-            input_tokens * self.cost_per_input_token
-            + output_tokens * self.cost_per_output_token
+        cost = input_tokens * self.cost_per_input_token + output_tokens * self.cost_per_output_token
+        self._records[thread_id].append(
+            {
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "model": model,
+                "estimated_cost_usd": cost,
+                "recorded_at": datetime.now(timezone.utc),
+            }
         )
-        self._records[thread_id].append({
-            "input_tokens": input_tokens,
-            "output_tokens": output_tokens,
-            "model": model,
-            "estimated_cost_usd": cost,
-            "recorded_at": datetime.now(timezone.utc),
-        })
 
     def total_tokens(self, thread_id: UUID) -> int:
         """Total tokens (input + output) for a thread."""
-        return sum(
-            r["input_tokens"] + r["output_tokens"]
-            for r in self._records.get(thread_id, [])
-        )
+        return sum(r["input_tokens"] + r["output_tokens"] for r in self._records.get(thread_id, []))
 
     def total_input_tokens(self, thread_id: UUID) -> int:
         return sum(r["input_tokens"] for r in self._records.get(thread_id, []))
@@ -74,9 +70,7 @@ class CostTracker:
 
     def estimated_cost(self, thread_id: UUID) -> float:
         """Total estimated cost in USD for a thread."""
-        return sum(
-            r["estimated_cost_usd"] for r in self._records.get(thread_id, [])
-        )
+        return sum(r["estimated_cost_usd"] for r in self._records.get(thread_id, []))
 
     def num_calls(self, thread_id: UUID) -> int:
         return len(self._records.get(thread_id, []))

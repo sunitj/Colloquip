@@ -133,6 +133,7 @@ class HumanIntervention(BaseModel):
 
 class AgentDependencies(BaseModel):
     """Context passed to an agent when generating a post."""
+
     session: DeliberationSession
     phase: Phase
     phase_signal: PhaseSignal
@@ -202,6 +203,7 @@ class ToolType(str, Enum):
 
 class OutputSection(BaseModel):
     """A section in an output template."""
+
     name: str
     description: str
     required: bool = True
@@ -209,6 +211,7 @@ class OutputSection(BaseModel):
 
 class OutputTemplate(BaseModel):
     """Structured synthesis format for a subreddit."""
+
     template_type: str
     sections: List[OutputSection]
     metadata_fields: List[str] = Field(default_factory=list)
@@ -216,6 +219,7 @@ class OutputTemplate(BaseModel):
 
 class SubredditPurpose(BaseModel):
     """Structured purpose definition for a subreddit."""
+
     thinking_type: ThinkingType
     core_questions: List[str]
     decision_context: str
@@ -227,6 +231,7 @@ class SubredditPurpose(BaseModel):
 
 class ToolConfig(BaseModel):
     """A tool available within a subreddit."""
+
     tool_id: str
     display_name: str
     description: str
@@ -237,6 +242,7 @@ class ToolConfig(BaseModel):
 
 class SubredditConfig(BaseModel):
     """Complete configuration for a subreddit."""
+
     model_config = {"arbitrary_types_allowed": True}
 
     id: UUID = Field(default_factory=uuid4)
@@ -261,6 +267,7 @@ class SubredditConfig(BaseModel):
 
 class BaseAgentIdentity(BaseModel):
     """Persistent agent identity in the global pool."""
+
     id: UUID = Field(default_factory=uuid4)
     agent_type: str
     display_name: str
@@ -278,6 +285,7 @@ class BaseAgentIdentity(BaseModel):
 
 class SubredditMembership(BaseModel):
     """An agent's scoped identity within a subreddit."""
+
     id: UUID = Field(default_factory=uuid4)
     agent_id: UUID
     subreddit_id: UUID
@@ -291,6 +299,7 @@ class SubredditMembership(BaseModel):
 
 class ModelPricing(BaseModel):
     """Configurable model pricing."""
+
     model_name: str = "claude-sonnet-4-5-20250929"
     cost_per_input_token: float = 0.000003
     cost_per_output_token: float = 0.000015
@@ -299,6 +308,7 @@ class ModelPricing(BaseModel):
 
 class CostRecord(BaseModel):
     """A single token usage record."""
+
     id: UUID = Field(default_factory=uuid4)
     thread_id: UUID
     input_tokens: int = 0
@@ -310,6 +320,7 @@ class CostRecord(BaseModel):
 
 class CostSummary(BaseModel):
     """Cost summary for a thread."""
+
     thread_id: UUID
     total_input_tokens: int = 0
     total_output_tokens: int = 0
@@ -321,6 +332,7 @@ class CostSummary(BaseModel):
 
 class MemoryAnnotationType(str, Enum):
     """Types of human corrections to stored memories."""
+
     OUTDATED = "outdated"
     CORRECTION = "correction"
     CONFIRMED = "confirmed"
@@ -329,6 +341,7 @@ class MemoryAnnotationType(str, Enum):
 
 class MemoryAnnotation(BaseModel):
     """A human annotation on a stored synthesis memory."""
+
     id: UUID = Field(default_factory=uuid4)
     memory_id: UUID
     annotation_type: MemoryAnnotationType
@@ -344,17 +357,19 @@ class MemoryAnnotation(BaseModel):
 
 class MemoryType(str, Enum):
     """Types of decomposed memories (Phase 3b)."""
-    FACTUAL = "factual"               # Verified facts, data points
+
+    FACTUAL = "factual"  # Verified facts, data points
     METHODOLOGICAL = "methodological"  # Approaches, techniques that worked/failed
-    POSITIONAL = "positional"          # Agent stances, opinions with reasoning
-    RELATIONAL = "relational"          # Connections between entities/concepts
-    CONTEXTUAL = "contextual"          # Background, constraints, assumptions
+    POSITIONAL = "positional"  # Agent stances, opinions with reasoning
+    RELATIONAL = "relational"  # Connections between entities/concepts
+    CONTEXTUAL = "contextual"  # Background, constraints, assumptions
 
 
 class MemoryScope(str, Enum):
     """Scope of a typed memory."""
-    GLOBAL = "global"    # Applicable across all subreddits
-    ARENA = "arena"      # Specific to one subreddit
+
+    GLOBAL = "global"  # Applicable across all subreddits
+    ARENA = "arena"  # Specific to one subreddit
 
 
 class TypedMemory(BaseModel):
@@ -363,6 +378,7 @@ class TypedMemory(BaseModel):
     Not yet populated — requires calibration against 50+ synthesis memories
     to validate extraction quality > 85%.
     """
+
     id: UUID = Field(default_factory=uuid4)
     source_memory_id: UUID
     memory_type: MemoryType
@@ -377,6 +393,7 @@ class TypedMemory(BaseModel):
 
 class AuditChain(BaseModel):
     """Traceability chain for a claim in the synthesis."""
+
     claim: str
     supporting_post_ids: List[UUID] = Field(default_factory=list)
     citations: List["StructuredCitation"] = Field(default_factory=list)
@@ -386,6 +403,7 @@ class AuditChain(BaseModel):
 
 class CitationVerification(BaseModel):
     """Results of automated citation checking."""
+
     total_citations: int = 0
     verified: int = 0
     unverified: int = 0
@@ -395,8 +413,9 @@ class CitationVerification(BaseModel):
 
 class StructuredCitation(BaseModel):
     """Enhanced citation with source tracking."""
-    source_type: str = ""       # "pubmed", "internal", "web"
-    source_id: str = ""         # PMID, record ID, URL
+
+    source_type: str = ""  # "pubmed", "internal", "web"
+    source_id: str = ""  # PMID, record ID, URL
     title: str = ""
     authors: Optional[str] = None
     year: Optional[int] = None
@@ -408,6 +427,7 @@ class StructuredCitation(BaseModel):
 
 class Synthesis(BaseModel):
     """Structured output from a completed deliberation."""
+
     id: UUID = Field(default_factory=uuid4)
     thread_id: UUID
     template_type: str
@@ -422,6 +442,7 @@ class Synthesis(BaseModel):
 
 class Thread(BaseModel):
     """A deliberation thread within a subreddit."""
+
     id: UUID = Field(default_factory=uuid4)
     subreddit_id: UUID
     title: str
@@ -439,6 +460,7 @@ class Thread(BaseModel):
 
 class ExpertiseGap(BaseModel):
     """Missing expertise in a subreddit roster."""
+
     expertise: str
     domain: str = ""
     is_red_team: bool = False
@@ -447,6 +469,7 @@ class ExpertiseGap(BaseModel):
 
 class RecruitmentResult(BaseModel):
     """Result of agent recruitment for a subreddit."""
+
     memberships: List[SubredditMembership] = Field(default_factory=list)
     gaps: List[ExpertiseGap] = Field(default_factory=list)
 
@@ -458,35 +481,39 @@ class RecruitmentResult(BaseModel):
 
 class WatcherType(str, Enum):
     """Types of event watchers."""
-    LITERATURE = "literature"     # PubMed / literature DB monitoring
-    SCHEDULED = "scheduled"       # Time-based triggers (cron-like)
-    WEBHOOK = "webhook"           # External event ingestion
+
+    LITERATURE = "literature"  # PubMed / literature DB monitoring
+    SCHEDULED = "scheduled"  # Time-based triggers (cron-like)
+    WEBHOOK = "webhook"  # External event ingestion
 
 
 class TriageSignal(str, Enum):
     """Signal levels from triage evaluation."""
-    LOW = "low"           # Log only, no action
-    MEDIUM = "medium"     # Notify humans
-    HIGH = "high"         # Notify + suggest immediate thread creation
+
+    LOW = "low"  # Log only, no action
+    MEDIUM = "medium"  # Notify humans
+    HIGH = "high"  # Notify + suggest immediate thread creation
 
 
 class WatcherSource(BaseModel):
     """Source of a watcher event."""
-    source_type: str           # "pubmed", "schedule", "webhook", etc.
-    source_id: str = ""        # PMID, schedule ID, webhook sender
+
+    source_type: str  # "pubmed", "schedule", "webhook", etc.
+    source_id: str = ""  # PMID, schedule ID, webhook sender
     url: Optional[str] = None
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
 class WatcherConfig(BaseModel):
     """Configuration for a watcher instance."""
+
     id: UUID = Field(default_factory=uuid4)
     watcher_type: WatcherType
     subreddit_id: UUID
     name: str
     description: str = ""
-    query: str = ""                       # Search query for literature watchers
-    poll_interval_seconds: int = 300      # Polling interval
+    query: str = ""  # Search query for literature watchers
+    poll_interval_seconds: int = 300  # Polling interval
     enabled: bool = True
     config: Dict[str, Any] = Field(default_factory=dict)  # Type-specific config
     created_by: Optional[str] = None
@@ -495,6 +522,7 @@ class WatcherConfig(BaseModel):
 
 class WatcherEvent(BaseModel):
     """An event detected by a watcher."""
+
     id: UUID = Field(default_factory=uuid4)
     watcher_id: UUID
     subreddit_id: UUID
@@ -507,6 +535,7 @@ class WatcherEvent(BaseModel):
 
 class TriageDecision(BaseModel):
     """Result of triage evaluation for a watcher event."""
+
     event_id: UUID
     signal: TriageSignal
     novelty: float = Field(default=0.0, ge=0.0, le=1.0)
@@ -519,6 +548,7 @@ class TriageDecision(BaseModel):
 
 class NotificationStatus(str, Enum):
     """Status of a notification."""
+
     PENDING = "pending"
     READ = "read"
     ACTED = "acted"
@@ -527,6 +557,7 @@ class NotificationStatus(str, Enum):
 
 class NotificationAction(str, Enum):
     """Actions a user can take on a notification."""
+
     CREATE_THREAD = "create_thread"
     DISMISS = "dismiss"
     SNOOZE = "snooze"
@@ -534,6 +565,7 @@ class NotificationAction(str, Enum):
 
 class Notification(BaseModel):
     """A notification generated from a triage decision."""
+
     id: UUID = Field(default_factory=uuid4)
     watcher_id: UUID
     event_id: UUID

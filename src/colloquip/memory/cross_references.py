@@ -10,12 +10,12 @@ three criteria (ALL must be met):
 import logging
 import re
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Set
+from typing import List, Optional, Set
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
 
-from colloquip.embeddings.interface import EmbeddingProvider, cosine_similarity
+from colloquip.embeddings.interface import EmbeddingProvider
 from colloquip.memory.store import MemoryStore, SynthesisMemory
 
 logger = logging.getLogger(__name__)
@@ -68,11 +68,46 @@ def extract_entities(text: str) -> Set[str]:
 
 # Common English words that look like gene names
 _COMMON_WORDS = {
-    "THE", "AND", "FOR", "ARE", "BUT", "NOT", "YOU", "ALL",
-    "CAN", "HER", "WAS", "ONE", "OUR", "OUT", "DAY", "HAD",
-    "HAS", "HIS", "HOW", "NEW", "NOW", "OLD", "SEE", "WAY",
-    "WHO", "DID", "GET", "LET", "SAY", "SHE", "TOO", "USE",
-    "KEY", "MAY", "LOW", "HIGH", "TWO", "MET", "SET", "PUT",
+    "THE",
+    "AND",
+    "FOR",
+    "ARE",
+    "BUT",
+    "NOT",
+    "YOU",
+    "ALL",
+    "CAN",
+    "HER",
+    "WAS",
+    "ONE",
+    "OUR",
+    "OUT",
+    "DAY",
+    "HAD",
+    "HAS",
+    "HIS",
+    "HOW",
+    "NEW",
+    "NOW",
+    "OLD",
+    "SEE",
+    "WAY",
+    "WHO",
+    "DID",
+    "GET",
+    "LET",
+    "SAY",
+    "SHE",
+    "TOO",
+    "USE",
+    "KEY",
+    "MAY",
+    "LOW",
+    "HIGH",
+    "TWO",
+    "MET",
+    "SET",
+    "PUT",
 }
 
 
@@ -115,7 +150,9 @@ class CrossReferenceDetector:
         )
 
         # Extract entities from source memory
-        source_text = f"{memory.topic} {memory.synthesis_content} {' '.join(memory.key_conclusions)}"
+        source_text = (
+            f"{memory.topic} {memory.synthesis_content} {' '.join(memory.key_conclusions)}"
+        )
         source_entities = extract_entities(source_text)
 
         references = []
@@ -127,7 +164,9 @@ class CrossReferenceDetector:
                 continue
 
             # Criterion 2: Shared entities
-            target_text = f"{target.topic} {target.synthesis_content} {' '.join(target.key_conclusions)}"
+            target_text = (
+                f"{target.topic} {target.synthesis_content} {' '.join(target.key_conclusions)}"
+            )
             target_entities = extract_entities(target_text)
             shared = source_entities & target_entities
             if not shared:

@@ -2,6 +2,7 @@
 
 import pytest
 
+from colloquip.cli import create_default_agents
 from colloquip.config import EnergyConfig, ObserverConfig
 from colloquip.energy import EnergyCalculator
 from colloquip.engine import EmergentDeliberationEngine
@@ -11,15 +12,12 @@ from colloquip.models import (
     ConsensusMap,
     EnergyUpdate,
     HumanIntervention,
-    Phase,
     PhaseSignal,
     Post,
     SessionStatus,
 )
 from colloquip.observer import ObserverAgent
-
 from tests.conftest import create_session
-from colloquip.cli import create_default_agents
 
 
 def _create_engine(
@@ -208,9 +206,7 @@ class TestHandleIntervention:
             type="question",
             content="What about the blood-brain barrier crossing?",
         )
-        result = await engine.handle_intervention(
-            session, intervention, posts, energy_history
-        )
+        result = await engine.handle_intervention(session, intervention, posts, energy_history)
 
         # Should return human post + agent responses
         assert len(result) >= 1
@@ -231,9 +227,7 @@ class TestHandleIntervention:
             type="terminate",
             content="Stop deliberation",
         )
-        result = await engine.handle_intervention(
-            session, intervention, posts, energy_history
-        )
+        result = await engine.handle_intervention(session, intervention, posts, energy_history)
 
         assert result == []
         # Energy should be set to 0 for termination
@@ -260,9 +254,7 @@ class TestHandleIntervention:
                 break
 
         energy_before = energy_history[-1]
-        await engine.handle_intervention(
-            session, intervention, posts, energy_history
-        )
+        await engine.handle_intervention(session, intervention, posts, energy_history)
 
         # Energy should have been injected (boosted)
         assert energy_history[-1] >= energy_before

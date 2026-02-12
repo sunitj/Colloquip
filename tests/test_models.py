@@ -1,29 +1,23 @@
 """Tests for core data models."""
 
-import json
 from uuid import uuid4
 
 import pytest
 from pydantic import ValidationError
 
 from colloquip.models import (
-    AgentConfig,
     AgentStance,
     Citation,
     ConsensusMap,
     ConversationMetrics,
     DeliberationSession,
-    EngineConfig,
     EnergySource,
-    EnergyUpdate,
-    HumanIntervention,
+    EngineConfig,
     Phase,
-    PhaseSignal,
     Post,
     SessionStatus,
 )
-
-from tests.conftest import create_post, create_session, create_metrics
+from tests.conftest import create_metrics, create_post, create_session
 
 
 class TestPhaseEnum:

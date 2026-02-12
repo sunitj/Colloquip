@@ -77,7 +77,9 @@ class WebSearchTool(BaseSearchTool):
         except Exception as e:
             logger.error("Web search failed: %s", e)
             return ToolResult(
-                source="web", query=query, error=str(e),
+                source="web",
+                query=query,
+                error=str(e),
                 execution_time_ms=(time.monotonic() - start_time) * 1000,
             )
 
@@ -108,9 +110,7 @@ class WebSearchTool(BaseSearchTool):
 
         results = []
         for paper in data.get("data", []):
-            authors = [
-                a.get("name", "") for a in paper.get("authors", [])
-            ][:5]
+            authors = [a.get("name", "") for a in paper.get("authors", [])][:5]
 
             doi = ""
             external_ids = paper.get("externalIds") or {}
@@ -121,17 +121,19 @@ class WebSearchTool(BaseSearchTool):
 
             abstract = paper.get("abstract") or ""
 
-            results.append(SearchResult(
-                title=paper.get("title", ""),
-                authors=authors,
-                abstract=abstract[:1000],
-                url=paper.get("url", ""),
-                doi=doi,
-                year=paper.get("year"),
-                source_id=pmid or doi or paper.get("paperId", ""),
-                source_type="web",
-                snippet=abstract[:300] if abstract else paper.get("title", ""),
-            ))
+            results.append(
+                SearchResult(
+                    title=paper.get("title", ""),
+                    authors=authors,
+                    abstract=abstract[:1000],
+                    url=paper.get("url", ""),
+                    doi=doi,
+                    year=paper.get("year"),
+                    source_id=pmid or doi or paper.get("paperId", ""),
+                    source_type="web",
+                    snippet=abstract[:300] if abstract else paper.get("title", ""),
+                )
+            )
 
         return results
 
@@ -156,8 +158,8 @@ class MockWebSearchTool(WebSearchTool):
                 title=f"Recent advances in {query}: a comprehensive review",
                 authors=["Garcia R", "Kumar S", "Thompson L"],
                 abstract=f"This review covers recent advances in {query}, "
-                         f"highlighting key developments in the field and "
-                         f"identifying emerging research directions.",
+                f"highlighting key developments in the field and "
+                f"identifying emerging research directions.",
                 url="https://www.semanticscholar.org/paper/mock-001",
                 doi="10.5555/mock.2024.001",
                 year=2024,

@@ -7,7 +7,6 @@ import pytest
 from colloquip.embeddings.interface import EmbeddingProvider, cosine_similarity
 from colloquip.embeddings.mock import MockEmbeddingProvider
 
-
 # --- cosine_similarity ---
 
 

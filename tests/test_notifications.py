@@ -20,7 +20,6 @@ from colloquip.watchers.interface import BaseWatcher, WatcherRegistry
 from colloquip.watchers.manager import WatcherManager
 from colloquip.watchers.triage import MockTriageAgent
 
-
 SUB_A = uuid4()
 SUB_B = uuid4()
 
@@ -39,6 +38,7 @@ def make_notification(subreddit_id=None, **kwargs) -> Notification:
 
 
 # --- InMemoryNotificationStore ---
+
 
 class TestInMemoryNotificationStore:
     @pytest.fixture
@@ -156,6 +156,7 @@ class TestInMemoryNotificationStore:
 
 # --- WatcherManager ---
 
+
 class DummyWatcher(BaseWatcher):
     def __init__(self, config, events=None):
         super().__init__(config)
@@ -224,15 +225,18 @@ class TestWatcherManager:
             name="disabled",
             enabled=False,
         )
-        watcher = DummyWatcher(config, events=[
-            WatcherEvent(
-                watcher_id=config.id,
-                subreddit_id=SUB_A,
-                title="Should be skipped",
-                summary="",
-                source=WatcherSource(source_type="test"),
-            ),
-        ])
+        watcher = DummyWatcher(
+            config,
+            events=[
+                WatcherEvent(
+                    watcher_id=config.id,
+                    subreddit_id=SUB_A,
+                    title="Should be skipped",
+                    summary="",
+                    source=WatcherSource(source_type="test"),
+                ),
+            ],
+        )
         registry.register(watcher)
 
         notifications = await manager.poll_once()
@@ -282,16 +286,19 @@ class TestWatcherManager:
         class FailingWatcher(BaseWatcher):
             async def poll(self):
                 raise RuntimeError("Watcher failure")
+
             async def validate_config(self):
                 return True
 
         config1 = WatcherConfig(
             watcher_type=WatcherType.LITERATURE,
-            subreddit_id=SUB_A, name="failing",
+            subreddit_id=SUB_A,
+            name="failing",
         )
         config2 = WatcherConfig(
             watcher_type=WatcherType.LITERATURE,
-            subreddit_id=SUB_A, name="working",
+            subreddit_id=SUB_A,
+            name="working",
         )
         registry.register(FailingWatcher(config1))
         registry.register(DummyWatcher(config2))

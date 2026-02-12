@@ -6,7 +6,6 @@ incoming payloads into WatcherEvent objects.
 """
 
 import logging
-from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from colloquip.models import WatcherConfig, WatcherEvent, WatcherSource
@@ -57,7 +56,8 @@ class WebhookWatcher(BaseWatcher):
             if sender not in self._allowed_senders:
                 logger.warning(
                     "Webhook %s rejected payload from unauthorized sender: %s",
-                    self.config.name, sender,
+                    self.config.name,
+                    sender,
                 )
                 return None
 
@@ -76,10 +76,7 @@ class WebhookWatcher(BaseWatcher):
                 source_type="webhook",
                 source_id=sender or "unknown",
                 url=payload.get("url"),
-                metadata={
-                    k: v for k, v in payload.items()
-                    if k not in ("title", "summary", "url")
-                },
+                metadata={k: v for k, v in payload.items() if k not in ("title", "summary", "url")},
             ),
             raw_data=payload,
         )

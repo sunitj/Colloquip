@@ -10,7 +10,6 @@ from colloquip.memory.retriever import MemoryRetriever, RetrievedMemories
 from colloquip.memory.store import InMemoryStore, SynthesisMemory
 from colloquip.models import MemoryAnnotationType
 
-
 SUB_A = uuid4()
 
 
@@ -123,9 +122,9 @@ class TestAnnotationsInFormatting:
         mem = make_memory("Old finding", key_conclusions=["X is true"])
         memories = RetrievedMemories(
             arena=[mem],
-            annotations={str(mem.id): [
-                {"annotation_type": "outdated", "content": "Superseded by new data."}
-            ]},
+            annotations={
+                str(mem.id): [{"annotation_type": "outdated", "content": "Superseded by new data."}]
+            },
         )
         text = memories.format_for_prompt()
         assert "WARNING - OUTDATED" in text
@@ -135,9 +134,9 @@ class TestAnnotationsInFormatting:
         mem = make_memory("Finding", key_conclusions=["Y is true"])
         memories = RetrievedMemories(
             arena=[mem],
-            annotations={str(mem.id): [
-                {"annotation_type": "correction", "content": "Y is actually Z."}
-            ]},
+            annotations={
+                str(mem.id): [{"annotation_type": "correction", "content": "Y is actually Z."}]
+            },
         )
         text = memories.format_for_prompt()
         assert "Human correction" in text
@@ -147,9 +146,9 @@ class TestAnnotationsInFormatting:
         mem = make_memory("Finding")
         memories = RetrievedMemories(
             arena=[mem],
-            annotations={str(mem.id): [
-                {"annotation_type": "context", "content": "Study was in mice."}
-            ]},
+            annotations={
+                str(mem.id): [{"annotation_type": "context", "content": "Study was in mice."}]
+            },
         )
         text = memories.format_for_prompt()
         assert "Additional context" in text
@@ -160,9 +159,7 @@ class TestAnnotationsInFormatting:
         mem = make_memory("Finding")
         memories = RetrievedMemories(
             arena=[mem],
-            annotations={str(mem.id): [
-                {"annotation_type": "confirmed", "content": "Verified."}
-            ]},
+            annotations={str(mem.id): [{"annotation_type": "confirmed", "content": "Verified."}]},
         )
         text = memories.format_for_prompt()
         # Confirmed is silently acknowledged

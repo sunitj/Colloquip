@@ -2,12 +2,9 @@
 
 import logging
 import re
-import time
 from typing import Any, Dict, List, Optional, Tuple
 
 from pydantic import BaseModel, Field
-
-from colloquip.tools.interface import ToolResult
 
 logger = logging.getLogger(__name__)
 
@@ -44,36 +41,44 @@ class CitationVerifier:
             is_valid, title = await self._verify_pmid(pmid)
             if is_valid:
                 verified += 1
-                details.append({
-                    "ref": f"[PUBMED:{pmid}]",
-                    "status": "verified",
-                    "title": title,
-                })
+                details.append(
+                    {
+                        "ref": f"[PUBMED:{pmid}]",
+                        "status": "verified",
+                        "title": title,
+                    }
+                )
             else:
                 flagged += 1
-                details.append({
-                    "ref": f"[PUBMED:{pmid}]",
-                    "status": "flagged",
-                    "reason": title or "PMID not found in PubMed",
-                })
+                details.append(
+                    {
+                        "ref": f"[PUBMED:{pmid}]",
+                        "status": "flagged",
+                        "reason": title or "PMID not found in PubMed",
+                    }
+                )
 
         # Internal citations — mark as unverified (would need internal DB check)
         for record_id in internal_ids:
             unverified += 1
-            details.append({
-                "ref": f"[INTERNAL:{record_id}]",
-                "status": "unverified",
-                "reason": "Internal references require manual verification",
-            })
+            details.append(
+                {
+                    "ref": f"[INTERNAL:{record_id}]",
+                    "status": "unverified",
+                    "reason": "Internal references require manual verification",
+                }
+            )
 
         # Web citations — mark as unverified
         for url in web_urls:
             unverified += 1
-            details.append({
-                "ref": f"[WEB:{url}]",
-                "status": "unverified",
-                "reason": "Web references not automatically verified",
-            })
+            details.append(
+                {
+                    "ref": f"[WEB:{url}]",
+                    "status": "unverified",
+                    "reason": "Web references not automatically verified",
+                }
+            )
 
         return VerificationReport(
             total_citations=total,
@@ -131,6 +136,7 @@ class CitationVerifier:
 
 class VerificationReport(BaseModel):
     """Results of citation verification."""
+
     total_citations: int = 0
     verified: int = 0
     unverified: int = 0
@@ -151,25 +157,31 @@ class MockCitationVerifier:
 
         # In mock mode, all PubMed citations are "verified"
         for pmid in pubmed_ids:
-            details.append({
-                "ref": f"[PUBMED:{pmid}]",
-                "status": "verified",
-                "title": f"Mock Paper Title for PMID {pmid}",
-            })
+            details.append(
+                {
+                    "ref": f"[PUBMED:{pmid}]",
+                    "status": "verified",
+                    "title": f"Mock Paper Title for PMID {pmid}",
+                }
+            )
 
         for record_id in internal_ids:
-            details.append({
-                "ref": f"[INTERNAL:{record_id}]",
-                "status": "verified",
-                "title": f"Mock Internal Document {record_id}",
-            })
+            details.append(
+                {
+                    "ref": f"[INTERNAL:{record_id}]",
+                    "status": "verified",
+                    "title": f"Mock Internal Document {record_id}",
+                }
+            )
 
         for url in web_urls:
-            details.append({
-                "ref": f"[WEB:{url}]",
-                "status": "unverified",
-                "reason": "Web references not verified in mock mode",
-            })
+            details.append(
+                {
+                    "ref": f"[WEB:{url}]",
+                    "status": "unverified",
+                    "reason": "Web references not verified in mock mode",
+                }
+            )
 
         return VerificationReport(
             total_citations=total,

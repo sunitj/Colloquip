@@ -1,6 +1,5 @@
 """Tests for watcher infrastructure: interface, registry, and triage agent."""
 
-from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
@@ -14,7 +13,6 @@ from colloquip.models import (
 )
 from colloquip.watchers.interface import BaseWatcher, WatcherRegistry
 from colloquip.watchers.triage import MockTriageAgent
-
 
 SUB_A = uuid4()
 SUB_B = uuid4()
@@ -45,11 +43,15 @@ def make_event(watcher_id=None, title="New paper", summary="", **kwargs) -> Watc
 
 # --- WatcherRegistry ---
 
+
 class TestWatcherRegistry:
     def test_register_and_get(self):
         class DummyWatcher(BaseWatcher):
-            async def poll(self): return []
-            async def validate_config(self): return True
+            async def poll(self):
+                return []
+
+            async def validate_config(self):
+                return True
 
         registry = WatcherRegistry()
         config = make_config()
@@ -61,8 +63,11 @@ class TestWatcherRegistry:
 
     def test_unregister(self):
         class DummyWatcher(BaseWatcher):
-            async def poll(self): return []
-            async def validate_config(self): return True
+            async def poll(self):
+                return []
+
+            async def validate_config(self):
+                return True
 
         registry = WatcherRegistry()
         config = make_config()
@@ -74,8 +79,11 @@ class TestWatcherRegistry:
 
     def test_get_by_subreddit(self):
         class DummyWatcher(BaseWatcher):
-            async def poll(self): return []
-            async def validate_config(self): return True
+            async def poll(self):
+                return []
+
+            async def validate_config(self):
+                return True
 
         registry = WatcherRegistry()
         c1 = make_config(subreddit_id=SUB_A)
@@ -88,8 +96,11 @@ class TestWatcherRegistry:
 
     def test_get_enabled(self):
         class DummyWatcher(BaseWatcher):
-            async def poll(self): return []
-            async def validate_config(self): return True
+            async def poll(self):
+                return []
+
+            async def validate_config(self):
+                return True
 
         registry = WatcherRegistry()
         c1 = make_config(enabled=True)
@@ -107,6 +118,7 @@ class TestWatcherRegistry:
 
 
 # --- MockTriageAgent ---
+
 
 class TestMockTriageAgent:
     @pytest.fixture
@@ -245,6 +257,7 @@ class TestMockTriageAgent:
 
 
 # --- WatcherConfig model ---
+
 
 class TestWatcherModels:
     def test_watcher_config_defaults(self):

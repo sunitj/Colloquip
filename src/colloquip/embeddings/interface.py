@@ -11,9 +11,7 @@ def cosine_similarity(a: List[float], b: List[float]) -> float:
     Returns a value between -1.0 and 1.0. Returns 0.0 for zero-length vectors.
     """
     if len(a) != len(b):
-        raise ValueError(
-            f"Vector dimension mismatch: {len(a)} vs {len(b)}"
-        )
+        raise ValueError(f"Vector dimension mismatch: {len(a)} vs {len(b)}")
 
     dot = sum(x * y for x, y in zip(a, b))
     norm_a = math.sqrt(sum(x * x for x in a))
