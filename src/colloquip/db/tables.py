@@ -373,3 +373,53 @@ class DBNotification(Base):
     acted_at = Column(DateTime(timezone=True), nullable=True)
 
     watcher = relationship("DBWatcher", back_populates="notifications")
+
+
+# ---------------------------------------------------------------------------
+# Phase 5: Cross-Subreddit + Feedback tables
+# ---------------------------------------------------------------------------
+
+
+class DBCrossReference(Base):
+    """cross_references table — detected links between subreddit memories."""
+
+    __tablename__ = "cross_references"
+    __table_args__ = (
+        Index("idx_crossref_source", "source_memory_id"),
+        Index("idx_crossref_target", "target_memory_id"),
+    )
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    source_memory_id = Column(String(36), ForeignKey("synthesis_memories.id"), nullable=False)
+    target_memory_id = Column(String(36), ForeignKey("synthesis_memories.id"), nullable=False)
+    source_subreddit_id = Column(String(36), nullable=False)
+    target_subreddit_id = Column(String(36), nullable=False)
+    source_subreddit_name = Column(String(100), nullable=False, default="")
+    target_subreddit_name = Column(String(100), nullable=False, default="")
+    similarity = Column(Float, nullable=False, default=0.0)
+    shared_entities = Column(JSON, nullable=False, default=list)
+    reasoning = Column(Text, nullable=False, default="")
+    status = Column(String(20), nullable=False, default="pending")  # pending, confirmed, dismissed
+    reviewed_by = Column(String(100), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+
+
+class DBOutcomeReport(Base):
+    """outcome_reports table — real-world outcome tracking."""
+
+    __tablename__ = "outcome_reports"
+    __table_args__ = (
+        Index("idx_outcome_thread", "thread_id"),
+        Index("idx_outcome_subreddit", "subreddit_id"),
+    )
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    thread_id = Column(String(36), nullable=False)
+    subreddit_id = Column(String(36), nullable=False)
+    outcome_type = Column(String(30), nullable=False)  # confirmed, partially_confirmed, contradicted, inconclusive
+    summary = Column(Text, nullable=False)
+    evidence = Column(Text, nullable=False, default="")
+    conclusions_evaluated = Column(JSON, nullable=False, default=list)
+    agent_assessments = Column(JSON, nullable=False, default=dict)
+    reported_by = Column(String(100), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
