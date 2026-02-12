@@ -6,6 +6,7 @@ platform manager, and API routes.
 """
 
 import asyncio
+import os
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -1367,7 +1368,7 @@ class TestBackwardCompatibility:
             ["python", "-m", "pytest", "tests/", "--co", "-q", "--ignore=tests/test_platform.py"],
             capture_output=True,
             text=True,
-            cwd="/home/user/Colloquip",
+            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
         )
         # Count lines matching "test_" pattern
         test_lines = [line for line in result.stdout.strip().split("\n") if "test_" in line]

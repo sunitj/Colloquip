@@ -162,44 +162,51 @@ class TestMetrics:
 
 # --- Docker/Config file existence ---
 
+# Project root: find it by walking up from this test file to where pyproject.toml lives
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _project_path(*parts: str) -> str:
+    return os.path.join(_PROJECT_ROOT, *parts)
+
 
 class TestFileExistence:
     def test_dockerfile_exists(self):
-        assert os.path.exists("/home/user/Colloquip/Dockerfile")
+        assert os.path.exists(_project_path("Dockerfile"))
 
     def test_dockerfile_dev_exists(self):
-        assert os.path.exists("/home/user/Colloquip/Dockerfile.dev")
+        assert os.path.exists(_project_path("Dockerfile.dev"))
 
     def test_docker_compose_exists(self):
-        assert os.path.exists("/home/user/Colloquip/docker-compose.yml")
+        assert os.path.exists(_project_path("docker-compose.yml"))
 
     def test_dockerignore_exists(self):
-        assert os.path.exists("/home/user/Colloquip/.dockerignore")
+        assert os.path.exists(_project_path(".dockerignore"))
 
     def test_env_example_exists(self):
-        assert os.path.exists("/home/user/Colloquip/.env.example")
+        assert os.path.exists(_project_path(".env.example"))
 
     def test_ci_workflow_exists(self):
-        assert os.path.exists("/home/user/Colloquip/.github/workflows/ci.yml")
+        assert os.path.exists(_project_path(".github", "workflows", "ci.yml"))
 
     def test_deploy_workflow_exists(self):
-        assert os.path.exists("/home/user/Colloquip/.github/workflows/deploy.yml")
+        assert os.path.exists(_project_path(".github", "workflows", "deploy.yml"))
 
     def test_alembic_ini_exists(self):
-        assert os.path.exists("/home/user/Colloquip/alembic.ini")
+        assert os.path.exists(_project_path("alembic.ini"))
 
     def test_alembic_env_exists(self):
-        assert os.path.exists("/home/user/Colloquip/alembic/env.py")
+        assert os.path.exists(_project_path("alembic", "env.py"))
 
     def test_migration_files_exist(self):
-        versions_dir = "/home/user/Colloquip/alembic/versions"
-        assert os.path.exists(f"{versions_dir}/001_baseline_schema.py")
-        assert os.path.exists(f"{versions_dir}/002_phase3_memory_tables.py")
-        assert os.path.exists(f"{versions_dir}/003_phase4_watcher_tables.py")
-        assert os.path.exists(f"{versions_dir}/004_phase5_crossref_outcome_tables.py")
+        versions = _project_path("alembic", "versions")
+        assert os.path.exists(os.path.join(versions, "001_baseline_schema.py"))
+        assert os.path.exists(os.path.join(versions, "002_phase3_memory_tables.py"))
+        assert os.path.exists(os.path.join(versions, "003_phase4_watcher_tables.py"))
+        assert os.path.exists(os.path.join(versions, "004_phase5_crossref_outcome_tables.py"))
 
     def test_production_config_exists(self):
-        assert os.path.exists("/home/user/Colloquip/config/production.yaml")
+        assert os.path.exists(_project_path("config", "production.yaml"))
 
     def test_staging_config_exists(self):
-        assert os.path.exists("/home/user/Colloquip/config/staging.yaml")
+        assert os.path.exists(_project_path("config", "staging.yaml"))
