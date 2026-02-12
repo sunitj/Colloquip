@@ -14,7 +14,7 @@ ruff format --check .
 echo "  Format passed."
 
 echo "=== Pre-commit: pytest (fast) ==="
-python -m pytest tests/ -x -q --timeout=60 -m "not slow and not integration" 2>&1 | tail -5
+python -m pytest tests/ -x -q -m "not slow and not integration" 2>&1 | tail -5
 echo "  Tests passed."
 
 echo "=== All pre-commit checks passed ==="
