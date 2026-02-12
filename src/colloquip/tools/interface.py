@@ -1,7 +1,8 @@
-"""Tool interface protocol and result models for agent research tools."""
+"""Tool interface and result models for agent research tools."""
 
+from abc import ABC, abstractmethod
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -30,32 +31,13 @@ class ToolResult(BaseModel):
     execution_time_ms: float = 0.0
 
 
-@runtime_checkable
-class AgentTool(Protocol):
-    """Protocol for tools that agents can invoke during post generation."""
+class BaseSearchTool(ABC):
+    """Abstract base class for search tools.
 
-    @property
-    def name(self) -> str:
-        """Unique tool identifier (e.g., 'pubmed_search')."""
-        ...
-
-    @property
-    def description(self) -> str:
-        """Human-readable description of what the tool does."""
-        ...
-
-    @property
-    def tool_schema(self) -> Dict[str, Any]:
-        """Claude API tool-use schema for this tool."""
-        ...
-
-    async def execute(self, **kwargs) -> ToolResult:
-        """Execute the tool with given parameters and return results."""
-        ...
-
-
-class BaseSearchTool:
-    """Base class for search tools with common functionality."""
+    All tool implementations must inherit from this and implement
+    tool_schema and execute(). Shared functionality (citation formatting)
+    lives here.
+    """
 
     _name: str = ""
     _description: str = ""
@@ -69,11 +51,15 @@ class BaseSearchTool:
         return self._description
 
     @property
+    @abstractmethod
     def tool_schema(self) -> Dict[str, Any]:
-        raise NotImplementedError
+        """Claude API tool-use schema for this tool."""
+        ...
 
+    @abstractmethod
     async def execute(self, **kwargs) -> ToolResult:
-        raise NotImplementedError
+        """Execute the tool with given parameters and return results."""
+        ...
 
     def _format_citation_ref(self, result: SearchResult) -> str:
         """Format a citation reference string for prompt injection."""
@@ -84,3 +70,7 @@ class BaseSearchTool:
         if result.url:
             return f"[WEB:{result.url}]"
         return f"[{result.source_type.upper()}:{result.title[:50]}]"
+
+
+# Backward compatibility alias
+AgentTool = BaseSearchTool

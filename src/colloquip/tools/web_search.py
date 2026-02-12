@@ -136,29 +136,16 @@ class WebSearchTool(BaseSearchTool):
         return results
 
 
-class MockWebSearchTool(BaseSearchTool):
-    """Mock web search tool for testing."""
+class MockWebSearchTool(WebSearchTool):
+    """Mock web search tool for testing.
 
-    _name = "web_search"
+    Inherits schema from WebSearchTool; overrides execute() with canned data.
+    """
+
     _description = "Search academic literature (mock mode)"
 
     def __init__(self, max_results: int = 5):
-        self.max_results = max_results
-
-    @property
-    def tool_schema(self) -> Dict[str, Any]:
-        return {
-            "name": self._name,
-            "description": self._description,
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "query": {"type": "string", "description": "Search query"},
-                    "max_results": {"type": "integer", "default": self.max_results},
-                },
-                "required": ["query"],
-            },
-        }
+        super().__init__(max_results=max_results)
 
     async def execute(self, **kwargs) -> ToolResult:
         query = kwargs.get("query", "")

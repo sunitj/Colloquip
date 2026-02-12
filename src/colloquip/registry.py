@@ -8,6 +8,7 @@ The registry is the central authority for agent lifecycle:
 """
 
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Set
 from uuid import UUID
@@ -58,6 +59,19 @@ _DOMAIN_FOCUS_AREAS = {
 }
 
 
+@dataclass
+class ScoringWeights:
+    """Configurable weights for expertise matching."""
+    exact_type_match: float = 0.5
+    expertise_tag_match: float = 0.3
+    keyword_overlap: float = 0.2
+    scope_overlap: float = 0.1
+    min_score: float = 0.15
+
+
+DEFAULT_SCORING_WEIGHTS = ScoringWeights()
+
+
 def _compute_overlap(set_a: Set[str], set_b: Set[str]) -> float:
     """Compute Jaccard-like overlap between two sets. Returns 0-1."""
     if not set_a or not set_b:
@@ -81,9 +95,10 @@ class AgentRegistry:
     New agents are only created if no existing agent has matching expertise.
     """
 
-    def __init__(self):
+    def __init__(self, scoring_weights: Optional[ScoringWeights] = None):
         self._pool: Dict[UUID, BaseAgentIdentity] = {}
         self._by_type: Dict[str, UUID] = {}  # agent_type -> id
+        self.scoring_weights = scoring_weights or DEFAULT_SCORING_WEIGHTS
 
     @property
     def pool_size(self) -> int:
@@ -135,16 +150,16 @@ class AgentRegistry:
     def find_by_expertise(
         self,
         expertise: str,
-        min_score: float = 0.15,
+        min_score: Optional[float] = None,
     ) -> List[tuple]:
         """Find agents matching an expertise requirement.
 
         Returns list of (agent, score) sorted by score descending.
-        Scoring:
-        - Exact agent_type match: +0.5
-        - Expertise tag overlap: +0.3 per matching tag
-        - Domain keyword token overlap: +0.2
+        Uses self.scoring_weights for configurable scoring.
         """
+        w = self.scoring_weights
+        threshold = min_score if min_score is not None else w.min_score
+
         expertise_lower = expertise.lower().strip()
         expertise_tokens = set(expertise_lower.replace("_", " ").split())
 
@@ -154,25 +169,25 @@ class AgentRegistry:
 
             # Exact type match
             if agent.agent_type.lower() == expertise_lower:
-                score += 0.5
+                score += w.exact_type_match
 
             # Expertise tag overlap
             agent_tags = {t.lower() for t in agent.expertise_tags}
             for token in expertise_tokens:
                 if any(token in tag for tag in agent_tags):
-                    score += 0.3
+                    score += w.expertise_tag_match
 
             # Domain keyword token overlap
             agent_keywords = {k.lower() for k in agent.domain_keywords}
             kw_overlap = _compute_overlap(expertise_tokens, agent_keywords)
-            score += kw_overlap * 0.2
+            score += kw_overlap * w.keyword_overlap
 
             # Knowledge scope overlap
             agent_scope = {s.lower() for s in agent.knowledge_scope}
             scope_overlap = _compute_overlap(expertise_tokens, agent_scope)
-            score += scope_overlap * 0.1
+            score += scope_overlap * w.scope_overlap
 
-            if score >= min_score:
+            if score >= threshold:
                 scored.append((agent, score))
 
         scored.sort(key=lambda x: x[1], reverse=True)

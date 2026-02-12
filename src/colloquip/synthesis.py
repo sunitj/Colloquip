@@ -11,6 +11,7 @@ from uuid import UUID, uuid4
 
 from colloquip.llm.interface import LLMInterface
 from colloquip.models import (
+    AgentStance,
     AuditChain,
     OutputTemplate,
     Post,
@@ -215,6 +216,9 @@ _STOP_WORDS = frozenset({
 def _extract_audit_chains(
     sections: Dict[str, str],
     posts: List[Post],
+    max_chains: int = 20,
+    overlap_threshold: float = 0.3,
+    min_claim_words: int = 3,
 ) -> List[AuditChain]:
     """Extract audit chains linking synthesis claims to supporting posts."""
     chains = []
@@ -236,7 +240,7 @@ def _extract_audit_chains(
 
             # Filter stop words for meaningful overlap
             claim_words = set(claim.lower().split()) - _STOP_WORDS
-            if len(claim_words) < 3:
+            if len(claim_words) < min_claim_words:
                 continue
 
             supporting = []
@@ -245,8 +249,8 @@ def _extract_audit_chains(
                 post_words = set(post.content.lower().split()) - _STOP_WORDS
                 common = claim_words & post_words
                 overlap = len(common) / max(len(claim_words), 1)
-                if overlap > 0.3:
-                    if post.stance.value == "critical":
+                if overlap > overlap_threshold:
+                    if post.stance == AgentStance.CRITICAL:
                         dissenting.append(post.agent_id)
                     else:
                         supporting.append(post.id)
@@ -258,7 +262,44 @@ def _extract_audit_chains(
                     dissenting_agents=list(set(dissenting)),
                 ))
 
-    return chains[:20]  # Cap at 20 chains
+    return chains[:max_chains]
+
+
+def parse_synthesis(
+    raw_text: str,
+    template: OutputTemplate,
+    posts: Optional[List[Post]] = None,
+    thread_id: Optional[UUID] = None,
+    max_audit_chains: int = 20,
+    overlap_threshold: float = 0.3,
+    min_claim_words: int = 3,
+) -> Synthesis:
+    """Parse raw synthesis text into a Synthesis model.
+
+    Testable without LLM — pass any text and get structured output.
+    Used by SynthesisGenerator.generate() and available for direct testing.
+    """
+    sections = _parse_synthesis_sections(raw_text, template)
+    if not sections:
+        sections = {"raw_synthesis": raw_text.strip() or "No synthesis content generated."}
+
+    metadata = _parse_metadata(raw_text, template.metadata_fields)
+    audit_chains = _extract_audit_chains(
+        sections,
+        posts or [],
+        max_chains=max_audit_chains,
+        overlap_threshold=overlap_threshold,
+        min_claim_words=min_claim_words,
+    )
+
+    return Synthesis(
+        id=uuid4(),
+        thread_id=thread_id or uuid4(),
+        template_type=template.template_type,
+        sections=sections,
+        metadata=metadata,
+        audit_chains=audit_chains,
+    )
 
 
 class SynthesisGenerator:
@@ -301,24 +342,9 @@ class SynthesisGenerator:
                 f"Error: {e}"
             )
 
-        # Parse sections
-        sections = _parse_synthesis_sections(raw_text, template)
-
-        # If parsing didn't find sections, put everything in a fallback section
-        if not sections:
-            sections = {"raw_synthesis": raw_text.strip() or "No synthesis content generated."}
-
-        # Parse metadata
-        metadata = _parse_metadata(raw_text, template.metadata_fields)
-
-        # Extract audit chains
-        audit_chains = _extract_audit_chains(sections, posts)
-
-        return Synthesis(
-            id=uuid4(),
-            thread_id=thread_id or uuid4(),
-            template_type=template.template_type,
-            sections=sections,
-            metadata=metadata,
-            audit_chains=audit_chains,
+        return parse_synthesis(
+            raw_text=raw_text,
+            template=template,
+            posts=posts,
+            thread_id=thread_id,
         )

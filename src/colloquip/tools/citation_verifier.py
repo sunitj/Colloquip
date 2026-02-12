@@ -5,6 +5,8 @@ import re
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
+from pydantic import BaseModel, Field
+
 from colloquip.tools.interface import ToolResult
 
 logger = logging.getLogger(__name__)
@@ -127,31 +129,13 @@ class CitationVerifier:
         return refs
 
 
-class VerificationReport:
+class VerificationReport(BaseModel):
     """Results of citation verification."""
-
-    def __init__(
-        self,
-        total_citations: int = 0,
-        verified: int = 0,
-        unverified: int = 0,
-        flagged: int = 0,
-        details: Optional[List[Dict]] = None,
-    ):
-        self.total_citations = total_citations
-        self.verified = verified
-        self.unverified = unverified
-        self.flagged = flagged
-        self.details = details or []
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "total_citations": self.total_citations,
-            "verified": self.verified,
-            "unverified": self.unverified,
-            "flagged": self.flagged,
-            "details": self.details,
-        }
+    total_citations: int = 0
+    verified: int = 0
+    unverified: int = 0
+    flagged: int = 0
+    details: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class MockCitationVerifier:

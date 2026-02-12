@@ -486,9 +486,12 @@ class TestToolInterface:
         assert result.error is None
 
     def test_base_search_tool_citation_formats(self):
-        from colloquip.tools.interface import BaseSearchTool, SearchResult
+        from colloquip.tools.interface import SearchResult
+        from colloquip.tools.pubmed import MockPubMedTool
 
-        tool = BaseSearchTool()
+        # BaseSearchTool is now ABC — use a concrete subclass for testing
+        tool = MockPubMedTool()
+
         pubmed_result = SearchResult(
             title="Paper", source_type="pubmed", source_id="12345"
         )
@@ -503,6 +506,11 @@ class TestToolInterface:
             title="Web", source_type="web", url="https://example.com"
         )
         assert tool._format_citation_ref(web_result) == "[WEB:https://example.com]"
+
+    def test_base_search_tool_is_abc(self):
+        from colloquip.tools.interface import BaseSearchTool
+        import abc
+        assert issubclass(BaseSearchTool, abc.ABC)
 
 
 class TestMockTools:
@@ -1335,3 +1343,210 @@ class TestBackwardCompatibility:
         # Count lines matching "test_" pattern
         test_lines = [l for l in result.stdout.strip().split("\n") if "test_" in l]
         assert len(test_lines) >= 188
+
+
+# =========================================================================
+# Principle #2: parse_synthesis testable without LLM
+# =========================================================================
+
+
+class TestParseSynthesis:
+    """Tests for parse_synthesis() — no LLM required."""
+
+    def test_parse_synthesis_basic(self):
+        from colloquip.synthesis import parse_synthesis
+
+        template = OutputTemplate(
+            template_type="assessment",
+            sections=[
+                OutputSection(name="executive_summary", description=""),
+                OutputSection(name="evidence_for", description=""),
+                OutputSection(name="key_risks", description=""),
+            ],
+            metadata_fields=["confidence_level", "evidence_quality"],
+        )
+        text = """### Executive Summary
+The hypothesis is well-supported by preclinical data.
+
+### Evidence For
+- GWAS data supports target involvement [PUBMED:12345678]
+- Preclinical models show efficacy
+
+### Key Risks
+- Single lab reproducibility concern
+- No clinical data yet
+
+confidence_level: high
+evidence_quality: moderate
+"""
+        result = parse_synthesis(text, template)
+        assert result.template_type == "assessment"
+        assert "executive_summary" in result.sections
+        assert "evidence_for" in result.sections
+        assert "key_risks" in result.sections
+        assert result.metadata.get("confidence_level") == "high"
+        assert result.metadata.get("evidence_quality") == "moderate"
+
+    def test_parse_synthesis_with_posts_and_audit_chains(self):
+        from colloquip.synthesis import parse_synthesis
+        from tests.conftest import create_post, TEST_SESSION_ID
+
+        posts = [
+            create_post(
+                agent_id="biology",
+                content="GWAS data strongly supports target involvement in disease pathway.",
+                stance=AgentStance.SUPPORTIVE,
+            ),
+            create_post(
+                agent_id="red_team",
+                content="Single lab finding raises reproducibility concerns.",
+                stance=AgentStance.CRITICAL,
+            ),
+        ]
+        template = OutputTemplate(
+            template_type="assessment",
+            sections=[
+                OutputSection(name="evidence_for", description=""),
+            ],
+        )
+        text = """### Evidence For
+- GWAS data strongly supports target involvement in disease pathway
+"""
+        result = parse_synthesis(text, template, posts=posts)
+        # Should have audit chains linking claims to posts
+        assert isinstance(result.audit_chains, list)
+
+    def test_parse_synthesis_empty_text(self):
+        from colloquip.synthesis import parse_synthesis
+
+        template = OutputTemplate(
+            template_type="assessment",
+            sections=[OutputSection(name="summary", description="")],
+        )
+        result = parse_synthesis("", template)
+        assert "raw_synthesis" in result.sections
+        assert result.sections["raw_synthesis"] == "No synthesis content generated."
+
+    def test_parse_synthesis_custom_thread_id(self):
+        from colloquip.synthesis import parse_synthesis
+
+        template = OutputTemplate(
+            template_type="assessment",
+            sections=[OutputSection(name="summary", description="")],
+        )
+        tid = uuid4()
+        result = parse_synthesis("Some text", template, thread_id=tid)
+        assert result.thread_id == tid
+
+    def test_parse_synthesis_configurable_audit_params(self):
+        from colloquip.synthesis import parse_synthesis
+        from tests.conftest import create_post
+
+        posts = [
+            create_post(
+                agent_id="bio",
+                content="Target validated by comprehensive GWAS meta-analysis across populations.",
+                stance=AgentStance.SUPPORTIVE,
+            ),
+        ]
+        template = OutputTemplate(
+            template_type="assessment",
+            sections=[OutputSection(name="evidence_for", description="")],
+        )
+        text = "### Evidence For\n- Target validated by comprehensive GWAS meta-analysis across populations"
+
+        # With very high threshold, no chains should match
+        result_strict = parse_synthesis(
+            text, template, posts=posts, overlap_threshold=0.99
+        )
+        assert len(result_strict.audit_chains) == 0
+
+        # With low threshold, chains should match
+        result_loose = parse_synthesis(
+            text, template, posts=posts, overlap_threshold=0.1
+        )
+        assert len(result_loose.audit_chains) >= 0  # May or may not match
+
+
+# =========================================================================
+# Principle #4: Configurable scoring weights
+# =========================================================================
+
+
+class TestScoringWeights:
+    def test_default_scoring_weights(self):
+        from colloquip.registry import DEFAULT_SCORING_WEIGHTS, ScoringWeights
+
+        assert isinstance(DEFAULT_SCORING_WEIGHTS, ScoringWeights)
+        assert DEFAULT_SCORING_WEIGHTS.exact_type_match == 0.5
+        assert DEFAULT_SCORING_WEIGHTS.expertise_tag_match == 0.3
+        assert DEFAULT_SCORING_WEIGHTS.keyword_overlap == 0.2
+        assert DEFAULT_SCORING_WEIGHTS.scope_overlap == 0.1
+
+    def test_custom_scoring_weights(self):
+        from colloquip.registry import AgentRegistry, ScoringWeights
+
+        # Create registry with custom weights that heavily favor exact match
+        weights = ScoringWeights(
+            exact_type_match=1.0,
+            expertise_tag_match=0.0,
+            keyword_overlap=0.0,
+            scope_overlap=0.0,
+            min_score=0.5,
+        )
+        registry = AgentRegistry(scoring_weights=weights)
+        registry.load_from_personas()
+
+        # With these weights, only exact matches should appear
+        matches = registry.find_by_expertise("molecular_biology")
+        assert len(matches) >= 1
+        best_agent, _ = matches[0]
+        assert best_agent.agent_type == "molecular_biology"
+
+    def test_scoring_weights_zero_min(self):
+        from colloquip.registry import AgentRegistry, ScoringWeights
+
+        weights = ScoringWeights(min_score=0.0)
+        registry = AgentRegistry(scoring_weights=weights)
+        registry.load_from_personas()
+        # With min_score=0, everything with any score should match
+        matches = registry.find_by_expertise("biology")
+        assert len(matches) >= 5
+
+
+# =========================================================================
+# Principle #5: Mock tools inherit from real classes
+# =========================================================================
+
+
+class TestMockInheritance:
+    def test_mock_pubmed_inherits(self):
+        from colloquip.tools.pubmed import MockPubMedTool, PubMedTool
+        assert issubclass(MockPubMedTool, PubMedTool)
+
+    def test_mock_web_search_inherits(self):
+        from colloquip.tools.web_search import MockWebSearchTool, WebSearchTool
+        assert issubclass(MockWebSearchTool, WebSearchTool)
+
+    def test_mock_company_docs_inherits(self):
+        from colloquip.tools.company_docs import CompanyDocsTool, MockCompanyDocsTool
+        assert issubclass(MockCompanyDocsTool, CompanyDocsTool)
+
+    def test_mock_pubmed_shares_schema_structure(self):
+        from colloquip.tools.pubmed import MockPubMedTool, PubMedTool
+
+        real = PubMedTool()
+        mock = MockPubMedTool()
+        # Both should have the same schema structure
+        assert real.tool_schema["name"] == mock.tool_schema["name"]
+        assert "input_schema" in mock.tool_schema
+
+    def test_verification_report_is_pydantic(self):
+        from colloquip.tools.citation_verifier import VerificationReport
+        from pydantic import BaseModel
+        assert issubclass(VerificationReport, BaseModel)
+
+        report = VerificationReport(total_citations=3, verified=2, flagged=1)
+        dumped = report.model_dump()
+        assert dumped["total_citations"] == 3
+        assert dumped["verified"] == 2

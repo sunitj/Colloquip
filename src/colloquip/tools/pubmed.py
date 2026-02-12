@@ -255,29 +255,16 @@ class PubMedTool(BaseSearchTool):
         self._last_request_time = time.monotonic()
 
 
-class MockPubMedTool(BaseSearchTool):
-    """Mock PubMed tool for testing without network access."""
+class MockPubMedTool(PubMedTool):
+    """Mock PubMed tool for testing without network access.
 
-    _name = "pubmed_search"
+    Inherits schema from PubMedTool; overrides execute() with canned data.
+    """
+
     _description = "Search PubMed (mock mode)"
 
     def __init__(self, max_results: int = 5):
-        self.max_results = max_results
-
-    @property
-    def tool_schema(self) -> Dict[str, Any]:
-        return {
-            "name": self._name,
-            "description": self._description,
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "query": {"type": "string", "description": "Search query"},
-                    "max_results": {"type": "integer", "default": self.max_results},
-                },
-                "required": ["query"],
-            },
-        }
+        super().__init__(max_results=max_results)
 
     async def execute(self, **kwargs) -> ToolResult:
         query = kwargs.get("query", "")

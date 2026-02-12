@@ -329,18 +329,24 @@ def _get_platform_or_create(request: Request):
 # Response builders
 # ---------------------------------------------------------------------------
 
-def _build_subreddit_response(pm: "PlatformManager", subreddit: dict) -> SubredditResponse:
+def _subreddit_common(pm: "PlatformManager", subreddit: dict) -> tuple:
+    """Shared data extraction for subreddit responses."""
     members = pm.get_subreddit_members(subreddit["id"])
     has_red_team = any(m.get("role") == "red_team" for m in members)
     threads = pm.get_subreddit_threads(subreddit["id"])
+    purpose = subreddit.get("purpose", {})
     tool_ids = [tc.get("tool_id", "") for tc in (subreddit.get("tool_configs") or [])]
+    return members, has_red_team, threads, purpose, tool_ids
 
+
+def _build_subreddit_response(pm: "PlatformManager", subreddit: dict) -> SubredditResponse:
+    members, has_red_team, threads, purpose, tool_ids = _subreddit_common(pm, subreddit)
     return SubredditResponse(
         id=subreddit["id"],
         name=subreddit["name"],
         display_name=subreddit["display_name"],
         description=subreddit.get("description", ""),
-        thinking_type=subreddit.get("purpose", {}).get("thinking_type", "assessment"),
+        thinking_type=purpose.get("thinking_type", "assessment"),
         participation_model=subreddit.get("participation_model", "guided"),
         member_count=len(members),
         thread_count=len(threads),
@@ -354,16 +360,8 @@ def _build_subreddit_detail_response(
     subreddit: dict,
     recruitment: Optional["RecruitmentResult"] = None,
 ) -> SubredditDetailResponse:
-    members = pm.get_subreddit_members(subreddit["id"])
-    has_red_team = any(m.get("role") == "red_team" for m in members)
-    threads = pm.get_subreddit_threads(subreddit["id"])
-    purpose = subreddit.get("purpose", {})
-    tool_ids = [tc.get("tool_id", "") for tc in (subreddit.get("tool_configs") or [])]
-
-    gaps = []
-    if recruitment and hasattr(recruitment, "gaps"):
-        gaps = [g.model_dump() for g in recruitment.gaps]
-
+    members, has_red_team, threads, purpose, tool_ids = _subreddit_common(pm, subreddit)
+    gaps = [g.model_dump() for g in recruitment.gaps] if recruitment and hasattr(recruitment, "gaps") else []
     return SubredditDetailResponse(
         id=subreddit["id"],
         name=subreddit["name"],
