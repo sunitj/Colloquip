@@ -113,7 +113,7 @@ class WebSearchTool(BaseSearchTool):
             ][:5]
 
             doi = ""
-            external_ids = paper.get("externalIds", {}) or {}
+            external_ids = paper.get("externalIds") or {}
             if external_ids.get("DOI"):
                 doi = external_ids["DOI"]
 

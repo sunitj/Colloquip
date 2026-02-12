@@ -112,8 +112,8 @@ class AgentRegistry:
         # Check for duplicate agent_type
         if agent.agent_type in self._by_type:
             existing_id = self._by_type[agent.agent_type]
-            logger.warning(
-                "Agent type '%s' already registered (id=%s). Returning existing.",
+            logger.debug(
+                "Agent type '%s' already registered (id=%s); returning existing instance.",
                 agent.agent_type, existing_id,
             )
             return self._pool[existing_id]
@@ -229,12 +229,14 @@ class AgentRegistry:
         subreddit_id: UUID,
         subreddit_domain: str = "default",
         optional_expertise: Optional[List[str]] = None,
+        max_agents: int = 8,
     ) -> RecruitmentResult:
         """Recruit agents from the pool for a subreddit.
 
         For each required expertise, finds the best matching agent.
         Always ensures at least one red team agent is included.
         Reports gaps for missing expertise.
+        Respects max_agents cap (reserving 1 slot for red team).
         """
         memberships: List[SubredditMembership] = []
         gaps: List[ExpertiseGap] = []
@@ -265,8 +267,10 @@ class AgentRegistry:
                     has_curated_template=has_template,
                 ))
 
-        # Recruit optional expertise (best-effort)
+        # Recruit optional expertise (best-effort, within cap minus 1 for red team)
         for expertise in (optional_expertise or []):
+            if len(memberships) >= max_agents - 1:
+                break  # Reserve slot for red team
             matches = self.find_by_expertise(expertise, min_score=0.2)
             for agent, score in matches:
                 if agent.id not in recruited_ids:

@@ -52,7 +52,7 @@ class CitationVerifier:
                 details.append({
                     "ref": f"[PUBMED:{pmid}]",
                     "status": "flagged",
-                    "reason": "PMID not found in PubMed",
+                    "reason": title or "PMID not found in PubMed",
                 })
 
         # Internal citations — mark as unverified (would need internal DB check)

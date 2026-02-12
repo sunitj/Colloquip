@@ -268,4 +268,9 @@ DEFAULT_TEMPLATES = {
 
 def get_template(thinking_type: ThinkingType) -> OutputTemplate:
     """Get the default output template for a thinking type."""
+    if thinking_type not in DEFAULT_TEMPLATES:
+        raise ValueError(
+            f"No template for thinking type '{thinking_type}'. "
+            f"Available: {list(DEFAULT_TEMPLATES.keys())}"
+        )
     return DEFAULT_TEMPLATES[thinking_type]

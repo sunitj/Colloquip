@@ -46,6 +46,17 @@ def load_persona_file(path: Path) -> dict:
             f"Persona {path.name} missing phase mandates: {missing_phases}"
         )
 
+    # Validate non-empty list fields (critical for registry matching)
+    for list_field in ("expertise_tags", "domain_keywords"):
+        if not data.get(list_field):
+            raise ValueError(
+                f"Persona {path.name}: '{list_field}' must be a non-empty list"
+            )
+
+    # Validate persona_prompt is non-trivial
+    if not data.get("persona_prompt", "").strip():
+        raise ValueError(f"Persona {path.name}: 'persona_prompt' must not be empty")
+
     return data
 
 
@@ -87,17 +98,23 @@ def persona_to_agent_identity(persona: dict) -> "BaseAgentIdentity":
     """
     from colloquip.models import BaseAgentIdentity
 
-    return BaseAgentIdentity(
-        agent_type=persona["agent_type"],
-        display_name=persona["display_name"],
-        expertise_tags=persona["expertise_tags"],
-        persona_prompt=persona["persona_prompt"],
-        phase_mandates=persona["phase_mandates"],
-        domain_keywords=persona["domain_keywords"],
-        knowledge_scope=persona["knowledge_scope"],
-        evaluation_criteria=persona["evaluation_criteria"],
-        is_red_team=persona["is_red_team"],
-    )
+    agent_type = persona.get("agent_type", "<unknown>")
+    try:
+        return BaseAgentIdentity(
+            agent_type=persona["agent_type"],
+            display_name=persona["display_name"],
+            expertise_tags=persona["expertise_tags"],
+            persona_prompt=persona["persona_prompt"],
+            phase_mandates=persona["phase_mandates"],
+            domain_keywords=persona["domain_keywords"],
+            knowledge_scope=persona["knowledge_scope"],
+            evaluation_criteria=persona["evaluation_criteria"],
+            is_red_team=persona["is_red_team"],
+        )
+    except KeyError as e:
+        raise ValueError(
+            f"Persona '{agent_type}' missing required field: {e}"
+        ) from e
 
 
 def load_agent_identities(

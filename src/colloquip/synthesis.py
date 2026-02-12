@@ -7,6 +7,7 @@ and citations.
 
 import logging
 from typing import Dict, List, Optional
+from uuid import UUID, uuid4
 
 from colloquip.llm.interface import LLMInterface
 from colloquip.models import (
@@ -14,7 +15,6 @@ from colloquip.models import (
     OutputTemplate,
     Post,
     Synthesis,
-    StructuredCitation,
 )
 
 logger = logging.getLogger(__name__)
@@ -61,6 +61,18 @@ def _build_synthesis_prompt(
             + "\n".join(f"- {field}" for field in template.metadata_fields)
         )
 
+    trajectories = "\n".join(
+        f'- **{agent}**: {" → ".join(stances)}'
+        for agent, stances in stance_summary.items()
+    )
+    claims_block = "\n".join(all_claims[:30])
+    questions_block = "\n".join(all_questions[:15])
+    conversation_block = "\n".join(
+        f"**Post #{i+1} [{post.agent_id}] ({post.stance.value}, {post.phase.value}):**\n"
+        f"{post.content}\n"
+        for i, post in enumerate(posts[-20:])
+    )
+
     prompt = f"""## Hypothesis Under Deliberation
 
 {hypothesis}
@@ -68,16 +80,16 @@ def _build_synthesis_prompt(
 ## Deliberation Summary ({len(posts)} posts from {len(stance_summary)} agents)
 
 ### Agent Stance Trajectories
-{chr(10).join(f'- **{agent}**: {" → ".join(stances)}' for agent, stances in stance_summary.items())}
+{trajectories}
 
 ### Key Claims Made During Deliberation
-{chr(10).join(all_claims[:30])}
+{claims_block}
 
 ### Open Questions
-{chr(10).join(all_questions[:15])}
+{questions_block}
 
 ## Full Conversation
-{chr(10).join(f'**Post #{i+1} [{post.agent_id}] ({post.stance.value}, {post.phase.value}):**{chr(10)}{post.content}{chr(10)}' for i, post in enumerate(posts[-20:]))}
+{conversation_block}
 
 ## Task: Generate Structured Synthesis
 
@@ -106,22 +118,47 @@ def _parse_synthesis_sections(
     text: str,
     template: OutputTemplate,
 ) -> Dict[str, str]:
-    """Parse the synthesis text into sections based on template headings."""
-    sections: Dict[str, str] = {}
-    section_names = [s.name for s in template.sections]
+    """Parse the synthesis text into sections based on template headings.
 
-    # Also try to parse metadata fields
+    Matches markdown headings (### Section Name) to template section names.
+    Uses exact match after normalization to avoid partial matches
+    (e.g., 'summary' matching inside 'executive_summary').
+    """
+    sections: Dict[str, str] = {}
+    # Sort section names longest-first so more specific names match first
+    section_names = sorted(
+        [s.name for s in template.sections],
+        key=len,
+        reverse=True,
+    )
+
     current_section = None
     current_content: List[str] = []
 
     for line in text.split("\n"):
-        stripped = line.strip().lower().replace(" ", "_").replace("#", "").strip()
+        # Only consider lines that look like headings
+        if not line.strip().startswith("#"):
+            if current_section:
+                current_content.append(line)
+            continue
 
-        # Check if this line is a section header
+        # Normalize heading: "### Executive Summary (REQUIRED)" -> "executive_summary"
+        normalized = (
+            line.strip()
+            .lower()
+            .replace("#", "")
+            .strip()
+            .replace(" ", "_")
+            # Strip trailing markers like "(required)" or "(optional)"
+            .split("(")[0]
+            .strip()
+            .rstrip("_")
+        )
+
+        # Check for section match (exact or starts-with for decorated headings)
         matched = False
         for name in section_names:
-            if name in stripped:
-                # Save previous section
+            if normalized == name or normalized.startswith(name + "_"):
                 if current_section:
                     sections[current_section] = "\n".join(current_content).strip()
                 current_section = name
@@ -140,19 +177,39 @@ def _parse_synthesis_sections(
 
 
 def _parse_metadata(text: str, metadata_fields: List[str]) -> Dict[str, str]:
-    """Extract metadata values from synthesis text."""
+    """Extract metadata values from synthesis text.
+
+    Looks for lines formatted as 'field_name: value'. Only considers
+    lines that start with a metadata field name (possibly with leading
+    whitespace/bullets) to avoid matching field names that appear
+    incidentally inside section prose.
+    """
     metadata: Dict[str, str] = {}
     for field in metadata_fields:
-        # Look for "field_name: value" pattern
+        field_lower = field.lower()
+        field_normalized = field_lower.replace("_", " ")
         for line in text.split("\n"):
-            clean = line.strip().lower()
-            field_normalized = field.lower().replace("_", " ")
-            if field_normalized in clean or field in clean:
-                parts = line.split(":", 1)
-                if len(parts) == 2:
+            stripped = line.strip().lstrip("- ").strip()
+            clean = stripped.lower()
+            # Line must start with the field name (not just contain it)
+            if clean.startswith(field_normalized) or clean.startswith(field_lower):
+                parts = stripped.split(":", 1)
+                if len(parts) == 2 and parts[1].strip():
                     metadata[field] = parts[1].strip()
                     break
     return metadata
+
+
+_STOP_WORDS = frozenset({
+    "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for",
+    "of", "with", "by", "from", "is", "are", "was", "were", "be", "been",
+    "has", "have", "had", "do", "does", "did", "not", "no", "this", "that",
+    "it", "its", "as", "if", "can", "may", "will", "should", "would",
+    "could", "also", "than", "more", "most", "very", "all", "any", "both",
+    "each", "other", "such", "into", "over", "only", "some", "these",
+    "those", "which", "who", "whom", "what", "when", "where", "how",
+    "about", "between", "through", "during", "before", "after",
+})
 
 
 def _extract_audit_chains(
@@ -177,14 +234,18 @@ def _extract_audit_chains(
             if len(claim) < 10:
                 continue
 
-            # Find supporting posts (simple keyword overlap)
-            claim_words = set(claim.lower().split())
+            # Filter stop words for meaningful overlap
+            claim_words = set(claim.lower().split()) - _STOP_WORDS
+            if len(claim_words) < 3:
+                continue
+
             supporting = []
             dissenting = []
             for post in posts:
-                post_words = set(post.content.lower().split())
-                overlap = len(claim_words & post_words) / max(len(claim_words), 1)
-                if overlap > 0.2:
+                post_words = set(post.content.lower().split()) - _STOP_WORDS
+                common = claim_words & post_words
+                overlap = len(common) / max(len(claim_words), 1)
+                if overlap > 0.3:
                     if post.stance.value == "critical":
                         dissenting.append(post.agent_id)
                     else:
@@ -211,7 +272,7 @@ class SynthesisGenerator:
         hypothesis: str,
         posts: List[Post],
         template: OutputTemplate,
-        thread_id=None,
+        thread_id: Optional[UUID] = None,
     ) -> Synthesis:
         """Generate a template-driven synthesis.
 
@@ -220,8 +281,6 @@ class SynthesisGenerator:
         3. Parse into Synthesis model
         4. Extract audit chains (claim → post → citation)
         """
-        from uuid import uuid4
-
         prompt = _build_synthesis_prompt(hypothesis, posts, template)
 
         try:
@@ -247,7 +306,7 @@ class SynthesisGenerator:
 
         # If parsing didn't find sections, put everything in a fallback section
         if not sections:
-            sections = {"raw_synthesis": raw_text}
+            sections = {"raw_synthesis": raw_text.strip() or "No synthesis content generated."}
 
         # Parse metadata
         metadata = _parse_metadata(raw_text, template.metadata_fields)

@@ -7,7 +7,7 @@ import logging
 from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
-from uuid import UUID, uuid4
+from uuid import UUID
 
 logger = logging.getLogger(__name__)
 

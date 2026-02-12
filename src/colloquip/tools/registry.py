@@ -70,7 +70,7 @@ class ToolRegistry:
 
     def get_tools_for_subreddit(
         self,
-        tool_configs: List[Dict[str, Any]],
+        tool_configs: Optional[List[Dict[str, Any]]] = None,
     ) -> List[BaseSearchTool]:
         """Create tool instances based on a subreddit's tool configuration.
 
@@ -78,6 +78,8 @@ class ToolRegistry:
             tool_configs: List of dicts with 'tool_id' and optional 'connection_config'.
                           Matches the ToolConfig model from models.py.
         """
+        if not tool_configs:
+            return []
         tools = []
         for tc in tool_configs:
             tool_id = tc.get("tool_id", "")

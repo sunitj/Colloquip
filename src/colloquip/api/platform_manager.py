@@ -21,6 +21,7 @@ from colloquip.models import (
     ThinkingType,
     ToolConfig,
 )
+from colloquip.cost_tracker import CostTracker
 from colloquip.output_templates import get_template
 from colloquip.registry import AgentRegistry
 from colloquip.tools.registry import ToolRegistry
@@ -38,6 +39,7 @@ class PlatformManager:
     def __init__(self, mock_mode: bool = True):
         self.registry = AgentRegistry()
         self.tool_registry = ToolRegistry(mock_mode=mock_mode)
+        self.cost_tracker = CostTracker()
 
         # In-memory storage (mirrors DB for real-time access)
         self._subreddits: Dict[str, dict] = {}  # id -> subreddit dict
@@ -225,21 +227,22 @@ class PlatformManager:
             "max_turns": max_turns,
         }
 
-        if subreddit_id in self._threads:
-            self._threads[subreddit_id].append(thread)
-        else:
-            self._threads[subreddit_id] = [thread]
+        self._threads.setdefault(subreddit_id, []).append(thread)
 
         return thread
 
     # ---- Costs ----
 
     def get_thread_costs(self, thread_id: str) -> dict:
-        """Get cost information for a thread. Placeholder for CostTracker integration."""
-        return {
-            "thread_id": thread_id,
-            "total_input_tokens": 0,
-            "total_output_tokens": 0,
-            "estimated_cost_usd": 0.0,
-            "num_llm_calls": 0,
-        }
+        """Get cost information for a thread via the CostTracker."""
+        try:
+            tid = UUID(thread_id)
+        except ValueError:
+            return {
+                "thread_id": thread_id,
+                "total_input_tokens": 0,
+                "total_output_tokens": 0,
+                "estimated_cost_usd": 0.0,
+                "num_llm_calls": 0,
+            }
+        return self.cost_tracker.thread_summary(tid)

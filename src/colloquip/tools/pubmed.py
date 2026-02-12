@@ -148,6 +148,8 @@ class PubMedTool(BaseSearchTool):
         }
         if self.api_key:
             params["api_key"] = self.api_key
+        if self.email:
+            params["email"] = self.email
 
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.get(f"{_EUTILS_BASE}/efetch.fcgi", params=params)
@@ -182,14 +184,14 @@ class PubMedTool(BaseSearchTool):
             return None
 
         pmid_el = medline.find("PMID")
-        pmid = pmid_el.text if pmid_el is not None else ""
+        pmid = (pmid_el.text or "").strip() if pmid_el is not None else ""
 
         art = medline.find(".//Article")
         if art is None:
             return None
 
         title_el = art.find("ArticleTitle")
-        title = title_el.text if title_el is not None else ""
+        title = (title_el.text or "").strip() if title_el is not None else ""
 
         # Authors
         authors = []

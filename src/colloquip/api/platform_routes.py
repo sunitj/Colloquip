@@ -5,8 +5,12 @@ capabilities. All new endpoints are under /api/subreddits and /api/agents.
 """
 
 import logging
-from typing import Dict, List, Literal, Optional
+from typing import TYPE_CHECKING, Dict, List, Literal, Optional
 from uuid import UUID, uuid4
+
+if TYPE_CHECKING:
+    from colloquip.api.platform_manager import PlatformManager
+    from colloquip.models import RecruitmentResult
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -106,12 +110,17 @@ class HumanPostRequest(BaseModel):
 # ---------------------------------------------------------------------------
 
 def _get_platform(request: Request):
-    """Get the PlatformManager from app state."""
+    """Get the PlatformManager from app state, ensuring it's initialized."""
     pm = getattr(request.app.state, "platform_manager", None)
     if pm is None:
         raise HTTPException(
             status_code=503,
             detail="Platform not initialized. Use /api/platform/init first.",
+        )
+    if not pm._initialized:
+        raise HTTPException(
+            status_code=503,
+            detail="Platform not initialized. Call POST /api/platform/init first.",
         )
     return pm
 
@@ -278,6 +287,10 @@ async def get_agent(agent_id: str, request: Request):
 @router.get("/threads/{thread_id}/costs")
 async def get_thread_costs(thread_id: str, request: Request):
     """Get cost breakdown for a thread."""
+    try:
+        UUID(thread_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid thread ID format")
     pm = _get_platform(request)
     costs = pm.get_thread_costs(thread_id)
     return costs
@@ -316,7 +329,7 @@ def _get_platform_or_create(request: Request):
 # Response builders
 # ---------------------------------------------------------------------------
 
-def _build_subreddit_response(pm, subreddit: dict) -> SubredditResponse:
+def _build_subreddit_response(pm: "PlatformManager", subreddit: dict) -> SubredditResponse:
     members = pm.get_subreddit_members(subreddit["id"])
     has_red_team = any(m.get("role") == "red_team" for m in members)
     threads = pm.get_subreddit_threads(subreddit["id"])
@@ -336,7 +349,11 @@ def _build_subreddit_response(pm, subreddit: dict) -> SubredditResponse:
     )
 
 
-def _build_subreddit_detail_response(pm, subreddit: dict, recruitment=None):
+def _build_subreddit_detail_response(
+    pm: "PlatformManager",
+    subreddit: dict,
+    recruitment: Optional["RecruitmentResult"] = None,
+) -> SubredditDetailResponse:
     members = pm.get_subreddit_members(subreddit["id"])
     has_red_team = any(m.get("role") == "red_team" for m in members)
     threads = pm.get_subreddit_threads(subreddit["id"])

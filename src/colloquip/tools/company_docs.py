@@ -98,7 +98,10 @@ class CompanyDocsTool(BaseSearchTool):
                 continue
 
             try:
-                content = path.read_text(errors="replace")[:10000]
+                full_content = path.read_text(errors="replace")
+                content = full_content[:10000]
+                if len(full_content) > 10000:
+                    logger.debug("Truncated %s (%d chars) for search", path.name, len(full_content))
             except Exception:
                 continue
 

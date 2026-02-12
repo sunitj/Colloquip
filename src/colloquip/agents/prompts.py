@@ -4,7 +4,7 @@ Supports versioned prompt sets for systematic tuning.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 from colloquip.models import AgentConfig, Phase, Post
 
@@ -339,7 +339,7 @@ def build_v3_system_prompt(
     phase_mandate: str = "",
     subreddit_context: str = "",
     role_prompt: str = "",
-    tool_descriptions: str = "",
+    tool_descriptions: Union[str, List[str]] = "",
 ) -> str:
     """Build a v3 system prompt with layered assembly.
 
@@ -370,6 +370,8 @@ def build_v3_system_prompt(
 
     # Tool instructions (only if tools available)
     if tool_descriptions:
+        if isinstance(tool_descriptions, list):
+            tool_descriptions = "\n".join(f"- {d}" for d in tool_descriptions)
         parts.append(_V3_TOOL_INSTRUCTIONS.format(tool_descriptions=tool_descriptions))
 
     parts.append(_V2_RESPONSE_GUIDELINES)
