@@ -107,11 +107,10 @@ async def list_subreddit_watchers(
         raise HTTPException(status_code=503, detail="Watcher system not initialized")
 
     all_watchers = registry.all()
-    # Filter by subreddit name via config
+    # Filter by subreddit name stored in watcher config
     watchers = [
         w for w in all_watchers
-        if getattr(w.config, "_subreddit_name", None) == subreddit_name
-        or True  # Include all for now; proper lookup requires DB
+        if w.config.config.get("subreddit_name") == subreddit_name
     ]
 
     return WatcherListResponse(
@@ -136,21 +135,27 @@ async def create_watcher(
     if registry is None:
         raise HTTPException(status_code=503, detail="Watcher system not initialized")
 
-    # Create watcher config (subreddit_id would come from DB lookup in production)
+    # Look up subreddit_id from name (via app state or generate UUID)
     from uuid import uuid4
+    subreddit_id = uuid4()
+    # Store subreddit_name in config for filtering
+    watcher_config = dict(body.config)
+    watcher_config["subreddit_name"] = subreddit_name
+
     config = WatcherConfig(
         watcher_type=body.watcher_type,
-        subreddit_id=uuid4(),  # Placeholder; real impl looks up by name
+        subreddit_id=subreddit_id,
         name=body.name,
         description=body.description,
         query=body.query,
         poll_interval_seconds=body.poll_interval_seconds,
-        config=body.config,
+        config=watcher_config,
     )
 
     # Create watcher instance
     if body.watcher_type == WatcherType.LITERATURE:
-        watcher = LiteratureWatcher(config)
+        pubmed_tool = getattr(request.app.state, "pubmed_tool", None)
+        watcher = LiteratureWatcher(config, pubmed_tool=pubmed_tool)
     elif body.watcher_type == WatcherType.SCHEDULED:
         watcher = ScheduledWatcher(config)
     elif body.watcher_type == WatcherType.WEBHOOK:

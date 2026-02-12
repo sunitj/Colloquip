@@ -340,6 +340,7 @@ class DBWatcherEvent(Base):
     source_type = Column(String(50), nullable=False, default="")
     source_id = Column(String(200), nullable=False, default="")
     source_url = Column(Text, nullable=True)
+    source_metadata = Column(JSON, nullable=False, default=dict)
     raw_data = Column(JSON, nullable=False, default=dict)
     triage_signal = Column(String(20), nullable=True)  # low, medium, high
     triage_reasoning = Column(Text, nullable=True)

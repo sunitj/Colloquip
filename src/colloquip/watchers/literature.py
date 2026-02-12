@@ -48,8 +48,8 @@ class LiteratureWatcher(BaseWatcher):
             logger.error("PubMed search failed for watcher %s: %s", self.config.name, e)
             return []
 
-        if result.error:
-            logger.warning("PubMed search error: %s", result.error)
+        if result is None or result.error:
+            logger.warning("PubMed search error: %s", getattr(result, "error", "None result"))
             return []
 
         events = []
