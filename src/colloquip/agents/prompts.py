@@ -302,3 +302,141 @@ def get_prompt_version(version: str = "v1") -> PromptVersion:
             f"Available: {list(PROMPT_VERSIONS.keys())}"
         )
     return PROMPT_VERSIONS[version]
+
+
+# ---------------------------------------------------------------------------
+# v3: Subreddit-aware prompts with layered assembly
+# ---------------------------------------------------------------------------
+
+_V3_CITATION_INSTRUCTIONS = """
+## Citation Requirements
+
+- EVERY factual claim MUST cite a source
+- Format: [PUBMED:PMID] for literature, [INTERNAL:record-id] for internal data, [WEB:url] for web sources
+- If you cannot find evidence, say so explicitly: "No published evidence found for..."
+- Distinguish evidence types:
+  - DIRECT EVIDENCE: Published data directly supporting/contradicting the claim
+  - INFERENCE: Logical extrapolation from related evidence
+  - EXPERT OPINION: Your assessment based on domain knowledge (state this explicitly)
+- Never fabricate citations. If unsure of a PMID, say "citation needed" instead.
+""".strip()
+
+_V3_TOOL_INSTRUCTIONS = """
+## Available Research Tools
+
+You have access to the following research tools. Use them to ground your analysis in evidence:
+
+{tool_descriptions}
+
+When you find relevant evidence through these tools, cite it using the appropriate format.
+Prefer primary sources (PubMed) over secondary sources.
+""".strip()
+
+
+def build_v3_system_prompt(
+    persona_prompt: str,
+    phase: Phase,
+    phase_mandate: str = "",
+    subreddit_context: str = "",
+    role_prompt: str = "",
+    tool_descriptions: str = "",
+) -> str:
+    """Build a v3 system prompt with layered assembly.
+
+    Layers:
+    1. Base persona (from YAML)
+    2. Subreddit context (purpose, core questions)
+    3. Role in subreddit (membership role_prompt)
+    4. Phase mandate (phase-specific behavior)
+    5. Citation requirements
+    6. Tool instructions (if tools available)
+    7. Response guidelines
+    """
+    parts = [persona_prompt.strip()]
+
+    if subreddit_context:
+        parts.append(subreddit_context)
+
+    if role_prompt:
+        parts.append(f"## Your Role in This Community\n\n{role_prompt}")
+
+    # Phase mandate: prefer agent-specific, fall back to v2 defaults
+    mandate = phase_mandate or _V2_PHASE_MANDATES.get(phase, "")
+    if mandate:
+        parts.append(mandate)
+
+    # Citation requirements (always included in v3)
+    parts.append(_V3_CITATION_INSTRUCTIONS)
+
+    # Tool instructions (only if tools available)
+    if tool_descriptions:
+        parts.append(_V3_TOOL_INSTRUCTIONS.format(tool_descriptions=tool_descriptions))
+
+    parts.append(_V2_RESPONSE_GUIDELINES)
+
+    return "\n\n".join(parts)
+
+
+def build_v3_user_prompt(
+    hypothesis: str,
+    posts: List[Post],
+    phase_observation: Optional[str] = None,
+    subreddit_core_questions: Optional[List[str]] = None,
+    max_history: int = 15,
+) -> str:
+    """Build a v3 user prompt with subreddit context."""
+    parts = [f"## Hypothesis Under Deliberation\n\n{hypothesis}"]
+
+    if subreddit_core_questions:
+        parts.append(
+            "## Core Questions for This Community\n\n"
+            + "\n".join(f"- {q}" for q in subreddit_core_questions)
+        )
+
+    if phase_observation:
+        parts.append(f"\n## Observer Note\n\n{phase_observation}")
+
+    if posts:
+        parts.append("\n## Conversation History\n")
+        recent = posts[-max_history:]
+        for i, post in enumerate(recent):
+            post_num = len(posts) - len(recent) + i + 1
+            parts.append(
+                f"\n**Post #{post_num} [{post.agent_id}] "
+                f"({post.stance.value}, {post.phase.value}):**\n"
+                f"{post.content}"
+            )
+
+    parts.append(
+        "\n\n## Your Turn\n\n"
+        "Respond with your analysis. Remember your persona, current phase mandate, "
+        "citation requirements, and the response format guidelines.\n\n"
+        "Use your available research tools to find evidence before making claims."
+    )
+
+    return "\n".join(parts)
+
+
+def build_subreddit_context(
+    subreddit_name: str,
+    subreddit_description: str,
+    thinking_type: str,
+    core_questions: Optional[List[str]] = None,
+    decision_context: str = "",
+) -> str:
+    """Build the subreddit context section for the system prompt."""
+    parts = [
+        f"## Community: r/{subreddit_name}",
+        f"\n{subreddit_description}",
+        f"\n**Thinking Type**: {thinking_type}",
+    ]
+
+    if decision_context:
+        parts.append(f"**Decision Context**: {decision_context}")
+
+    if core_questions:
+        parts.append("\n**Core Questions**:")
+        for q in core_questions:
+            parts.append(f"- {q}")
+
+    return "\n".join(parts)

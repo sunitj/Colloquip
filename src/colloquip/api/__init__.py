@@ -11,6 +11,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from colloquip.api.app import SessionManager, create_session_manager
+from colloquip.api.platform_routes import router as platform_router
 from colloquip.api.routes import router
 from colloquip.api.ws import ws_router
 
@@ -56,7 +57,12 @@ def create_app(
 
     # Routes
     app.include_router(router)
+    app.include_router(platform_router)
     app.include_router(ws_router)
+
+    # Platform manager (lazy init — call POST /api/platform/init to activate)
+    from colloquip.api.platform_manager import PlatformManager
+    app.state.platform_manager = PlatformManager()
 
     @app.get("/health")
     async def health():

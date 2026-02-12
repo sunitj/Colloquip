@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
@@ -140,3 +140,260 @@ class AgentDependencies(BaseModel):
     knowledge_context: List[str] = Field(default_factory=list)
 
     model_config = {"arbitrary_types_allowed": True}
+
+
+# ---------------------------------------------------------------------------
+# New enums for the social platform
+# ---------------------------------------------------------------------------
+
+
+class ThinkingType(str, Enum):
+    ASSESSMENT = "assessment"
+    ANALYSIS = "analysis"
+    REVIEW = "review"
+    IDEATION = "ideation"
+
+
+class ParticipationModel(str, Enum):
+    OBSERVER = "observer"
+    GUIDED = "guided"
+    PARTICIPANT = "participant"
+    APPROVER = "approver"
+
+
+class SubredditRole(str, Enum):
+    MEMBER = "member"
+    MODERATOR = "moderator"
+    RED_TEAM = "red_team"
+
+
+class AgentStatus(str, Enum):
+    ACTIVE = "active"
+    RETIRED = "retired"
+    DRAFT = "draft"
+
+
+class HumanPostType(str, Enum):
+    COMMENT = "comment"
+    QUESTION = "question"
+    DATA = "data"
+    REDIRECT = "redirect"
+
+
+class ThreadStatus(str, Enum):
+    ACTIVE = "active"
+    PAUSED = "paused"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class ToolType(str, Enum):
+    LITERATURE_SEARCH = "literature_search"
+    INTERNAL_DATABASE = "internal_database"
+    WEB_SEARCH = "web_search"
+    COMPUTATION = "computation"
+
+
+# ---------------------------------------------------------------------------
+# New models for the social platform
+# ---------------------------------------------------------------------------
+
+
+class OutputSection(BaseModel):
+    """A section in an output template."""
+    name: str
+    description: str
+    required: bool = True
+
+
+class OutputTemplate(BaseModel):
+    """Structured synthesis format for a subreddit."""
+    template_type: str
+    sections: List[OutputSection]
+    metadata_fields: List[str] = Field(default_factory=list)
+
+
+class SubredditPurpose(BaseModel):
+    """Structured purpose definition for a subreddit."""
+    thinking_type: ThinkingType
+    core_questions: List[str]
+    decision_context: str
+    primary_domain: str
+    secondary_domains: List[str] = Field(default_factory=list)
+    required_expertise: List[str] = Field(default_factory=list)
+    optional_expertise: List[str] = Field(default_factory=list)
+
+
+class ToolConfig(BaseModel):
+    """A tool available within a subreddit."""
+    tool_id: str
+    display_name: str
+    description: str
+    tool_type: ToolType
+    connection_config: Dict = Field(default_factory=dict)
+    enabled: bool = True
+
+
+class SubredditConfig(BaseModel):
+    """Complete configuration for a subreddit."""
+    model_config = {"arbitrary_types_allowed": True}
+
+    id: UUID = Field(default_factory=uuid4)
+    name: str
+    display_name: str
+    description: str
+    purpose: SubredditPurpose
+    agent_roster: List["SubredditMembership"] = Field(default_factory=list)
+    min_agents: int = 3
+    max_agents: int = 8
+    always_include_red_team: bool = True
+    tool_configs: List[ToolConfig] = Field(default_factory=list)
+    output_template: OutputTemplate
+    participation_model: ParticipationModel = ParticipationModel.GUIDED
+    engine_overrides: Optional[Dict] = None
+    max_cost_per_thread_usd: float = 5.0
+    monthly_budget_usd: Optional[float] = None
+    created_by: Optional[UUID] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class BaseAgentIdentity(BaseModel):
+    """Persistent agent identity in the global pool."""
+    id: UUID = Field(default_factory=uuid4)
+    agent_type: str
+    display_name: str
+    expertise_tags: List[str] = Field(default_factory=list)
+    persona_prompt: str
+    phase_mandates: Dict[str, str] = Field(default_factory=dict)
+    domain_keywords: List[str] = Field(default_factory=list)
+    knowledge_scope: List[str] = Field(default_factory=list)
+    evaluation_criteria: Dict[str, float] = Field(default_factory=dict)
+    is_red_team: bool = False
+    status: AgentStatus = AgentStatus.ACTIVE
+    version: int = 1
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class SubredditMembership(BaseModel):
+    """An agent's scoped identity within a subreddit."""
+    id: UUID = Field(default_factory=uuid4)
+    agent_id: UUID
+    subreddit_id: UUID
+    role: SubredditRole = SubredditRole.MEMBER
+    role_prompt: str = ""
+    tool_access: List[str] = Field(default_factory=list)
+    threads_participated: int = 0
+    total_posts: int = 0
+    joined_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class ModelPricing(BaseModel):
+    """Configurable model pricing."""
+    model_name: str = "claude-sonnet-4-5-20250929"
+    cost_per_input_token: float = 0.000003
+    cost_per_output_token: float = 0.000015
+    cost_per_token: float = 0.000006
+
+
+class CostRecord(BaseModel):
+    """A single token usage record."""
+    id: UUID = Field(default_factory=uuid4)
+    thread_id: UUID
+    input_tokens: int = 0
+    output_tokens: int = 0
+    model: str = "default"
+    estimated_cost_usd: float = 0.0
+    recorded_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class CostSummary(BaseModel):
+    """Cost summary for a thread."""
+    thread_id: UUID
+    total_input_tokens: int = 0
+    total_output_tokens: int = 0
+    total_tokens: int = 0
+    estimated_cost_usd: float = 0.0
+    num_llm_calls: int = 0
+    duration_seconds: float = 0.0
+
+
+class AuditChain(BaseModel):
+    """Traceability chain for a claim in the synthesis."""
+    claim: str
+    supporting_post_ids: List[UUID] = Field(default_factory=list)
+    citations: List["StructuredCitation"] = Field(default_factory=list)
+    evidence_type: str = "direct"
+    dissenting_agents: List[str] = Field(default_factory=list)
+
+
+class CitationVerification(BaseModel):
+    """Results of automated citation checking."""
+    total_citations: int = 0
+    verified: int = 0
+    unverified: int = 0
+    flagged: int = 0
+    details: List[Dict] = Field(default_factory=list)
+
+
+class StructuredCitation(BaseModel):
+    """Enhanced citation with source tracking."""
+    source_type: str = ""       # "pubmed", "internal", "web"
+    source_id: str = ""         # PMID, record ID, URL
+    title: str = ""
+    authors: Optional[str] = None
+    year: Optional[int] = None
+    journal: Optional[str] = None
+    snippet: str = ""
+    url: Optional[str] = None
+    retrieved_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class Synthesis(BaseModel):
+    """Structured output from a completed deliberation."""
+    id: UUID = Field(default_factory=uuid4)
+    thread_id: UUID
+    template_type: str
+    sections: Dict[str, str] = Field(default_factory=dict)
+    metadata: Dict = Field(default_factory=dict)
+    audit_chains: List[AuditChain] = Field(default_factory=list)
+    total_citations: int = 0
+    citation_verification: CitationVerification = Field(default_factory=CitationVerification)
+    tokens_used: int = 0
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class Thread(BaseModel):
+    """A deliberation thread within a subreddit."""
+    id: UUID = Field(default_factory=uuid4)
+    subreddit_id: UUID
+    title: str
+    initial_post: str
+    status: ThreadStatus = ThreadStatus.ACTIVE
+    created_by: Optional[UUID] = None
+    current_phase: Phase = Phase.EXPLORE
+    total_posts: int = 0
+    total_tokens_used: int = 0
+    estimated_cost_usd: float = 0.0
+    synthesis: Optional[Synthesis] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    completed_at: Optional[datetime] = None
+
+
+class ExpertiseGap(BaseModel):
+    """Missing expertise in a subreddit roster."""
+    expertise: str
+    domain: str = ""
+    is_red_team: bool = False
+    has_curated_template: bool = False
+
+
+class RecruitmentResult(BaseModel):
+    """Result of agent recruitment for a subreddit."""
+    memberships: List[SubredditMembership] = Field(default_factory=list)
+    gaps: List[ExpertiseGap] = Field(default_factory=list)
+
+
+# Resolve forward references for models that use them
+SubredditConfig.model_rebuild()
