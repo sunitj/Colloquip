@@ -277,3 +277,13 @@ async def get_session_history(session_id: UUID, request: Request):
         "energy_history": [e.model_dump() for e in data["energy_history"]],
         "consensus": data["consensus"].model_dump(mode="json") if data["consensus"] else None,
     }
+
+
+@router.get("/metrics")
+async def metrics():
+    """Prometheus-compatible metrics endpoint."""
+    from fastapi.responses import Response
+
+    from colloquip.metrics import get_metrics_text
+
+    return Response(content=get_metrics_text(), media_type="text/plain")

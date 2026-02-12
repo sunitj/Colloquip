@@ -1,0 +1,31 @@
+# Development overrides - use with: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+      - ./config:/app/config
+      - ./web:/app/web
+    environment:
+      DATABASE_URL: "postgresql+asyncpg://colloquip:devpassword@postgres:5432/colloquip"
+      ENVIRONMENT: development
+      EMBEDDING_PROVIDER: mock
+      MEMORY_STORE: in_memory
+      LOG_LEVEL: DEBUG
+      LOG_FORMAT: text
+    ports:
+      - "8000:8000"
+      - "5678:5678"  # debugpy
+
+  postgres:
+    environment:
+      POSTGRES_PASSWORD: devpassword
+    ports:
+      - "5432:5432"  # Expose for direct access in dev
+
+  redis:
+    ports:
+      - "6379:6379"  # Expose for direct access in dev

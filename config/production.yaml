@@ -1,0 +1,16 @@
+# Production engine configuration overrides
+# Tighter cost limits and conservative energy thresholds
+
+engine:
+  max_turns: 50
+  phase_transition_threshold: 0.6
+
+energy:
+  min_posts: 15
+  max_posts: 60
+  energy_threshold: 0.15
+  low_energy_rounds: 4
+
+observer:
+  hysteresis_threshold: 4
+  min_posts_before_converge: 15
