@@ -288,3 +288,87 @@ class DBCostRecord(Base):
     model = Column(String(100), nullable=False, default="default")
     estimated_cost_usd = Column(Float, nullable=False, default=0.0)
     recorded_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+
+
+# ---------------------------------------------------------------------------
+# Phase 4: Event-Driven Trigger tables
+# ---------------------------------------------------------------------------
+
+
+class DBWatcher(Base):
+    """watchers table — event monitoring configurations."""
+
+    __tablename__ = "watchers"
+    __table_args__ = (
+        Index("idx_watcher_subreddit", "subreddit_id"),
+    )
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    watcher_type = Column(String(20), nullable=False)  # literature, scheduled, webhook
+    subreddit_id = Column(String(36), ForeignKey("subreddits.id"), nullable=False)
+    name = Column(String(200), nullable=False)
+    description = Column(Text, nullable=False, default="")
+    query = Column(Text, nullable=False, default="")
+    poll_interval_seconds = Column(Integer, nullable=False, default=300)
+    enabled = Column(Boolean, nullable=False, default=True)
+    config = Column(JSON, nullable=False, default=dict)
+    auto_create_thread = Column(Boolean, nullable=False, default=False)
+    auto_thread_approval_rate = Column(Float, nullable=True)
+    created_by = Column(String(100), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow, onupdate=_utcnow)
+
+    # Relationships
+    events = relationship("DBWatcherEvent", back_populates="watcher", cascade="all, delete-orphan")
+    notifications = relationship("DBNotification", back_populates="watcher", cascade="all, delete-orphan")
+
+
+class DBWatcherEvent(Base):
+    """watcher_events table — events detected by watchers."""
+
+    __tablename__ = "watcher_events"
+    __table_args__ = (
+        Index("idx_event_watcher", "watcher_id"),
+        Index("idx_event_subreddit", "subreddit_id"),
+    )
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    watcher_id = Column(String(36), ForeignKey("watchers.id"), nullable=False)
+    subreddit_id = Column(String(36), nullable=False)
+    title = Column(Text, nullable=False)
+    summary = Column(Text, nullable=False, default="")
+    source_type = Column(String(50), nullable=False, default="")
+    source_id = Column(String(200), nullable=False, default="")
+    source_url = Column(Text, nullable=True)
+    raw_data = Column(JSON, nullable=False, default=dict)
+    triage_signal = Column(String(20), nullable=True)  # low, medium, high
+    triage_reasoning = Column(Text, nullable=True)
+    detected_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+
+    watcher = relationship("DBWatcher", back_populates="events")
+
+
+class DBNotification(Base):
+    """notifications table — user-facing notifications from triage."""
+
+    __tablename__ = "notifications"
+    __table_args__ = (
+        Index("idx_notification_subreddit", "subreddit_id"),
+        Index("idx_notification_status", "status"),
+    )
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    watcher_id = Column(String(36), ForeignKey("watchers.id"), nullable=False)
+    event_id = Column(String(36), nullable=False)
+    subreddit_id = Column(String(36), nullable=False)
+    title = Column(Text, nullable=False)
+    summary = Column(Text, nullable=False, default="")
+    signal = Column(String(20), nullable=False)  # low, medium, high
+    suggested_hypothesis = Column(Text, nullable=True)
+    status = Column(String(20), nullable=False, default="pending")
+    action_taken = Column(String(20), nullable=True)
+    thread_id = Column(String(36), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+    acted_at = Column(DateTime(timezone=True), nullable=True)
+
+    watcher = relationship("DBWatcher", back_populates="notifications")

@@ -451,5 +451,103 @@ class RecruitmentResult(BaseModel):
     gaps: List[ExpertiseGap] = Field(default_factory=list)
 
 
+# ---------------------------------------------------------------------------
+# Phase 4: Event-Driven Trigger Models
+# ---------------------------------------------------------------------------
+
+
+class WatcherType(str, Enum):
+    """Types of event watchers."""
+    LITERATURE = "literature"     # PubMed / literature DB monitoring
+    SCHEDULED = "scheduled"       # Time-based triggers (cron-like)
+    WEBHOOK = "webhook"           # External event ingestion
+
+
+class TriageSignal(str, Enum):
+    """Signal levels from triage evaluation."""
+    LOW = "low"           # Log only, no action
+    MEDIUM = "medium"     # Notify humans
+    HIGH = "high"         # Notify + suggest immediate thread creation
+
+
+class WatcherSource(BaseModel):
+    """Source of a watcher event."""
+    source_type: str           # "pubmed", "schedule", "webhook", etc.
+    source_id: str = ""        # PMID, schedule ID, webhook sender
+    url: Optional[str] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+class WatcherConfig(BaseModel):
+    """Configuration for a watcher instance."""
+    id: UUID = Field(default_factory=uuid4)
+    watcher_type: WatcherType
+    subreddit_id: UUID
+    name: str
+    description: str = ""
+    query: str = ""                       # Search query for literature watchers
+    poll_interval_seconds: int = 300      # Polling interval
+    enabled: bool = True
+    config: Dict[str, Any] = Field(default_factory=dict)  # Type-specific config
+    created_by: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class WatcherEvent(BaseModel):
+    """An event detected by a watcher."""
+    id: UUID = Field(default_factory=uuid4)
+    watcher_id: UUID
+    subreddit_id: UUID
+    title: str
+    summary: str
+    source: WatcherSource
+    raw_data: Dict[str, Any] = Field(default_factory=dict)
+    detected_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class TriageDecision(BaseModel):
+    """Result of triage evaluation for a watcher event."""
+    event_id: UUID
+    signal: TriageSignal
+    novelty: float = Field(default=0.0, ge=0.0, le=1.0)
+    relevance: float = Field(default=0.0, ge=0.0, le=1.0)
+    urgency: float = Field(default=0.0, ge=0.0, le=1.0)
+    reasoning: str = ""
+    suggested_hypothesis: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class NotificationStatus(str, Enum):
+    """Status of a notification."""
+    PENDING = "pending"
+    READ = "read"
+    ACTED = "acted"
+    DISMISSED = "dismissed"
+
+
+class NotificationAction(str, Enum):
+    """Actions a user can take on a notification."""
+    CREATE_THREAD = "create_thread"
+    DISMISS = "dismiss"
+    SNOOZE = "snooze"
+
+
+class Notification(BaseModel):
+    """A notification generated from a triage decision."""
+    id: UUID = Field(default_factory=uuid4)
+    watcher_id: UUID
+    event_id: UUID
+    subreddit_id: UUID
+    title: str
+    summary: str
+    signal: TriageSignal
+    suggested_hypothesis: Optional[str] = None
+    status: NotificationStatus = NotificationStatus.PENDING
+    action_taken: Optional[NotificationAction] = None
+    thread_id: Optional[UUID] = None  # If a thread was created from this
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    acted_at: Optional[datetime] = None
+
+
 # Resolve forward references for models that use them
 SubredditConfig.model_rebuild()
