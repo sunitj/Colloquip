@@ -11,8 +11,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from colloquip.api.app import SessionManager, create_session_manager
+from colloquip.api.export_routes import router as export_router
+from colloquip.api.external_routes import router as external_router
+from colloquip.api.feedback_routes import router as feedback_router
+from colloquip.api.memory_routes import router as memory_router
 from colloquip.api.platform_routes import router as platform_router
 from colloquip.api.routes import router
+from colloquip.api.watcher_routes import router as watcher_router
 from colloquip.api.ws import ws_router
 
 
@@ -59,6 +64,11 @@ def create_app(
     app.include_router(router)
     app.include_router(platform_router)
     app.include_router(ws_router)
+    app.include_router(memory_router)
+    app.include_router(watcher_router)
+    app.include_router(export_router)
+    app.include_router(external_router)
+    app.include_router(feedback_router)
 
     # Platform manager (lazy init — call POST /api/platform/init to activate)
     from colloquip.api.platform_manager import PlatformManager

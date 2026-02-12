@@ -186,8 +186,9 @@ class AgentCalibration:
             )
 
         # Domain-specific weakness
+        overall_accuracy = correct / total if total > 0 else 0.0
         for domain, acc in domain_accuracy.items():
-            if acc < 0.3 and domain_accuracy.get(domain, 0) < acc:
+            if acc < 0.3 and acc < overall_accuracy:
                 biases.append(f"Weak in domain '{domain}' (accuracy: {acc:.0%})")
 
         # Contradicted outcome tendency
