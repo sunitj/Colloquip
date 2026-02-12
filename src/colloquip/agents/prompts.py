@@ -308,6 +308,17 @@ def get_prompt_version(version: str = "v1") -> PromptVersion:
 # v3: Subreddit-aware prompts with layered assembly
 # ---------------------------------------------------------------------------
 
+_MEMORY_INSTRUCTIONS = """
+## Instructions for Using Prior Deliberation Context
+
+You have been provided with summaries of relevant past deliberations. Use them as follows:
+- REFERENCE prior conclusions when they are relevant to the current topic
+- FLAG any contradictions between prior conclusions and current evidence
+- DO NOT simply repeat what was concluded before — build on it
+- CHECK whether new evidence has emerged that changes prior conclusions
+- If prior deliberations reached a conclusion you disagree with, explain why with evidence
+""".strip()
+
 _V3_CITATION_INSTRUCTIONS = """
 ## Citation Requirements
 
@@ -340,6 +351,7 @@ def build_v3_system_prompt(
     subreddit_context: str = "",
     role_prompt: str = "",
     tool_descriptions: Union[str, List[str]] = "",
+    prior_deliberations: str = "",
 ) -> str:
     """Build a v3 system prompt with layered assembly.
 
@@ -347,10 +359,11 @@ def build_v3_system_prompt(
     1. Base persona (from YAML)
     2. Subreddit context (purpose, core questions)
     3. Role in subreddit (membership role_prompt)
-    4. Phase mandate (phase-specific behavior)
-    5. Citation requirements
-    6. Tool instructions (if tools available)
-    7. Response guidelines
+    4. Prior deliberation memory (Phase 3 RAG)
+    5. Phase mandate (phase-specific behavior)
+    6. Citation requirements
+    7. Tool instructions (if tools available)
+    8. Response guidelines
     """
     parts = [persona_prompt.strip()]
 
@@ -359,6 +372,11 @@ def build_v3_system_prompt(
 
     if role_prompt:
         parts.append(f"## Your Role in This Community\n\n{role_prompt}")
+
+    # Prior deliberation memory (Phase 3 RAG)
+    if prior_deliberations:
+        parts.append(prior_deliberations)
+        parts.append(_MEMORY_INSTRUCTIONS)
 
     # Phase mandate: prefer agent-specific, fall back to v2 defaults
     mandate = phase_mandate or _V2_PHASE_MANDATES.get(phase, "")
@@ -417,6 +435,27 @@ def build_v3_user_prompt(
     )
 
     return "\n".join(parts)
+
+
+def build_memory_context(retrieved_memories: "RetrievedMemories") -> str:
+    """Build the prior deliberation context for injection into prompts.
+
+    Uses RetrievedMemories.format_for_prompt() to produce the text.
+    Returns empty string if no memories are available.
+
+    This is a thin wrapper that can be extended later to add filtering,
+    relevance thresholds, or annotation handling.
+    """
+    # Import here to avoid circular dependency
+    from colloquip.memory.retriever import RetrievedMemories
+
+    if not isinstance(retrieved_memories, RetrievedMemories):
+        return ""
+
+    if not retrieved_memories.arena and not retrieved_memories.global_results:
+        return ""
+
+    return retrieved_memories.format_for_prompt()
 
 
 def build_subreddit_context(

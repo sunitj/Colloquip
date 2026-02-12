@@ -231,6 +231,48 @@ class DBSynthesis(Base):
     session = relationship("DBSession", back_populates="synthesis")
 
 
+class DBSynthesisMemory(Base):
+    """synthesis_memories table — institutional memory for RAG."""
+
+    __tablename__ = "synthesis_memories"
+    __table_args__ = (
+        Index("idx_synmem_subreddit", "subreddit_id"),
+        Index("idx_synmem_thread", "thread_id"),
+    )
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    thread_id = Column(String(36), nullable=False)
+    subreddit_id = Column(String(36), nullable=False)
+    subreddit_name = Column(String(100), nullable=False)
+    topic = Column(Text, nullable=False)
+    synthesis_content = Column(Text, nullable=False, default="")
+    key_conclusions = Column(JSON, nullable=False, default=list)
+    citations_used = Column(JSON, nullable=False, default=list)
+    agents_involved = Column(JSON, nullable=False, default=list)
+    template_type = Column(String(50), nullable=False, default="")
+    confidence_level = Column(String(50), nullable=False, default="")
+    evidence_quality = Column(String(50), nullable=False, default="")
+    # Stored as JSON list of floats. Will become vector(1536) when pgvector is enabled.
+    embedding = Column(JSON, nullable=False, default=list)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+
+
+class DBMemoryAnnotation(Base):
+    """memory_annotations table — human corrections to memories."""
+
+    __tablename__ = "memory_annotations"
+    __table_args__ = (
+        Index("idx_annotation_memory", "memory_id"),
+    )
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    memory_id = Column(String(36), ForeignKey("synthesis_memories.id"), nullable=False)
+    annotation_type = Column(String(20), nullable=False)  # outdated, correction, confirmed, context
+    content = Column(Text, nullable=False)
+    created_by = Column(String(100), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+
+
 class DBCostRecord(Base):
     """cost_records table — per-call token usage tracking."""
 

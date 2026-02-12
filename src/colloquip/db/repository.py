@@ -12,11 +12,13 @@ from colloquip.db.tables import (
     DBConsensusMap,
     DBCostRecord,
     DBEnergyHistory,
+    DBMemoryAnnotation,
     DBPost,
     DBSession,
     DBSubreddit,
     DBSubredditMembership,
     DBSynthesis,
+    DBSynthesisMemory,
 )
 from colloquip.models import (
     AgentStance,
@@ -465,6 +467,95 @@ class SessionRepository:
             for r in result.scalars().all()
         ]
 
+    # ---- Synthesis Memories ----
+
+    async def save_memory(self, memory: "SynthesisMemory") -> None:
+        """Save a synthesis memory."""
+        from colloquip.memory.store import SynthesisMemory
+
+        row = await self.db.get(DBSynthesisMemory, str(memory.id))
+        if row:
+            row.topic = memory.topic
+            row.synthesis_content = memory.synthesis_content
+            row.key_conclusions = memory.key_conclusions
+            row.citations_used = memory.citations_used
+            row.agents_involved = memory.agents_involved
+            row.template_type = memory.template_type
+            row.confidence_level = memory.confidence_level
+            row.evidence_quality = memory.evidence_quality
+            row.embedding = memory.embedding
+        else:
+            row = DBSynthesisMemory(
+                id=str(memory.id),
+                thread_id=str(memory.thread_id),
+                subreddit_id=str(memory.subreddit_id),
+                subreddit_name=memory.subreddit_name,
+                topic=memory.topic,
+                synthesis_content=memory.synthesis_content,
+                key_conclusions=memory.key_conclusions,
+                citations_used=memory.citations_used,
+                agents_involved=memory.agents_involved,
+                template_type=memory.template_type,
+                confidence_level=memory.confidence_level,
+                evidence_quality=memory.evidence_quality,
+                embedding=memory.embedding,
+                created_at=memory.created_at,
+            )
+            self.db.add(row)
+        await self.db.flush()
+
+    async def get_memory(self, memory_id: str) -> Optional[dict]:
+        """Load a synthesis memory by ID."""
+        row = await self.db.get(DBSynthesisMemory, memory_id)
+        if not row:
+            return None
+        return _row_to_memory_dict(row)
+
+    async def list_memories(self, subreddit_id: str = None, limit: int = 50) -> List[dict]:
+        """List synthesis memories, optionally filtered by subreddit."""
+        stmt = select(DBSynthesisMemory).order_by(DBSynthesisMemory.created_at.desc())
+        if subreddit_id:
+            stmt = stmt.where(DBSynthesisMemory.subreddit_id == subreddit_id)
+        stmt = stmt.limit(limit)
+        result = await self.db.execute(stmt)
+        return [_row_to_memory_dict(r) for r in result.scalars().all()]
+
+    async def save_annotation(self, memory_id: str, annotation_type: str,
+                              content: str, created_by: str = None) -> str:
+        """Save a memory annotation. Returns the annotation ID."""
+        import uuid
+        ann_id = str(uuid.uuid4())
+        row = DBMemoryAnnotation(
+            id=ann_id,
+            memory_id=memory_id,
+            annotation_type=annotation_type,
+            content=content,
+            created_by=created_by,
+        )
+        self.db.add(row)
+        await self.db.flush()
+        return ann_id
+
+    async def get_annotations(self, memory_id: str) -> List[dict]:
+        """Get all annotations for a memory."""
+        stmt = (
+            select(DBMemoryAnnotation)
+            .where(DBMemoryAnnotation.memory_id == memory_id)
+            .order_by(DBMemoryAnnotation.created_at)
+        )
+        result = await self.db.execute(stmt)
+        return [
+            {
+                "id": r.id,
+                "memory_id": r.memory_id,
+                "annotation_type": r.annotation_type,
+                "content": r.content,
+                "created_by": r.created_by,
+                "created_at": r.created_at,
+            }
+            for r in result.scalars().all()
+        ]
+
     # ---- Commit ----
 
     async def commit(self) -> None:
@@ -570,3 +661,22 @@ def _row_to_membership(row: DBSubredditMembership) -> SubredditMembership:
         total_posts=row.total_posts,
         joined_at=row.joined_at,
     )
+
+
+def _row_to_memory_dict(row: DBSynthesisMemory) -> dict:
+    return {
+        "id": row.id,
+        "thread_id": row.thread_id,
+        "subreddit_id": row.subreddit_id,
+        "subreddit_name": row.subreddit_name,
+        "topic": row.topic,
+        "synthesis_content": row.synthesis_content,
+        "key_conclusions": row.key_conclusions or [],
+        "citations_used": row.citations_used or [],
+        "agents_involved": row.agents_involved or [],
+        "template_type": row.template_type,
+        "confidence_level": row.confidence_level,
+        "evidence_quality": row.evidence_quality,
+        "embedding": row.embedding or [],
+        "created_at": row.created_at,
+    }

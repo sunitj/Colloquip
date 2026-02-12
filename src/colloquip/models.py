@@ -319,6 +319,62 @@ class CostSummary(BaseModel):
     duration_seconds: float = 0.0
 
 
+class MemoryAnnotationType(str, Enum):
+    """Types of human corrections to stored memories."""
+    OUTDATED = "outdated"
+    CORRECTION = "correction"
+    CONFIRMED = "confirmed"
+    CONTEXT = "context"
+
+
+class MemoryAnnotation(BaseModel):
+    """A human annotation on a stored synthesis memory."""
+    id: UUID = Field(default_factory=uuid4)
+    memory_id: UUID
+    annotation_type: MemoryAnnotationType
+    content: str
+    created_by: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+# ---------------------------------------------------------------------------
+# Phase 3b: Typed Memory Models (reserved for future use after calibration)
+# ---------------------------------------------------------------------------
+
+
+class MemoryType(str, Enum):
+    """Types of decomposed memories (Phase 3b)."""
+    FACTUAL = "factual"               # Verified facts, data points
+    METHODOLOGICAL = "methodological"  # Approaches, techniques that worked/failed
+    POSITIONAL = "positional"          # Agent stances, opinions with reasoning
+    RELATIONAL = "relational"          # Connections between entities/concepts
+    CONTEXTUAL = "contextual"          # Background, constraints, assumptions
+
+
+class MemoryScope(str, Enum):
+    """Scope of a typed memory."""
+    GLOBAL = "global"    # Applicable across all subreddits
+    ARENA = "arena"      # Specific to one subreddit
+
+
+class TypedMemory(BaseModel):
+    """A decomposed memory unit (Phase 3b).
+
+    Not yet populated — requires calibration against 50+ synthesis memories
+    to validate extraction quality > 85%.
+    """
+    id: UUID = Field(default_factory=uuid4)
+    source_memory_id: UUID
+    memory_type: MemoryType
+    scope: MemoryScope
+    content: str
+    confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+    entities: List[str] = Field(default_factory=list)
+    subreddit_id: UUID
+    embedding: List[float] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
 class AuditChain(BaseModel):
     """Traceability chain for a claim in the synthesis."""
     claim: str
