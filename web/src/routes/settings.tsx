@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Rocket, BarChart3, Users, MessageSquare, Activity, Palette } from 'lucide-react';
+import { Rocket, BarChart3, Users, MessageSquare, Activity, Palette, Check } from 'lucide-react';
 import { platformInit, getCalibrationOverview, getSubreddits, getAgents } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 import { formatNumber, cn } from '@/lib/utils';
@@ -79,12 +79,17 @@ function SettingsPage() {
                   key={t.value}
                   onClick={() => setTheme(t.value)}
                   className={cn(
-                    'flex flex-col items-start gap-3 rounded-lg border p-4 text-left transition-all',
+                    'relative flex flex-col items-start gap-3 rounded-lg border p-4 text-left transition-all',
                     theme === t.value
-                      ? 'border-accent bg-accent/5 ring-1 ring-accent/30'
+                      ? 'border-accent bg-accent/10 ring-2 ring-accent/40'
                       : 'border-border-default hover:border-border-accent hover:bg-bg-elevated/30'
                   )}
                 >
+                  {theme === t.value && (
+                    <div className="absolute top-2 right-2 h-5 w-5 rounded-full bg-accent flex items-center justify-center">
+                      <Check className="h-3 w-3 text-white" />
+                    </div>
+                  )}
                   <div className="flex items-center gap-1.5">
                     {t.swatch.map((color, i) => (
                       <span

@@ -154,15 +154,23 @@ function AgentProfilePage() {
               </Card>
 
               {/* Knowledge scope */}
-              {agent.knowledge_scope && (
+              {agent.knowledge_scope && agent.knowledge_scope.length > 0 && (
                 <Card>
                   <CardHeader>
                     <CardTitle>Knowledge Scope</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm text-text-secondary leading-relaxed">
-                      {agent.knowledge_scope}
-                    </p>
+                    <ul className="space-y-1.5">
+                      {(Array.isArray(agent.knowledge_scope)
+                        ? agent.knowledge_scope
+                        : [agent.knowledge_scope]
+                      ).map((scope: string) => (
+                        <li key={scope} className="flex items-start gap-2 text-sm text-text-secondary leading-relaxed">
+                          <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-accent shrink-0" />
+                          {scope.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                        </li>
+                      ))}
+                    </ul>
                   </CardContent>
                 </Card>
               )}

@@ -6,7 +6,7 @@ interface ExpertiseTagGridProps {
 }
 
 export function ExpertiseTagGrid({ tags, label }: ExpertiseTagGridProps) {
-  if (tags.length === 0) return null;
+  if (!Array.isArray(tags) || tags.length === 0) return null;
 
   return (
     <div>

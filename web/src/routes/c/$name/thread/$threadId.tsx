@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronRight, Home, FileCheck } from 'lucide-react';
+import { ChevronRight, Home, FileCheck, Play } from 'lucide-react';
 import { useDeliberation } from '@/hooks/useDeliberation';
-import { getSubredditMembers } from '@/lib/api';
+import { getSubredditMembers, getSubredditThreads } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { RightPanel } from '@/components/layout/RightPanel';
@@ -26,13 +26,21 @@ export const Route = createFileRoute('/c/$name/thread/$threadId')({
 
 function ThreadPage() {
   const { name, threadId } = Route.useParams();
-  const { state, loadSession, intervene } = useDeliberation();
+  const { state, createAndStart, loadSession, intervene } = useDeliberation();
   const [reportOpen, setReportOpen] = useState(false);
+  const [launching, setLaunching] = useState(false);
 
   const { data: membersData } = useQuery({
     queryKey: queryKeys.subreddits.members(name),
     queryFn: () => getSubredditMembers(name),
   });
+
+  // Fetch thread metadata (title, hypothesis) from the community threads list
+  const { data: threadsData } = useQuery({
+    queryKey: queryKeys.subreddits.threads(name),
+    queryFn: () => getSubredditThreads(name),
+  });
+  const threadMeta = threadsData?.threads?.find((t) => t.id === threadId);
 
   const members = membersData?.members;
 
@@ -62,8 +70,8 @@ function ThreadPage() {
     <div className="flex flex-col h-full">
       <div className="px-6 pt-6">
         <PageHeader
-          title="Deliberation"
-          subtitle={state.hypothesis || undefined}
+          title={threadMeta?.title || state.hypothesis || 'Deliberation'}
+          subtitle={state.hypothesis || threadMeta?.hypothesis || undefined}
           breadcrumb={breadcrumb}
           actions={
             state.status === 'completed' ? (
@@ -82,8 +90,8 @@ function ThreadPage() {
           {/* Thread header */}
           <div className="mb-4">
             <ThreadHeader
-              title={state.hypothesis || 'Loading...'}
-              hypothesis={state.hypothesis}
+              title={threadMeta?.title || state.hypothesis || 'Loading...'}
+              hypothesis={state.hypothesis || threadMeta?.hypothesis}
               status={state.status}
               phase={state.phase}
             />
@@ -120,10 +128,27 @@ function ThreadPage() {
               title="Error Loading Thread"
               description={state.error}
             />
-          ) : state.status === 'pending' && state.sessionId ? (
+          ) : state.status === 'pending' ? (
             <EmptyState
               title="Deliberation Pending"
-              description="This thread has been created but the deliberation has not started yet. Agents will begin contributing once the session is launched."
+              description="This thread has been created but the deliberation has not started yet. Launch the session to begin the agent discussion."
+              action={
+                <Button
+                  size="sm"
+                  disabled={launching}
+                  onClick={async () => {
+                    const hypothesis = state.hypothesis || threadMeta?.hypothesis;
+                    if (!hypothesis) return;
+                    setLaunching(true);
+                    const mode = threadMeta?.status === 'pending' ? 'mock' : 'mock';
+                    await createAndStart(hypothesis, mode, 30);
+                    setLaunching(false);
+                  }}
+                >
+                  <Play className="h-4 w-4" />
+                  {launching ? 'Launching...' : 'Launch Deliberation'}
+                </Button>
+              }
             />
           ) : (
             <EmptyState

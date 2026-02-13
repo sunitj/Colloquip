@@ -85,6 +85,40 @@ function CommunityPage() {
   const members = membersQuery.data?.members ?? [];
   const threads = threadsQuery.data?.threads ?? [];
 
+  // Show 404 page when community doesn't exist
+  if (communityQuery.isError) {
+    return (
+      <div>
+        <PageHeader
+          title="Community Not Found"
+          breadcrumb={
+            <nav className="flex items-center gap-1.5 text-sm text-text-muted">
+              <Link to="/" className="inline-flex items-center gap-1 hover:text-text-primary transition-colors">
+                <Home className="h-3.5 w-3.5" />
+                Home
+              </Link>
+              <span>/</span>
+              <span className="text-text-secondary">c/{name}</span>
+            </nav>
+          }
+        />
+        <EmptyState
+          icon={<MessageSquare className="h-10 w-10" />}
+          title="Community not found"
+          description={`The community "c/${name}" doesn't exist or may have been removed.`}
+          action={
+            <Link to="/">
+              <Button size="sm" variant="outline">
+                <Home className="h-4 w-4" />
+                Back to Home
+              </Button>
+            </Link>
+          }
+        />
+      </div>
+    );
+  }
+
   return (
     <div>
       {/* Page header with breadcrumb */}
@@ -108,10 +142,6 @@ function CommunityPage() {
           <CommunityHeaderSkeleton />
         ) : community ? (
           <CommunityHeader community={community} />
-        ) : communityQuery.isError ? (
-          <div className="text-sm text-destructive">
-            Failed to load community details.
-          </div>
         ) : null}
       </div>
 
