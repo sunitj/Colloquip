@@ -10,7 +10,7 @@ from typing import Dict, List, Optional
 from uuid import UUID
 
 from colloquip.embeddings.interface import EmbeddingProvider
-from colloquip.memory.store import SynthesisMemory
+from colloquip.memory.store import DEFAULT_PRIOR, INITIAL_PRIORS, SynthesisMemory
 from colloquip.models import Synthesis
 
 # Citation patterns: [PUBMED:xxx], [INTERNAL:xxx], [WEB:xxx]
@@ -156,6 +156,10 @@ class SynthesisMemoryExtractor:
             confidence_level = synthesis.metadata.get("overall_confidence", "")
         evidence_quality = synthesis.metadata.get("evidence_quality", "")
 
+        # Initialize Bayesian priors from the confidence_level string
+        prior = INITIAL_PRIORS.get(confidence_level.lower(), DEFAULT_PRIOR)
+        conf_alpha, conf_beta = prior
+
         # Generate embedding from topic + key conclusions
         embed_text = topic
         if key_conclusions:
@@ -174,5 +178,7 @@ class SynthesisMemoryExtractor:
             template_type=synthesis.template_type,
             confidence_level=confidence_level,
             evidence_quality=evidence_quality,
+            confidence_alpha=conf_alpha,
+            confidence_beta=conf_beta,
             embedding=embedding,
         )

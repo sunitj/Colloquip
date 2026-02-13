@@ -490,6 +490,8 @@ class SessionRepository:
             row.template_type = memory.template_type
             row.confidence_level = memory.confidence_level
             row.evidence_quality = memory.evidence_quality
+            row.confidence_alpha = memory.confidence_alpha
+            row.confidence_beta = memory.confidence_beta
             row.embedding = memory.embedding
         else:
             row = DBSynthesisMemory(
@@ -505,6 +507,8 @@ class SessionRepository:
                 template_type=memory.template_type,
                 confidence_level=memory.confidence_level,
                 evidence_quality=memory.evidence_quality,
+                confidence_alpha=memory.confidence_alpha,
+                confidence_beta=memory.confidence_beta,
                 embedding=memory.embedding,
                 created_at=memory.created_at,
             )
@@ -687,6 +691,8 @@ def _row_to_memory_dict(row: DBSynthesisMemory) -> dict:
         "template_type": row.template_type,
         "confidence_level": row.confidence_level,
         "evidence_quality": row.evidence_quality,
+        "confidence_alpha": row.confidence_alpha,
+        "confidence_beta": row.confidence_beta,
         "embedding": row.embedding or [],
         "created_at": row.created_at,
     }

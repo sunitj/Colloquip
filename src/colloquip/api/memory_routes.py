@@ -66,6 +66,9 @@ class MemoryResponse(BaseModel):
     template_type: str
     confidence_level: str
     evidence_quality: str
+    confidence: float  # Bayesian posterior mean
+    confidence_alpha: float
+    confidence_beta: float
     created_at: str
     annotations: List[AnnotationResponse] = Field(default_factory=list)
 
@@ -189,6 +192,9 @@ def _format_memory(mem, annotations: list) -> MemoryResponse:
         template_type=mem.template_type,
         confidence_level=mem.confidence_level,
         evidence_quality=mem.evidence_quality,
+        confidence=mem.confidence,
+        confidence_alpha=mem.confidence_alpha,
+        confidence_beta=mem.confidence_beta,
         created_at=str(mem.created_at),
         annotations=[
             AnnotationResponse(

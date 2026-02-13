@@ -262,6 +262,9 @@ class DBSynthesisMemory(Base):
     template_type = Column(String(50), nullable=False, default="")
     confidence_level = Column(String(50), nullable=False, default="")
     evidence_quality = Column(String(50), nullable=False, default="")
+    # Bayesian confidence (Beta distribution parameters)
+    confidence_alpha = Column(Float, nullable=False, default=2.0)
+    confidence_beta = Column(Float, nullable=False, default=1.0)
     # Stored as JSON list of floats. Will become vector(1536) when pgvector is enabled.
     embedding = Column(JSON, nullable=False, default=list)
     created_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)

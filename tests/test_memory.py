@@ -269,7 +269,7 @@ class TestRetrievedMemoriesFormatting:
         assert "GLP-1 agonists" in text
         assert "Effective in diabetes" in text
         assert "Cognitive benefits unclear" in text
-        assert "moderate" in text
+        assert "Confidence:" in text
         assert "Other Subreddits" not in text
 
     def test_format_global_only(self):
@@ -301,11 +301,12 @@ class TestRetrievedMemoriesFormatting:
         assert "Arena conclusion" in text
         assert "Global conclusion" in text
 
-    def test_format_no_confidence_level(self):
+    def test_format_always_shows_numeric_confidence(self):
         mem = make_memory("topic", confidence_level="")
         memories = RetrievedMemories(arena=[mem])
         text = memories.format_for_prompt()
-        assert "Confidence:" not in text
+        # Numeric confidence is always shown regardless of confidence_level string
+        assert "Confidence:" in text
 
     def test_format_multiple_arena_memories(self):
         mems = [make_memory(f"topic {i}", key_conclusions=[f"Conclusion {i}"]) for i in range(3)]

@@ -79,6 +79,7 @@ async def report_outcome(
 ) -> OutcomeResponse:
     """Report a real-world outcome for a deliberation thread."""
     from colloquip.feedback.outcome import OutcomeReport
+    from colloquip.memory.store import OUTCOME_UPDATES
 
     tracker = getattr(request.app.state, "outcome_tracker", None)
     if tracker is None:
@@ -99,6 +100,24 @@ async def report_outcome(
         reported_by=body.reported_by,
     )
     await tracker.save_outcome(outcome)
+
+    # Apply Bayesian confidence update to the memory linked to this thread
+    memory_store = getattr(request.app.state, "memory_store", None)
+    if memory_store is not None:
+        deltas = OUTCOME_UPDATES.get(body.outcome_type, (0.0, 0.0))
+        if deltas[0] != 0.0 or deltas[1] != 0.0:
+            all_memories = await memory_store.list_all(limit=500)
+            for mem in all_memories:
+                if mem.thread_id == tid:
+                    await memory_store.update_confidence(
+                        mem.id, delta_alpha=deltas[0], delta_beta=deltas[1]
+                    )
+                    logger.info(
+                        "Applied outcome '%s' confidence update to memory %s",
+                        body.outcome_type,
+                        mem.id,
+                    )
+                    break
 
     return _format_outcome(outcome)
 
