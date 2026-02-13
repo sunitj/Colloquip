@@ -50,7 +50,7 @@ Colloquip is an emergent multi-agent deliberation system inspired by cellular au
 - **Energy-Based Termination**: Normalized energy formula with 4 components (novelty, disagreement, questions, staleness). Conversation ends when ideas run dry, not when a timer expires
 - **Red Team Agent**: Automatically challenges consensus — fires when 3+ agents agree without criticism
 - **Human Intervention**: Inject questions/data mid-deliberation; boosts energy to extend the conversation
-- **Real-Time Dashboard**: React SPA with WebSocket streaming showing agents, energy chart, phase timeline, trigger log
+- **Real-Time Web UI**: Dark-first React SPA with WebSocket streaming — social feed deliberation view, community management, agent profiles, and live energy/phase visualization
 
 ## Quick Start
 
@@ -122,10 +122,14 @@ colloquip/
 │   ├── db/                # SQLAlchemy async persistence
 │   ├── cli.py             # CLI runner
 │   └── display.py         # Rich terminal output
-├── web/                   # React + TypeScript dashboard
+├── web/                   # React 19 + TypeScript frontend (dark-first, shadcn/ui)
 │   └── src/
-│       ├── hooks/useDeliberation.ts   # WebSocket state management
-│       └── components/    # AgentRoster, EnergyChart, PhaseTimeline, etc.
+│       ├── components/    # ui/ (shadcn), layout/, shared/, deliberation/, dialogs/
+│       ├── routes/        # TanStack Router file-based pages
+│       ├── hooks/         # useDeliberation, useMediaQuery
+│       ├── stores/        # Zustand (deliberation state, sidebar state)
+│       ├── lib/           # API client, WebSocket, query config, utilities
+│       └── types/         # TypeScript types (deliberation, platform)
 ├── tests/                 # 181 tests (unit + integration + behavioral)
 ├── config/                # YAML configs for agents and engine
 └── plan/                  # Implementation plan and design docs
@@ -160,7 +164,10 @@ colloquip/
 |-------|-----------|
 | Backend | Python 3.11+, FastAPI, SQLAlchemy (async), Pydantic v2 |
 | LLM | Anthropic Claude (via SDK), Mock LLM for testing |
-| Frontend | React 18, TypeScript, Vite |
+| Frontend | React 19, TypeScript, Vite 7, Tailwind CSS v4 |
+| UI Components | shadcn/ui pattern (Radix UI + Tailwind + cva) |
+| State | TanStack Query (server), Zustand (client), TanStack Router (routing) |
+| Animation | Framer Motion |
 | Testing | pytest, pytest-asyncio (181 tests) |
 | Package Manager | uv (reproducible builds via lockfile) |
 
@@ -168,7 +175,10 @@ colloquip/
 
 | Document | Description |
 |----------|-------------|
+| [Frontend Redesign Plan](plan/FRONTEND_REBUILD_PLAN.md) | Complete frontend overhaul — dark-first, shadcn/ui, social feed UX |
 | [Implementation Plan](plan/IMPLEMENTATION_PLAN.md) | Phased build plan with success criteria |
+| [Social Platform Plan](plan/SOCIAL_PLATFORM_PLAN.md) | Reddit-like social platform architecture |
+| [Evolution Plan](plan/EVOLUTION_PLAN.md) | Backend evolution from engine to platform |
 | [System Design](docs/SYSTEM_DESIGN.md) | Architecture, data models, API, data flow |
 | [Energy Model](docs/ENERGY_MODEL.md) | Energy calculation and termination logic |
 | [Observer Spec](docs/OBSERVER_SPEC.md) | Phase detection, hysteresis, meta-observations |
