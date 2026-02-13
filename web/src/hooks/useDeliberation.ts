@@ -216,6 +216,11 @@ export function useDeliberation() {
 
     try {
       const res = await fetch(`${API_BASE}/api/deliberations/${sessionId}/history`);
+      if (res.status === 404) {
+        // Session not yet started — show pending state instead of error
+        setState(s => ({ ...s, sessionId, status: 'pending' }));
+        return;
+      }
       if (!res.ok) throw new Error('Failed to load session history');
       const data: HistoryResponse = await res.json();
 

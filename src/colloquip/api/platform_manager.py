@@ -127,12 +127,28 @@ class PlatformManager:
         self._memberships[subreddit_id] = []
         self._threads[subreddit_id] = []
 
-        # Recruit agents
+        # Recruit agents — auto-infer expertise from domain when none provided
+        effective_expertise = list(required_expertise or [])
+        if not effective_expertise:
+            # Use primary_domain to find all matching non-red-team agents
+            domain_matches = self.registry.find_by_expertise(
+                primary_domain.replace("_", " "), min_score=0.1
+            )
+            for agent, _score in domain_matches:
+                if not agent.is_red_team and agent.agent_type not in effective_expertise:
+                    effective_expertise.append(agent.agent_type)
+            # If domain search yields nothing, recruit all non-red-team agents
+            if not effective_expertise:
+                for agent in self.registry.list_agents():
+                    if not agent.is_red_team:
+                        effective_expertise.append(agent.agent_type)
+
         recruitment = self.registry.recruit_for_subreddit(
-            required_expertise=required_expertise or [],
+            required_expertise=effective_expertise,
             subreddit_id=UUID(subreddit_id),
             subreddit_domain=primary_domain,
             optional_expertise=optional_expertise,
+            max_agents=max_agents,
         )
 
         # Store memberships

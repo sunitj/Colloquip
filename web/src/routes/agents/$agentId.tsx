@@ -168,7 +168,7 @@ function AgentProfilePage() {
               )}
 
               {/* Phase mandates */}
-              {Object.keys(agent.phase_mandates).length > 0 && (
+              {agent.phase_mandates && Object.keys(agent.phase_mandates).length > 0 && (
                 <Card>
                   <CardHeader>
                     <CardTitle>Phase Mandates</CardTitle>

@@ -45,11 +45,11 @@ export function CommunityCard({ community }: CommunityCardProps) {
       <div className="mt-4 flex items-center gap-4 text-xs text-text-muted">
         <span className="inline-flex items-center gap-1">
           <Users className="h-3.5 w-3.5" />
-          {community.member_count} agents
+          {community.member_count} {community.member_count === 1 ? 'agent' : 'agents'}
         </span>
         <span className="inline-flex items-center gap-1">
           <MessageSquare className="h-3.5 w-3.5" />
-          {community.thread_count} threads
+          {community.thread_count} {community.thread_count === 1 ? 'thread' : 'threads'}
         </span>
 
         {community.has_red_team && (

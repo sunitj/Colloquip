@@ -208,6 +208,66 @@ body {
   background: rgba(99, 102, 241, 0.15);
 }
 
+/* ── Pastel mode overrides ── */
+.pastel {
+  --color-bg-root: #FDF6F0;
+  --color-bg-surface: #FFFBF7;
+  --color-bg-elevated: #F5EDE4;
+  --color-bg-overlay: #FFFBF7;
+  --color-bg-sidebar: #F8F0E8;
+  --color-bg-input: #FFFBF7;
+
+  --color-border-default: rgba(180, 160, 140, 0.18);
+  --color-border-subtle: rgba(180, 160, 140, 0.08);
+  --color-border-accent: rgba(162, 136, 227, 0.35);
+
+  --color-text-primary: #2D2A3E;
+  --color-text-secondary: #6B6580;
+  --color-text-muted: #A39DB3;
+  --color-text-accent: #8B7EC8;
+
+  --color-agent-biology: #7DD3A8;
+  --color-agent-chemistry: #8BBCE8;
+  --color-agent-admet: #F5CF70;
+  --color-agent-clinical: #B8A3E0;
+  --color-agent-regulatory: #F2A0C4;
+  --color-agent-computational: #72CEBD;
+  --color-agent-protein-eng: #F5B07C;
+  --color-agent-synth-bio: #CFA3E8;
+  --color-agent-red-team: #F5A0A0;
+  --color-agent-human: #D5D0E0;
+
+  --color-stance-supportive: #6DD4A0;
+  --color-stance-critical: #F0908E;
+  --color-stance-neutral: #A8A3B5;
+  --color-stance-novel: #C4A0ED;
+
+  --color-phase-explore: #7EB5F0;
+  --color-phase-debate: #F0908E;
+  --color-phase-deepen: #F0C870;
+  --color-phase-converge: #6DD4A0;
+  --color-phase-synthesis: #C4A0ED;
+
+  --color-accent: #8B7EC8;
+  --color-accent-hover: #A698D8;
+  --color-destructive: #E87C7A;
+  --color-success: #6DD4A0;
+  --color-warning: #F0C870;
+
+  color-scheme: light;
+}
+
+.pastel ::-webkit-scrollbar-thumb {
+  background: rgba(160, 140, 120, 0.15);
+}
+.pastel ::-webkit-scrollbar-thumb:hover {
+  background: rgba(160, 140, 120, 0.25);
+}
+
+.pastel ::selection {
+  background: rgba(139, 126, 200, 0.18);
+}
+
 /* ── Energy chart styles ── */
 .energy-chart { margin-bottom: 16px; }
 .energy-empty { color: var(--color-text-muted); font-size: 13px; text-align: center; padding: 24px 0; }

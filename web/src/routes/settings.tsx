@@ -1,9 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Rocket, BarChart3, Users, MessageSquare, Activity } from 'lucide-react';
+import { Rocket, BarChart3, Users, MessageSquare, Activity, Palette } from 'lucide-react';
 import { platformInit, getCalibrationOverview, getSubreddits, getAgents } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
-import { formatNumber } from '@/lib/utils';
+import { formatNumber, cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { ConnectionIndicator } from '@/components/shared/ConnectionIndicator';
+import { useThemeStore, type Theme } from '@/stores/themeStore';
 
 export const Route = createFileRoute('/settings')({
   component: SettingsPage,
@@ -47,6 +48,14 @@ function SettingsPage() {
   const communityCount = subredditsData?.length ?? 0;
   const agentCount = agentsData?.length ?? 0;
 
+  const { theme, setTheme } = useThemeStore();
+
+  const themes: { value: Theme; label: string; description: string; swatch: string[] }[] = [
+    { value: 'dark', label: 'Dark', description: 'Deep dark surfaces with vibrant accents', swatch: ['#09090B', '#1A1A23', '#6366F1', '#F1F5F9'] },
+    { value: 'light', label: 'Light', description: 'Clean light backgrounds with sharp contrast', swatch: ['#FAFAFA', '#F4F4F5', '#6366F1', '#0F172A'] },
+    { value: 'pastel', label: 'Pastel', description: 'Warm cream tones with soft purple accents', swatch: ['#FDF6F0', '#F5EDE4', '#8B7EC8', '#2D2A3E'] },
+  ];
+
   return (
     <div>
       <PageHeader
@@ -55,6 +64,46 @@ function SettingsPage() {
       />
 
       <div className="space-y-8">
+        {/* Theme */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Palette className="h-5 w-5 text-text-accent" />
+              Theme
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {themes.map((t) => (
+                <button
+                  key={t.value}
+                  onClick={() => setTheme(t.value)}
+                  className={cn(
+                    'flex flex-col items-start gap-3 rounded-lg border p-4 text-left transition-all',
+                    theme === t.value
+                      ? 'border-accent bg-accent/5 ring-1 ring-accent/30'
+                      : 'border-border-default hover:border-border-accent hover:bg-bg-elevated/30'
+                  )}
+                >
+                  <div className="flex items-center gap-1.5">
+                    {t.swatch.map((color, i) => (
+                      <span
+                        key={i}
+                        className="h-4 w-4 rounded-full border border-border-default"
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-text-primary">{t.label}</p>
+                    <p className="text-xs text-text-muted mt-0.5">{t.description}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Platform Initialization */}
         <Card>
           <CardHeader>

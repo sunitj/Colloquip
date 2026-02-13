@@ -120,6 +120,11 @@ function ThreadPage() {
               title="Error Loading Thread"
               description={state.error}
             />
+          ) : state.status === 'pending' && state.sessionId ? (
+            <EmptyState
+              title="Deliberation Pending"
+              description="This thread has been created but the deliberation has not started yet. Agents will begin contributing once the session is launched."
+            />
           ) : (
             <EmptyState
               title="Loading deliberation..."

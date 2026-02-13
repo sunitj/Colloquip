@@ -1,7 +1,9 @@
+import { useEffect } from 'react';
 import { createRootRoute, Outlet } from '@tanstack/react-router';
 import { Menu } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { useSidebarStore } from '@/stores/sidebarStore';
+import { useThemeStore } from '@/stores/themeStore';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 
 export const Route = createRootRoute({
@@ -11,6 +13,17 @@ export const Route = createRootRoute({
 function RootLayout() {
   const isMobile = useIsMobile();
   const { setOpen } = useSidebarStore();
+  const { theme } = useThemeStore();
+
+  // Apply theme class to <html> element
+  useEffect(() => {
+    const html = document.documentElement;
+    html.classList.remove('dark', 'light', 'pastel');
+    if (theme !== 'dark') {
+      html.classList.add(theme);
+    }
+    html.style.colorScheme = theme === 'dark' ? 'dark' : 'light';
+  }, [theme]);
 
   return (
     <>
