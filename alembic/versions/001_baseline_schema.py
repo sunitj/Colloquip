@@ -114,8 +114,8 @@ def upgrade() -> None:
         sa.Column("serendipity_connections", sa.JSON, nullable=False, server_default="[]"),
         sa.Column("final_stances", sa.JSON, nullable=False, server_default="{}"),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.UniqueConstraint("session_id", name="uq_consensus_session"),
     )
-    op.create_unique_constraint("uq_consensus_session", "consensus_maps", ["session_id"])
 
     # Agent identity and membership tables
     op.create_table(
@@ -147,11 +147,7 @@ def upgrade() -> None:
         sa.Column("threads_participated", sa.Integer, nullable=False, server_default="0"),
         sa.Column("total_posts", sa.Integer, nullable=False, server_default="0"),
         sa.Column("joined_at", sa.DateTime(timezone=True), nullable=False),
-    )
-    op.create_unique_constraint(
-        "uq_agent_subreddit",
-        "subreddit_memberships",
-        ["agent_id", "subreddit_id"],
+        sa.UniqueConstraint("agent_id", "subreddit_id", name="uq_agent_subreddit"),
     )
     op.create_index("idx_membership_subreddit", "subreddit_memberships", ["subreddit_id"])
     op.create_index("idx_membership_agent", "subreddit_memberships", ["agent_id"])
@@ -174,8 +170,8 @@ def upgrade() -> None:
         sa.Column("citation_verification", sa.JSON, nullable=False, server_default="{}"),
         sa.Column("tokens_used", sa.Integer, nullable=False, server_default="0"),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.UniqueConstraint("session_id", name="uq_synthesis_session"),
     )
-    op.create_unique_constraint("uq_synthesis_session", "syntheses", ["session_id"])
 
     op.create_table(
         "cost_records",
