@@ -3,9 +3,9 @@ FROM python:3.11-slim AS python-deps
 
 RUN pip install --no-cache-dir uv
 
-WORKDIR /build
+WORKDIR /app
 COPY pyproject.toml uv.lock ./
-RUN uv sync --no-dev --frozen --extra api --extra db --extra db-pg --extra llm --extra embeddings
+RUN uv sync --no-dev --frozen --no-install-project --extra api --extra db --extra db-pg --extra llm --extra embeddings
 
 # Stage 2: Frontend build
 FROM node:20-slim AS frontend-build
@@ -24,7 +24,7 @@ RUN groupadd -r colloquip && useradd -r -g colloquip -d /app colloquip
 WORKDIR /app
 
 # Copy Python deps from stage 1
-COPY --from=python-deps /build/.venv /app/.venv
+COPY --from=python-deps /app/.venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
 
 # Copy application source
@@ -34,9 +34,8 @@ COPY config/ ./config/
 # Copy frontend build from stage 2
 COPY --from=frontend-build /web/dist ./static/
 
-# Install the package itself
-COPY pyproject.toml README.md ./
-RUN pip install --no-cache-dir --no-deps -e .
+# Make source importable
+ENV PYTHONPATH="/app/src"
 
 # Switch to non-root user
 USER colloquip

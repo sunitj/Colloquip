@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import type { Phase, Post, SessionStatus } from '../types/deliberation';
 import { AGENT_META, PHASE_LABELS, STANCE_COLORS, TRIGGER_COLORS } from './agentMeta';
 
@@ -46,7 +46,7 @@ export function ConversationStream({ posts, status, thinking }: ConversationStre
   }
 
   // Build the list with phase-separator elements injected between phase transitions.
-  const items: JSX.Element[] = [];
+  const items: React.JSX.Element[] = [];
   let lastPhase: Phase | null = null;
   const batchStart = prevCountRef.current;
 

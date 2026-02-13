@@ -2,6 +2,7 @@
 
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -9,6 +10,8 @@ load_dotenv()
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from colloquip.api.app import SessionManager, create_session_manager
 from colloquip.api.export_routes import router as export_router
@@ -80,5 +83,18 @@ def create_app(
     @app.get("/health")
     async def health():
         return {"status": "ok"}
+
+    # Serve frontend static files (built by Vite into /app/static in Docker)
+    static_dir = Path(__file__).resolve().parent.parent.parent.parent / "static"
+    if static_dir.is_dir():
+        app.mount("/assets", StaticFiles(directory=static_dir / "assets"), name="assets")
+
+        @app.get("/{path:path}")
+        async def spa_catchall(path: str):
+            # Serve actual files if they exist, otherwise fall back to index.html for SPA routing
+            file = static_dir / path
+            if path and file.is_file():
+                return FileResponse(file)
+            return FileResponse(static_dir / "index.html")
 
     return app
