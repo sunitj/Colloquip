@@ -19,7 +19,7 @@ function HomePage() {
     queryFn: getSubreddits,
   });
 
-  const communities = data?.subreddits ?? [];
+  const communities = data ?? [];
 
   return (
     <div>

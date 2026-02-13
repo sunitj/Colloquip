@@ -16,7 +16,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 export const platformInit = () => request<void>('/platform/init', { method: 'POST' });
 
 // Subreddits
-export const getSubreddits = () => request<{ subreddits: import('@/types/platform').Subreddit[] }>('/subreddits');
+export const getSubreddits = () => request<import('@/types/platform').Subreddit[]>('/subreddits');
 export const getSubreddit = (name: string) => request<import('@/types/platform').SubredditDetail>(`/subreddits/${name}`);
 export const getSubredditMembers = (name: string) => request<{ members: import('@/types/platform').AgentMember[] }>(`/subreddits/${name}/members`);
 export const getSubredditThreads = (name: string) => request<{ threads: import('@/types/platform').Thread[] }>(`/subreddits/${name}/threads`);
@@ -33,7 +33,7 @@ export const createThread = (subredditName: string, data: {
 export const getThreadCosts = (threadId: string) => request<import('@/types/platform').CostSummary>(`/threads/${threadId}/costs`);
 
 // Agents
-export const getAgents = () => request<{ agents: import('@/types/platform').Agent[] }>('/agents');
+export const getAgents = () => request<import('@/types/platform').Agent[]>('/agents');
 export const getAgent = (agentId: string) => request<import('@/types/platform').AgentDetail>(`/agents/${agentId}`);
 
 // Deliberations

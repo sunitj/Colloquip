@@ -44,8 +44,8 @@ function SettingsPage() {
     queryFn: getAgents,
   });
 
-  const communityCount = subredditsData?.subreddits?.length ?? 0;
-  const agentCount = agentsData?.agents?.length ?? 0;
+  const communityCount = subredditsData?.length ?? 0;
+  const agentCount = agentsData?.length ?? 0;
 
   return (
     <div>

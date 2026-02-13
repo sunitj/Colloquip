@@ -39,7 +39,7 @@ function AgentPoolPage() {
     queryFn: () => getAgents(),
   });
 
-  const agents = agentsQuery.data?.agents ?? [];
+  const agents = agentsQuery.data ?? [];
 
   const filtered = useMemo(() => {
     if (!search.trim()) return agents;

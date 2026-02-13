@@ -88,7 +88,12 @@ export function CreateCommunityDialog({
       handleOpenChange(false);
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to create community");
+      const msg = error.message || "";
+      if (msg.includes("already exists")) {
+        toast.error(`Community "${form.name}" already exists`);
+      } else {
+        toast.error(msg || "Failed to create community");
+      }
     },
   });
 
