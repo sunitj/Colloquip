@@ -1,6 +1,5 @@
 """Anthropic Claude adapter for the deliberation system."""
 
-import json
 import logging
 import re
 from typing import List, Optional
@@ -137,9 +136,7 @@ class AnthropicLLM:
         self._total_output_tokens = 0
         self._call_count = 0
 
-        self.client = anthropic.AsyncAnthropic(
-            api_key=api_key, max_retries=max_retries
-        )
+        self.client = anthropic.AsyncAnthropic(api_key=api_key, max_retries=max_retries)
 
     async def generate(
         self,

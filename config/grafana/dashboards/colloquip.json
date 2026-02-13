@@ -1,0 +1,102 @@
+{
+  "dashboard": {
+    "title": "Colloquip Overview",
+    "uid": "colloquip-main",
+    "timezone": "utc",
+    "refresh": "30s",
+    "panels": [
+      {
+        "title": "Deliberations Started",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "colloquip_deliberations_total",
+            "legendFormat": "Total"
+          }
+        ]
+      },
+      {
+        "title": "Deliberation Duration (p95)",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(colloquip_deliberation_duration_seconds_bucket[5m]))",
+            "legendFormat": "p95"
+          }
+        ]
+      },
+      {
+        "title": "Memory Store Size",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+        "targets": [
+          {
+            "expr": "colloquip_memory_store_size",
+            "legendFormat": "Memories"
+          }
+        ]
+      },
+      {
+        "title": "LLM Errors",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+        "targets": [
+          {
+            "expr": "rate(colloquip_llm_errors_total[5m])",
+            "legendFormat": "Errors/s"
+          }
+        ]
+      },
+      {
+        "title": "Watcher Events by Type",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+        "targets": [
+          {
+            "expr": "rate(colloquip_watcher_events_total[5m])",
+            "legendFormat": "{{watcher_type}}"
+          }
+        ]
+      },
+      {
+        "title": "Triage Decisions",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+        "targets": [
+          {
+            "expr": "rate(colloquip_triage_decisions_total[5m])",
+            "legendFormat": "{{signal}}"
+          }
+        ]
+      },
+      {
+        "title": "Memory Retrieval Latency",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(colloquip_memory_retrieval_latency_seconds_bucket[5m]))",
+            "legendFormat": "p95"
+          },
+          {
+            "expr": "histogram_quantile(0.50, rate(colloquip_memory_retrieval_latency_seconds_bucket[5m]))",
+            "legendFormat": "p50"
+          }
+        ]
+      },
+      {
+        "title": "Cost per Deliberation",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(colloquip_deliberation_cost_usd_bucket[5m]))",
+            "legendFormat": "p95 USD"
+          }
+        ]
+      }
+    ]
+  }
+}

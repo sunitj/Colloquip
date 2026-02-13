@@ -1,0 +1,21 @@
+name: Migration Check
+
+on:
+  pull_request:
+    paths:
+      - "src/colloquip/db/**"
+      - "alembic/**"
+      - "alembic.ini"
+
+jobs:
+  check-migrations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - run: uv sync --group dev --extra db --extra db-pg
+      - name: Verify migrations apply cleanly
+        run: |
+          uv run alembic upgrade head
+        env:
+          DATABASE_URL: "sqlite+aiosqlite:///test_migration.db"

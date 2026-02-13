@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import (
+    Boolean,
     Column,
     DateTime,
     Float,
@@ -40,13 +41,33 @@ class DBSession(Base):
     status = Column(String(20), nullable=False, default="pending")
     current_phase = Column(String(20), nullable=False, default="explore")
     config = Column(JSON, nullable=False, default=dict)
+    # Platform additions (nullable for backward compatibility)
+    subreddit_id = Column(String(36), ForeignKey("subreddits.id"), nullable=True)
+    created_by = Column(String(36), nullable=True)
+    estimated_cost_usd = Column(Float, default=0.0)
     created_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
     updated_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow, onupdate=_utcnow)
 
     # Relationships
     posts = relationship("DBPost", back_populates="session", cascade="all, delete-orphan")
-    energy_entries = relationship("DBEnergyHistory", back_populates="session", cascade="all, delete-orphan")
-    consensus = relationship("DBConsensusMap", back_populates="session", uselist=False, cascade="all, delete-orphan")
+    energy_entries = relationship(
+        "DBEnergyHistory",
+        back_populates="session",
+        cascade="all, delete-orphan",
+    )
+    consensus = relationship(
+        "DBConsensusMap",
+        back_populates="session",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+    subreddit = relationship("DBSubreddit", back_populates="threads")
+    synthesis = relationship(
+        "DBSynthesis",
+        back_populates="session",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
 
 
 class DBPost(Base):
@@ -80,9 +101,7 @@ class DBEnergyHistory(Base):
     """energy_history table."""
 
     __tablename__ = "energy_history"
-    __table_args__ = (
-        Index("idx_energy_session", "session_id"),
-    )
+    __table_args__ = (Index("idx_energy_session", "session_id"),)
 
     id = Column(String(36), primary_key=True, default=_uuid)
     session_id = Column(String(36), ForeignKey("deliberation_sessions.id"), nullable=False)
@@ -101,9 +120,7 @@ class DBConsensusMap(Base):
     """consensus_maps table."""
 
     __tablename__ = "consensus_maps"
-    __table_args__ = (
-        UniqueConstraint("session_id", name="uq_consensus_session"),
-    )
+    __table_args__ = (UniqueConstraint("session_id", name="uq_consensus_session"),)
 
     id = Column(String(36), primary_key=True, default=_uuid)
     session_id = Column(String(36), ForeignKey("deliberation_sessions.id"), nullable=False)
@@ -116,3 +133,305 @@ class DBConsensusMap(Base):
     created_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
 
     session = relationship("DBSession", back_populates="consensus")
+
+
+# ---------------------------------------------------------------------------
+# Platform tables
+# ---------------------------------------------------------------------------
+
+
+class DBSubreddit(Base):
+    """subreddits table."""
+
+    __tablename__ = "subreddits"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    name = Column(String(100), unique=True, nullable=False)
+    display_name = Column(String(200), nullable=False)
+    description = Column(Text, nullable=False, default="")
+    purpose = Column(JSON, nullable=False, default=dict)
+    output_template = Column(JSON, nullable=False, default=dict)
+    participation_model = Column(String(20), nullable=False, default="guided")
+    engine_overrides = Column(JSON, nullable=True)
+    tool_configs = Column(JSON, nullable=False, default=list)
+    min_agents = Column(Integer, nullable=False, default=3)
+    max_agents = Column(Integer, nullable=False, default=8)
+    always_include_red_team = Column(Boolean, nullable=False, default=True)
+    max_cost_per_thread_usd = Column(Float, default=5.0)
+    monthly_budget_usd = Column(Float, nullable=True)
+    created_by = Column(String(36), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow, onupdate=_utcnow)
+
+    # Relationships
+    threads = relationship("DBSession", back_populates="subreddit")
+    memberships = relationship(
+        "DBSubredditMembership",
+        back_populates="subreddit",
+        cascade="all, delete-orphan",
+    )
+
+
+class DBAgentIdentity(Base):
+    """agent_identities table — persistent agents in the global pool."""
+
+    __tablename__ = "agent_identities"
+    __table_args__ = (Index("idx_agent_type", "agent_type"),)
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    agent_type = Column(String(100), unique=True, nullable=False)
+    display_name = Column(String(200), nullable=False)
+    expertise_tags = Column(JSON, nullable=False, default=list)
+    persona_prompt = Column(Text, nullable=False)
+    phase_mandates = Column(JSON, nullable=False, default=dict)
+    domain_keywords = Column(JSON, nullable=False, default=list)
+    knowledge_scope = Column(JSON, nullable=False, default=list)
+    evaluation_criteria = Column(JSON, nullable=False, default=dict)
+    is_red_team = Column(Boolean, nullable=False, default=False)
+    status = Column(String(20), nullable=False, default="active")
+    version = Column(Integer, nullable=False, default=1)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+
+    # Relationships
+    memberships = relationship("DBSubredditMembership", back_populates="agent")
+
+
+class DBSubredditMembership(Base):
+    """subreddit_memberships table — agent's scoped role in a subreddit."""
+
+    __tablename__ = "subreddit_memberships"
+    __table_args__ = (
+        UniqueConstraint("agent_id", "subreddit_id", name="uq_agent_subreddit"),
+        Index("idx_membership_subreddit", "subreddit_id"),
+        Index("idx_membership_agent", "agent_id"),
+    )
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    agent_id = Column(String(36), ForeignKey("agent_identities.id"), nullable=False)
+    subreddit_id = Column(String(36), ForeignKey("subreddits.id"), nullable=False)
+    role = Column(String(20), nullable=False, default="member")
+    role_prompt = Column(Text, nullable=False, default="")
+    tool_access = Column(JSON, nullable=False, default=list)
+    threads_participated = Column(Integer, nullable=False, default=0)
+    total_posts = Column(Integer, nullable=False, default=0)
+    joined_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+
+    # Relationships
+    agent = relationship("DBAgentIdentity", back_populates="memberships")
+    subreddit = relationship("DBSubreddit", back_populates="memberships")
+
+
+class DBSynthesis(Base):
+    """syntheses table — structured output from deliberations."""
+
+    __tablename__ = "syntheses"
+    __table_args__ = (UniqueConstraint("session_id", name="uq_synthesis_session"),)
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    session_id = Column(String(36), ForeignKey("deliberation_sessions.id"), nullable=False)
+    template_type = Column(String(50), nullable=False)
+    sections = Column(JSON, nullable=False, default=dict)
+    metadata_json = Column(JSON, nullable=False, default=dict)
+    audit_chains = Column(JSON, nullable=False, default=list)
+    total_citations = Column(Integer, nullable=False, default=0)
+    citation_verification = Column(JSON, nullable=False, default=dict)
+    tokens_used = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+
+    session = relationship("DBSession", back_populates="synthesis")
+
+
+class DBSynthesisMemory(Base):
+    """synthesis_memories table — institutional memory for RAG."""
+
+    __tablename__ = "synthesis_memories"
+    __table_args__ = (
+        Index("idx_synmem_subreddit", "subreddit_id"),
+        Index("idx_synmem_thread", "thread_id"),
+    )
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    thread_id = Column(String(36), nullable=False)
+    subreddit_id = Column(String(36), nullable=False)
+    subreddit_name = Column(String(100), nullable=False)
+    topic = Column(Text, nullable=False)
+    synthesis_content = Column(Text, nullable=False, default="")
+    key_conclusions = Column(JSON, nullable=False, default=list)
+    citations_used = Column(JSON, nullable=False, default=list)
+    agents_involved = Column(JSON, nullable=False, default=list)
+    template_type = Column(String(50), nullable=False, default="")
+    confidence_level = Column(String(50), nullable=False, default="")
+    evidence_quality = Column(String(50), nullable=False, default="")
+    # Bayesian confidence (Beta distribution parameters)
+    confidence_alpha = Column(Float, nullable=False, default=2.0)
+    confidence_beta = Column(Float, nullable=False, default=1.0)
+    # Stored as JSON list of floats. Will become vector(1536) when pgvector is enabled.
+    embedding = Column(JSON, nullable=False, default=list)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+
+
+class DBMemoryAnnotation(Base):
+    """memory_annotations table — human corrections to memories."""
+
+    __tablename__ = "memory_annotations"
+    __table_args__ = (Index("idx_annotation_memory", "memory_id"),)
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    memory_id = Column(String(36), ForeignKey("synthesis_memories.id"), nullable=False)
+    annotation_type = Column(String(20), nullable=False)  # outdated, correction, confirmed, context
+    content = Column(Text, nullable=False)
+    created_by = Column(String(100), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+
+
+class DBCostRecord(Base):
+    """cost_records table — per-call token usage tracking."""
+
+    __tablename__ = "cost_records"
+    __table_args__ = (Index("idx_cost_session", "session_id"),)
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    session_id = Column(String(36), ForeignKey("deliberation_sessions.id"), nullable=False)
+    input_tokens = Column(Integer, nullable=False, default=0)
+    output_tokens = Column(Integer, nullable=False, default=0)
+    model = Column(String(100), nullable=False, default="default")
+    estimated_cost_usd = Column(Float, nullable=False, default=0.0)
+    recorded_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+
+
+# ---------------------------------------------------------------------------
+# Phase 4: Event-Driven Trigger tables
+# ---------------------------------------------------------------------------
+
+
+class DBWatcher(Base):
+    """watchers table — event monitoring configurations."""
+
+    __tablename__ = "watchers"
+    __table_args__ = (Index("idx_watcher_subreddit", "subreddit_id"),)
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    watcher_type = Column(String(20), nullable=False)  # literature, scheduled, webhook
+    subreddit_id = Column(String(36), ForeignKey("subreddits.id"), nullable=False)
+    name = Column(String(200), nullable=False)
+    description = Column(Text, nullable=False, default="")
+    query = Column(Text, nullable=False, default="")
+    poll_interval_seconds = Column(Integer, nullable=False, default=300)
+    enabled = Column(Boolean, nullable=False, default=True)
+    config = Column(JSON, nullable=False, default=dict)
+    auto_create_thread = Column(Boolean, nullable=False, default=False)
+    auto_thread_approval_rate = Column(Float, nullable=True)
+    created_by = Column(String(100), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow, onupdate=_utcnow)
+
+    # Relationships
+    events = relationship("DBWatcherEvent", back_populates="watcher", cascade="all, delete-orphan")
+    notifications = relationship(
+        "DBNotification",
+        back_populates="watcher",
+        cascade="all, delete-orphan",
+    )
+
+
+class DBWatcherEvent(Base):
+    """watcher_events table — events detected by watchers."""
+
+    __tablename__ = "watcher_events"
+    __table_args__ = (
+        Index("idx_event_watcher", "watcher_id"),
+        Index("idx_event_subreddit", "subreddit_id"),
+    )
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    watcher_id = Column(String(36), ForeignKey("watchers.id"), nullable=False)
+    subreddit_id = Column(String(36), nullable=False)
+    title = Column(Text, nullable=False)
+    summary = Column(Text, nullable=False, default="")
+    source_type = Column(String(50), nullable=False, default="")
+    source_id = Column(String(200), nullable=False, default="")
+    source_url = Column(Text, nullable=True)
+    source_metadata = Column(JSON, nullable=False, default=dict)
+    raw_data = Column(JSON, nullable=False, default=dict)
+    triage_signal = Column(String(20), nullable=True)  # low, medium, high
+    triage_reasoning = Column(Text, nullable=True)
+    detected_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+
+    watcher = relationship("DBWatcher", back_populates="events")
+
+
+class DBNotification(Base):
+    """notifications table — user-facing notifications from triage."""
+
+    __tablename__ = "notifications"
+    __table_args__ = (
+        Index("idx_notification_subreddit", "subreddit_id"),
+        Index("idx_notification_status", "status"),
+    )
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    watcher_id = Column(String(36), ForeignKey("watchers.id"), nullable=False)
+    event_id = Column(String(36), nullable=False)
+    subreddit_id = Column(String(36), nullable=False)
+    title = Column(Text, nullable=False)
+    summary = Column(Text, nullable=False, default="")
+    signal = Column(String(20), nullable=False)  # low, medium, high
+    suggested_hypothesis = Column(Text, nullable=True)
+    status = Column(String(20), nullable=False, default="pending")
+    action_taken = Column(String(20), nullable=True)
+    thread_id = Column(String(36), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+    acted_at = Column(DateTime(timezone=True), nullable=True)
+
+    watcher = relationship("DBWatcher", back_populates="notifications")
+
+
+# ---------------------------------------------------------------------------
+# Phase 5: Cross-Subreddit + Feedback tables
+# ---------------------------------------------------------------------------
+
+
+class DBCrossReference(Base):
+    """cross_references table — detected links between subreddit memories."""
+
+    __tablename__ = "cross_references"
+    __table_args__ = (
+        Index("idx_crossref_source", "source_memory_id"),
+        Index("idx_crossref_target", "target_memory_id"),
+    )
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    source_memory_id = Column(String(36), ForeignKey("synthesis_memories.id"), nullable=False)
+    target_memory_id = Column(String(36), ForeignKey("synthesis_memories.id"), nullable=False)
+    source_subreddit_id = Column(String(36), nullable=False)
+    target_subreddit_id = Column(String(36), nullable=False)
+    source_subreddit_name = Column(String(100), nullable=False, default="")
+    target_subreddit_name = Column(String(100), nullable=False, default="")
+    similarity = Column(Float, nullable=False, default=0.0)
+    shared_entities = Column(JSON, nullable=False, default=list)
+    reasoning = Column(Text, nullable=False, default="")
+    status = Column(String(20), nullable=False, default="pending")  # pending, confirmed, dismissed
+    reviewed_by = Column(String(100), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+
+
+class DBOutcomeReport(Base):
+    """outcome_reports table — real-world outcome tracking."""
+
+    __tablename__ = "outcome_reports"
+    __table_args__ = (
+        Index("idx_outcome_thread", "thread_id"),
+        Index("idx_outcome_subreddit", "subreddit_id"),
+    )
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    thread_id = Column(String(36), nullable=False)
+    subreddit_id = Column(String(36), nullable=False)
+    # confirmed, partially_confirmed, contradicted, inconclusive
+    outcome_type = Column(String(30), nullable=False)
+    summary = Column(Text, nullable=False)
+    evidence = Column(Text, nullable=False, default="")
+    conclusions_evaluated = Column(JSON, nullable=False, default=list)
+    agent_assessments = Column(JSON, nullable=False, default=dict)
+    reported_by = Column(String(100), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)

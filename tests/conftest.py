@@ -19,7 +19,6 @@ from colloquip.models import (
 )
 from colloquip.observer import ObserverAgent
 
-
 # --- Factory functions ---
 
 TEST_SESSION_ID = uuid4()
@@ -103,6 +102,7 @@ def create_metrics(
 
 
 # --- Shared fixtures ---
+
 
 @pytest.fixture
 def energy_config():

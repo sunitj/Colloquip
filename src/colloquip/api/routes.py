@@ -20,6 +20,7 @@ router = APIRouter(prefix="/api")
 
 # --- Request / Response schemas ---
 
+
 class CreateSessionRequest(BaseModel):
     hypothesis: str = Field(min_length=1, max_length=2000)
     mode: Literal["mock", "real"] = "mock"
@@ -55,11 +56,13 @@ class EnergyHistoryResponse(BaseModel):
 
 # --- Helper to get session manager from app state ---
 
+
 def _get_manager(request: Request) -> SessionManager:
     return request.app.state.session_manager
 
 
 # --- Endpoints ---
+
 
 @router.post("/deliberations", response_model=CreateSessionResponse)
 async def create_deliberation(body: CreateSessionRequest, request: Request):
@@ -108,7 +111,7 @@ async def start_deliberation(session_id: UUID, request: Request):
                 if event_type in ("done", "error"):
                     break
         except asyncio.TimeoutError:
-            yield f"event: timeout\ndata: {{}}\n\n"
+            yield "event: timeout\ndata: {}\n\n"
         finally:
             manager.unsubscribe(session_id, queue)
             manager.cancel_if_no_subscribers(session_id)
@@ -196,9 +199,7 @@ async def get_posts(session_id: UUID, request: Request):
 
 
 @router.get("/deliberations/{session_id}/events")
-async def get_events(
-    session_id: UUID, request: Request, since: int = 0
-):
+async def get_events(session_id: UUID, request: Request, since: int = 0):
     """Get events for a session, optionally starting from a sequence number.
 
     Useful for reconnection: client sends the last sequence number it received,
@@ -224,7 +225,7 @@ async def list_deliberations(request: Request, limit: int = 50, offset: int = 0)
         key=lambda s: s.created_at,
         reverse=True,
     )
-    sessions = sessions[offset:offset + limit]
+    sessions = sessions[offset : offset + limit]
 
     return {
         "sessions": [
@@ -277,3 +278,13 @@ async def get_session_history(session_id: UUID, request: Request):
         "energy_history": [e.model_dump() for e in data["energy_history"]],
         "consensus": data["consensus"].model_dump(mode="json") if data["consensus"] else None,
     }
+
+
+@router.get("/metrics")
+async def metrics():
+    """Prometheus-compatible metrics endpoint."""
+    from fastapi.responses import Response
+
+    from colloquip.metrics import get_metrics_text
+
+    return Response(content=get_metrics_text(), media_type="text/plain")

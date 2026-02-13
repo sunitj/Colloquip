@@ -4,7 +4,6 @@ import pytest
 
 from colloquip.models import AgentStance, Phase
 from colloquip.triggers import TriggerEvaluator
-
 from tests.conftest import create_post
 
 
@@ -52,9 +51,7 @@ class TestRelevance:
 
     def test_phase_modulation_explore_lower_threshold(self, biology_evaluator):
         """In EXPLORE, only 1 keyword match needed."""
-        posts = [
-            create_post(content="The mechanism is interesting.", agent_id="chemistry")
-        ]
+        posts = [create_post(content="The mechanism is interesting.", agent_id="chemistry")]
         should_respond, rules = biology_evaluator.evaluate(posts, Phase.EXPLORE)
         assert "relevance" in rules
 

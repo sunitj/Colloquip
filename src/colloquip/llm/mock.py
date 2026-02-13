@@ -4,7 +4,7 @@ import random
 from enum import Enum
 from typing import List, Optional
 
-from colloquip.llm.interface import LLMInterface, LLMResult
+from colloquip.llm.interface import LLMResult
 from colloquip.models import AgentStance
 
 

@@ -100,9 +100,15 @@ class TriggerEvaluator:
         recent = posts[-window:]
 
         assertion_indicators = [
-            "clearly", "definitely", "certainly", "must be",
-            "is proven", "demonstrates that", "shows that",
-            "without doubt", "obviously",
+            "clearly",
+            "definitely",
+            "certainly",
+            "must be",
+            "is proven",
+            "demonstrates that",
+            "shows that",
+            "without doubt",
+            "obviously",
         ]
 
         for post in recent:
@@ -136,9 +142,7 @@ class TriggerEvaluator:
             for sentence in sentences:
                 if "?" not in sentence:
                     continue
-                is_my_domain = any(
-                    kw.lower() in sentence.lower() for kw in self.domain_keywords
-                )
+                is_my_domain = any(kw.lower() in sentence.lower() for kw in self.domain_keywords)
                 if is_my_domain and not self._is_answered(posts, sentence, post):
                     return True
 
@@ -208,9 +212,7 @@ class TriggerEvaluator:
         agents = list(posts_by_agent.keys())
         for i in range(len(agents)):
             for j in range(i + 1, len(agents)):
-                if self._find_bridge(
-                    posts_by_agent[agents[i]], posts_by_agent[agents[j]]
-                ):
+                if self._find_bridge(posts_by_agent[agents[i]], posts_by_agent[agents[j]]):
                     return True
         return False
 
@@ -246,11 +248,20 @@ class TriggerEvaluator:
         recent = posts[-window:]
 
         uncertainty_indicators = [
-            "unclear", "uncertain", "unknown", "not sure",
-            "might be", "could be", "possibly", "perhaps",
-            "needs more evidence", "insufficient data",
-            "open question", "remains to be seen",
-            "we don't know", "further research needed",
+            "unclear",
+            "uncertain",
+            "unknown",
+            "not sure",
+            "might be",
+            "could be",
+            "possibly",
+            "perhaps",
+            "needs more evidence",
+            "insufficient data",
+            "open question",
+            "remains to be seen",
+            "we don't know",
+            "further research needed",
         ]
 
         for post in recent:

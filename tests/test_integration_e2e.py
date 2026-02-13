@@ -33,11 +33,14 @@ async def client(app):
 
 async def _create_and_run(client, manager, hypothesis="Test hypothesis", max_turns=5):
     """Helper: create session via REST, start via manager, collect events."""
-    resp = await client.post("/api/deliberations", json={
-        "hypothesis": hypothesis,
-        "mode": "mock",
-        "max_turns": max_turns,
-    })
+    resp = await client.post(
+        "/api/deliberations",
+        json={
+            "hypothesis": hypothesis,
+            "mode": "mock",
+            "max_turns": max_turns,
+        },
+    )
     assert resp.status_code == 200
     session_id = UUID(resp.json()["id"])
 
@@ -64,7 +67,8 @@ class TestFullLifecycle:
     async def test_create_start_collect_complete(self, client, manager):
         """A mock deliberation produces valid posts, energy updates, and consensus."""
         session_id, events = await _create_and_run(
-            client, manager,
+            client,
+            manager,
             hypothesis="GLP-1 agonists improve cognition",
             max_turns=5,
         )
@@ -172,7 +176,10 @@ class TestSessionListAndHistory:
     async def test_history_matches_live_events(self, client, manager):
         """History endpoint returns same posts that were streamed live."""
         session_id, events = await _create_and_run(
-            client, manager, hypothesis="History test", max_turns=3,
+            client,
+            manager,
+            hypothesis="History test",
+            max_turns=3,
         )
 
         live_posts = [e["data"] for e in events if e["type"] == "post"]
@@ -199,7 +206,10 @@ class TestReconnectionReplay:
     async def test_replay_from_sequence(self, client, manager):
         """GET /api/deliberations/{id}/events?since=N returns events after N."""
         session_id, _ = await _create_and_run(
-            client, manager, hypothesis="Replay test", max_turns=3,
+            client,
+            manager,
+            hypothesis="Replay test",
+            max_turns=3,
         )
 
         all_resp = await client.get(f"/api/deliberations/{session_id}/events?since=0")
@@ -220,11 +230,14 @@ class TestInterventionDuringDeliberation:
 
     async def test_intervention_via_rest(self, client, manager):
         """POST intervention during a running deliberation."""
-        resp = await client.post("/api/deliberations", json={
-            "hypothesis": "Intervention test",
-            "mode": "mock",
-            "max_turns": 8,
-        })
+        resp = await client.post(
+            "/api/deliberations",
+            json={
+                "hypothesis": "Intervention test",
+                "mode": "mock",
+                "max_turns": 8,
+            },
+        )
         session_id = UUID(resp.json()["id"])
 
         queue = manager.subscribe(session_id)

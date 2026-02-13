@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "claude/*"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - run: uv sync --group dev --frozen
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+
+  test-unit:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: astral-sh/setup-uv@v4
+      - run: uv sync --group dev --frozen
+      - run: uv run pytest -x -m "not slow and not integration" --cov=colloquip --cov-report=xml
+      - uses: codecov/codecov-action@v4
+        if: matrix.python-version == '3.11'
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+
+  test-integration:
+    runs-on: ubuntu-latest
+    needs: test-unit
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - run: uv sync --group dev --frozen
+      - run: uv run pytest -m integration

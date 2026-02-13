@@ -1,11 +1,8 @@
 """Tests for display module."""
 
-import pytest
-
 from colloquip.display import PlainDisplay, create_display
 from colloquip.models import AgentStance, ConsensusMap, EnergyUpdate, Phase, PhaseSignal
-
-from tests.conftest import create_post, create_metrics
+from tests.conftest import create_metrics, create_post
 
 
 class TestPlainDisplay:
@@ -67,6 +64,7 @@ class TestPlainDisplay:
 
     def test_show_consensus(self, capsys):
         from uuid import uuid4
+
         display = PlainDisplay()
         consensus = ConsensusMap(
             session_id=uuid4(),

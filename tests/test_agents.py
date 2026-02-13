@@ -4,8 +4,8 @@ import pytest
 
 from colloquip.agents.base import BaseDeliberationAgent
 from colloquip.agents.prompts import (
-    build_system_prompt,
     build_synthesis_prompt,
+    build_system_prompt,
     build_user_prompt,
 )
 from colloquip.llm.mock import MockBehavior, MockLLM
@@ -16,7 +16,6 @@ from colloquip.models import (
     Phase,
     PhaseSignal,
 )
-
 from tests.conftest import create_agent_config, create_post, create_session
 
 
@@ -107,9 +106,13 @@ class TestBaseAgent:
             current_phase=Phase.EXPLORE,
             confidence=0.9,
             metrics=ConversationMetrics(
-                question_rate=0.0, disagreement_rate=0.0,
-                topic_diversity=0.0, citation_density=0.0,
-                novelty_avg=0.0, energy=1.0, posts_since_novel=0,
+                question_rate=0.0,
+                disagreement_rate=0.0,
+                topic_diversity=0.0,
+                citation_density=0.0,
+                novelty_avg=0.0,
+                energy=1.0,
+                posts_since_novel=0,
             ),
         )
         deps = AgentDependencies(
@@ -142,9 +145,13 @@ class TestBaseAgent:
             current_phase=Phase.EXPLORE,
             confidence=0.9,
             metrics=ConversationMetrics(
-                question_rate=0.0, disagreement_rate=0.0,
-                topic_diversity=0.0, citation_density=0.0,
-                novelty_avg=0.0, energy=1.0, posts_since_novel=0,
+                question_rate=0.0,
+                disagreement_rate=0.0,
+                topic_diversity=0.0,
+                citation_density=0.0,
+                novelty_avg=0.0,
+                energy=1.0,
+                posts_since_novel=0,
             ),
         )
         deps = AgentDependencies(

@@ -2,9 +2,7 @@
 
 import pytest
 
-from colloquip.energy import EnergyCalculator
-from colloquip.models import AgentStance, EnergySource, Phase
-
+from colloquip.models import AgentStance, EnergySource
 from tests.conftest import create_post
 
 
@@ -18,10 +16,7 @@ class TestEnergyCalculation:
         assert energy > 0.2
 
     def test_all_supportive_low_disagreement(self, energy_calculator):
-        posts = [
-            create_post(stance=AgentStance.SUPPORTIVE, novelty_score=0.5)
-            for _ in range(5)
-        ]
+        posts = [create_post(stance=AgentStance.SUPPORTIVE, novelty_score=0.5) for _ in range(5)]
         energy = energy_calculator.calculate_energy(posts)
         # With 0% disagreement, disagreement component is 0
         # Energy should come primarily from novelty
@@ -47,8 +42,7 @@ class TestEnergyCalculation:
     def test_novel_connection_bonus(self, energy_calculator):
         posts_without = [create_post(novelty_score=0.5) for _ in range(5)]
         posts_with = [
-            create_post(novelty_score=0.5, stance=AgentStance.NOVEL_CONNECTION)
-            for _ in range(5)
+            create_post(novelty_score=0.5, stance=AgentStance.NOVEL_CONNECTION) for _ in range(5)
         ]
         e_without = energy_calculator.calculate_energy(posts_without)
         e_with = energy_calculator.calculate_energy(posts_with)
@@ -63,7 +57,10 @@ class TestStaleness:
             for _ in range(5)
         ]
         diverse_posts = [
-            create_post(content=f"Unique topic number {i} about different things", novelty_score=0.3)
+            create_post(
+                content=f"Unique topic number {i} about different things",
+                novelty_score=0.3,
+            )
             for i in range(5)
         ]
         e_same = energy_calculator.calculate_energy(same_posts)

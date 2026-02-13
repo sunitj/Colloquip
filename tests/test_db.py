@@ -1,12 +1,12 @@
 """Tests for the database persistence layer."""
 
-import pytest
 from uuid import uuid4
 
+import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from colloquip.db.tables import Base
 from colloquip.db.repository import SessionRepository
+from colloquip.db.tables import Base
 from colloquip.models import (
     AgentStance,
     ConsensusMap,
@@ -191,6 +191,7 @@ class TestListSessions:
     async def test_list_sessions_endpoint(self):
         """Test the list sessions API endpoint."""
         from httpx import ASGITransport, AsyncClient
+
         from colloquip.api import create_app
         from colloquip.api.app import SessionManager
 

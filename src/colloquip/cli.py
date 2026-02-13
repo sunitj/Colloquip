@@ -3,15 +3,14 @@
 import argparse
 import asyncio
 import json
-import sys
-from typing import Dict, Optional, Union
+from typing import Dict, Optional
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
 from colloquip.agents.base import BaseDeliberationAgent
-from colloquip.config import EnergyConfig, ObserverConfig
+from colloquip.config import EnergyConfig
 from colloquip.display import create_display
 from colloquip.energy import EnergyCalculator
 from colloquip.engine import EmergentDeliberationEngine
@@ -21,20 +20,26 @@ from colloquip.models import (
     ConsensusMap,
     DeliberationSession,
     EnergyUpdate,
-    Phase,
     PhaseSignal,
     Post,
 )
 from colloquip.observer import ObserverAgent
-
 
 # Default agent configurations for the drug discovery domain
 DEFAULT_AGENTS: Dict[str, dict] = {
     "biology": {
         "display_name": "Biology & Target ID",
         "domain_keywords": [
-            "mechanism", "target", "pathway", "receptor", "gene",
-            "protein", "cell", "tissue", "expression", "knockout",
+            "mechanism",
+            "target",
+            "pathway",
+            "receptor",
+            "gene",
+            "protein",
+            "cell",
+            "tissue",
+            "expression",
+            "knockout",
         ],
         "knowledge_scope": ["biology", "preclinical"],
         "is_red_team": False,
@@ -42,8 +47,16 @@ DEFAULT_AGENTS: Dict[str, dict] = {
     "chemistry": {
         "display_name": "Discovery Chemistry",
         "domain_keywords": [
-            "synthesis", "compound", "molecule", "SAR", "analog",
-            "scaffold", "reaction", "binding", "selectivity", "potency",
+            "synthesis",
+            "compound",
+            "molecule",
+            "SAR",
+            "analog",
+            "scaffold",
+            "reaction",
+            "binding",
+            "selectivity",
+            "potency",
         ],
         "knowledge_scope": ["chemistry", "manufacturing"],
         "is_red_team": False,
@@ -51,8 +64,16 @@ DEFAULT_AGENTS: Dict[str, dict] = {
     "admet": {
         "display_name": "ADMET & Toxicology",
         "domain_keywords": [
-            "toxicity", "safety", "metabolism", "clearance", "half-life",
-            "bioavailability", "CYP", "hERG", "genotoxicity", "therapeutic index",
+            "toxicity",
+            "safety",
+            "metabolism",
+            "clearance",
+            "half-life",
+            "bioavailability",
+            "CYP",
+            "hERG",
+            "genotoxicity",
+            "therapeutic index",
         ],
         "knowledge_scope": ["safety", "preclinical"],
         "is_red_team": False,
@@ -60,8 +81,16 @@ DEFAULT_AGENTS: Dict[str, dict] = {
     "clinical": {
         "display_name": "Clinical Translation",
         "domain_keywords": [
-            "patient", "trial", "endpoint", "efficacy", "dose",
-            "population", "outcome", "standard of care", "indication", "biomarker",
+            "patient",
+            "trial",
+            "endpoint",
+            "efficacy",
+            "dose",
+            "population",
+            "outcome",
+            "standard of care",
+            "indication",
+            "biomarker",
         ],
         "knowledge_scope": ["clinical", "regulatory"],
         "is_red_team": False,
@@ -69,8 +98,16 @@ DEFAULT_AGENTS: Dict[str, dict] = {
     "regulatory": {
         "display_name": "Regulatory Strategy",
         "domain_keywords": [
-            "FDA", "EMA", "approval", "guidance", "precedent",
-            "pathway", "label", "IND", "NDA", "breakthrough",
+            "FDA",
+            "EMA",
+            "approval",
+            "guidance",
+            "precedent",
+            "pathway",
+            "label",
+            "IND",
+            "NDA",
+            "breakthrough",
         ],
         "knowledge_scope": ["regulatory", "clinical"],
         "is_red_team": False,
@@ -78,11 +115,23 @@ DEFAULT_AGENTS: Dict[str, dict] = {
     "redteam": {
         "display_name": "Red Team (Adversarial)",
         "domain_keywords": [
-            "assumption", "bias", "alternative", "failure", "risk",
-            "overlooked", "counter", "dissent", "minority", "challenge",
+            "assumption",
+            "bias",
+            "alternative",
+            "failure",
+            "risk",
+            "overlooked",
+            "counter",
+            "dissent",
+            "minority",
+            "challenge",
         ],
         "knowledge_scope": [
-            "biology", "chemistry", "safety", "clinical", "regulatory",
+            "biology",
+            "chemistry",
+            "safety",
+            "clinical",
+            "regulatory",
         ],
         "is_red_team": True,
     },
@@ -140,6 +189,7 @@ def _create_llm(mode: str, seed: int = 42, model: Optional[str] = None):
         return MockLLM(behavior=MockBehavior.MIXED, seed=seed)
 
     from colloquip.llm.anthropic import AnthropicLLM
+
     return AnthropicLLM(model=model or "claude-sonnet-4-5-20250929")
 
 
@@ -182,15 +232,17 @@ async def run_deliberation(
             post_count += 1
             display.show_post(event)
             if save_transcript is not None:
-                transcript.append({
-                    "type": "post",
-                    "agent_id": event.agent_id,
-                    "content": event.content,
-                    "stance": event.stance.value,
-                    "novelty_score": event.novelty_score,
-                    "phase": event.phase.value,
-                    "triggered_by": event.triggered_by,
-                })
+                transcript.append(
+                    {
+                        "type": "post",
+                        "agent_id": event.agent_id,
+                        "content": event.content,
+                        "stance": event.stance.value,
+                        "novelty_score": event.novelty_score,
+                        "phase": event.phase.value,
+                        "triggered_by": event.triggered_by,
+                    }
+                )
 
         elif isinstance(event, PhaseSignal):
             display.show_phase_transition(event)
@@ -201,14 +253,16 @@ async def run_deliberation(
         elif isinstance(event, ConsensusMap):
             display.show_consensus(event)
             if save_transcript is not None:
-                transcript.append({
-                    "type": "consensus",
-                    "summary": event.summary,
-                    "agreements": event.agreements,
-                    "disagreements": event.disagreements,
-                    "minority_positions": event.minority_positions,
-                    "final_stances": {k: v.value for k, v in event.final_stances.items()},
-                })
+                transcript.append(
+                    {
+                        "type": "consensus",
+                        "summary": event.summary,
+                        "agreements": event.agreements,
+                        "disagreements": event.disagreements,
+                        "minority_positions": event.minority_positions,
+                        "final_stances": {k: v.value for k, v in event.final_stances.items()},
+                    }
+                )
 
     # Token usage (only for real mode)
     token_usage = None
@@ -225,11 +279,10 @@ async def run_deliberation(
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Colloquip: Emergent multi-agent deliberation"
-    )
+    parser = argparse.ArgumentParser(description="Colloquip: Emergent multi-agent deliberation")
     parser.add_argument(
-        "--hypothesis", "-H",
+        "--hypothesis",
+        "-H",
         type=str,
         default="GLP-1 agonists may improve cognitive function in Alzheimer's patients",
         help="The hypothesis to deliberate",
@@ -286,15 +339,17 @@ def main():
         asyncio.run(_run_prompt_eval(seed=args.seed, max_turns=args.max_turns))
         return
 
-    asyncio.run(run_deliberation(
-        hypothesis=args.hypothesis,
-        mode=args.mode,
-        seed=args.seed,
-        model=args.model,
-        max_turns=args.max_turns,
-        save_transcript=args.save_transcript,
-        use_rich=not args.no_rich,
-    ))
+    asyncio.run(
+        run_deliberation(
+            hypothesis=args.hypothesis,
+            mode=args.mode,
+            seed=args.seed,
+            model=args.model,
+            max_turns=args.max_turns,
+            save_transcript=args.save_transcript,
+            use_rich=not args.no_rich,
+        )
+    )
 
 
 async def _run_prompt_eval(seed: int = 42, max_turns: int = 20) -> None:
@@ -309,9 +364,17 @@ async def _run_prompt_eval(seed: int = 42, max_turns: int = 20) -> None:
 
     # Print comparison table
     headers = [
-        "version", "posts", "agents", "stances", "claims/post",
-        "questions/post", "phases", "transitions", "red_team",
-        "energy_declined", "consensus",
+        "version",
+        "posts",
+        "agents",
+        "stances",
+        "claims/post",
+        "questions/post",
+        "phases",
+        "transitions",
+        "red_team",
+        "energy_declined",
+        "consensus",
     ]
     header_line = " | ".join(f"{h:>14}" for h in headers)
     print(f"  {header_line}")
@@ -326,6 +389,7 @@ async def _run_prompt_eval(seed: int = 42, max_turns: int = 20) -> None:
 
     # Print notes for each version
     from colloquip.agents.prompts import PROMPT_VERSIONS
+
     for result in results:
         pv = PROMPT_VERSIONS[result.prompt_version]
         print(f"  {result.prompt_version}: {pv.notes}")

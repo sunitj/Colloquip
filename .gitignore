@@ -13,6 +13,7 @@ env/
 .pytest_cache/
 .coverage
 htmlcov/
+coverage.xml
 .mypy_cache/
 .ruff_cache/
 node_modules/

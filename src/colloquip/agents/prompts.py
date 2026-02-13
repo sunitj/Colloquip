@@ -3,11 +3,10 @@
 Supports versioned prompt sets for systematic tuning.
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Union
 
 from colloquip.models import AgentConfig, Phase, Post
-
 
 # Phase mandates appended to each agent's system prompt
 PHASE_MANDATES: Dict[Phase, str] = {
@@ -48,8 +47,7 @@ PHASE_MANDATES: Dict[Phase, str] = {
         "Your goal is to crystallize your assessment for synthesis."
     ),
     Phase.SYNTHESIS: (
-        "## Current Phase: SYNTHESIS\n\n"
-        "The deliberation is concluding. Provide your final summary."
+        "## Current Phase: SYNTHESIS\n\nThe deliberation is concluding. Provide your final summary."
     ),
 }
 
@@ -119,8 +117,7 @@ def build_user_prompt(
         recent = posts[-max_history:]
         for post in recent:
             parts.append(
-                f"\n**{post.agent_id}** ({post.stance.value}, {post.phase.value}):\n"
-                f"{post.content}"
+                f"\n**{post.agent_id}** ({post.stance.value}, {post.phase.value}):\n{post.content}"
             )
 
     parts.append(
@@ -177,6 +174,7 @@ def build_synthesis_prompt(hypothesis: str, posts: List[Post]) -> str:
 
 
 # ---- Prompt Version Registry ----
+
 
 @dataclass
 class PromptVersion:
@@ -298,7 +296,186 @@ def get_prompt_version(version: str = "v1") -> PromptVersion:
     """Retrieve a prompt version by name."""
     if version not in PROMPT_VERSIONS:
         raise ValueError(
-            f"Unknown prompt version '{version}'. "
-            f"Available: {list(PROMPT_VERSIONS.keys())}"
+            f"Unknown prompt version '{version}'. Available: {list(PROMPT_VERSIONS.keys())}"
         )
     return PROMPT_VERSIONS[version]
+
+
+# ---------------------------------------------------------------------------
+# v3: Subreddit-aware prompts with layered assembly
+# ---------------------------------------------------------------------------
+
+_MEMORY_INSTRUCTIONS = """
+## Instructions for Using Prior Deliberation Context
+
+You have been provided with summaries of relevant past deliberations. Use them as follows:
+- REFERENCE prior conclusions when they are relevant to the current topic
+- FLAG any contradictions between prior conclusions and current evidence
+- DO NOT simply repeat what was concluded before — build on it
+- CHECK whether new evidence has emerged that changes prior conclusions
+- If prior deliberations reached a conclusion you disagree with, explain why with evidence
+""".strip()
+
+_V3_CITATION_INSTRUCTIONS = """
+## Citation Requirements
+
+- EVERY factual claim MUST cite a source
+- Format: [PUBMED:PMID] for literature, [INTERNAL:record-id] for internal data,
+  [WEB:url] for web sources
+- If you cannot find evidence, say so explicitly: "No published evidence found for..."
+- Distinguish evidence types:
+  - DIRECT EVIDENCE: Published data directly supporting/contradicting the claim
+  - INFERENCE: Logical extrapolation from related evidence
+  - EXPERT OPINION: Your assessment based on domain knowledge (state this explicitly)
+- Never fabricate citations. If unsure of a PMID, say "citation needed" instead.
+""".strip()
+
+_V3_TOOL_INSTRUCTIONS = """
+## Available Research Tools
+
+You have access to the following research tools. Use them to ground your analysis in evidence:
+
+{tool_descriptions}
+
+When you find relevant evidence through these tools, cite it using the appropriate format.
+Prefer primary sources (PubMed) over secondary sources.
+""".strip()
+
+
+def build_v3_system_prompt(
+    persona_prompt: str,
+    phase: Phase,
+    phase_mandate: str = "",
+    subreddit_context: str = "",
+    role_prompt: str = "",
+    tool_descriptions: Union[str, List[str]] = "",
+    prior_deliberations: str = "",
+) -> str:
+    """Build a v3 system prompt with layered assembly.
+
+    Layers:
+    1. Base persona (from YAML)
+    2. Subreddit context (purpose, core questions)
+    3. Role in subreddit (membership role_prompt)
+    4. Prior deliberation memory (Phase 3 RAG)
+    5. Phase mandate (phase-specific behavior)
+    6. Citation requirements
+    7. Tool instructions (if tools available)
+    8. Response guidelines
+    """
+    parts = [persona_prompt.strip()]
+
+    if subreddit_context:
+        parts.append(subreddit_context)
+
+    if role_prompt:
+        parts.append(f"## Your Role in This Community\n\n{role_prompt}")
+
+    # Prior deliberation memory (Phase 3 RAG)
+    if prior_deliberations:
+        parts.append(prior_deliberations)
+        parts.append(_MEMORY_INSTRUCTIONS)
+
+    # Phase mandate: prefer agent-specific, fall back to v2 defaults
+    mandate = phase_mandate or _V2_PHASE_MANDATES.get(phase, "")
+    if mandate:
+        parts.append(mandate)
+
+    # Citation requirements (always included in v3)
+    parts.append(_V3_CITATION_INSTRUCTIONS)
+
+    # Tool instructions (only if tools available)
+    if tool_descriptions:
+        if isinstance(tool_descriptions, list):
+            tool_descriptions = "\n".join(f"- {d}" for d in tool_descriptions)
+        parts.append(_V3_TOOL_INSTRUCTIONS.format(tool_descriptions=tool_descriptions))
+
+    parts.append(_V2_RESPONSE_GUIDELINES)
+
+    return "\n\n".join(parts)
+
+
+def build_v3_user_prompt(
+    hypothesis: str,
+    posts: List[Post],
+    phase_observation: Optional[str] = None,
+    subreddit_core_questions: Optional[List[str]] = None,
+    max_history: int = 15,
+) -> str:
+    """Build a v3 user prompt with subreddit context."""
+    parts = [f"## Hypothesis Under Deliberation\n\n{hypothesis}"]
+
+    if subreddit_core_questions:
+        parts.append(
+            "## Core Questions for This Community\n\n"
+            + "\n".join(f"- {q}" for q in subreddit_core_questions)
+        )
+
+    if phase_observation:
+        parts.append(f"\n## Observer Note\n\n{phase_observation}")
+
+    if posts:
+        parts.append("\n## Conversation History\n")
+        recent = posts[-max_history:]
+        for i, post in enumerate(recent):
+            post_num = len(posts) - len(recent) + i + 1
+            parts.append(
+                f"\n**Post #{post_num} [{post.agent_id}] "
+                f"({post.stance.value}, {post.phase.value}):**\n"
+                f"{post.content}"
+            )
+
+    parts.append(
+        "\n\n## Your Turn\n\n"
+        "Respond with your analysis. Remember your persona, current phase mandate, "
+        "citation requirements, and the response format guidelines.\n\n"
+        "Use your available research tools to find evidence before making claims."
+    )
+
+    return "\n".join(parts)
+
+
+def build_memory_context(retrieved_memories: "RetrievedMemories") -> str:
+    """Build the prior deliberation context for injection into prompts.
+
+    Uses RetrievedMemories.format_for_prompt() to produce the text.
+    Returns empty string if no memories are available.
+
+    This is a thin wrapper that can be extended later to add filtering,
+    relevance thresholds, or annotation handling.
+    """
+    # Import here to avoid circular dependency
+    from colloquip.memory.retriever import RetrievedMemories
+
+    if not isinstance(retrieved_memories, RetrievedMemories):
+        return ""
+
+    if not retrieved_memories.arena and not retrieved_memories.global_results:
+        return ""
+
+    return retrieved_memories.format_for_prompt()
+
+
+def build_subreddit_context(
+    subreddit_name: str,
+    subreddit_description: str,
+    thinking_type: str,
+    core_questions: Optional[List[str]] = None,
+    decision_context: str = "",
+) -> str:
+    """Build the subreddit context section for the system prompt."""
+    parts = [
+        f"## Community: r/{subreddit_name}",
+        f"\n{subreddit_description}",
+        f"\n**Thinking Type**: {thinking_type}",
+    ]
+
+    if decision_context:
+        parts.append(f"**Decision Context**: {decision_context}")
+
+    if core_questions:
+        parts.append("\n**Core Questions**:")
+        for q in core_questions:
+            parts.append(f"- {q}")
+
+    return "\n".join(parts)

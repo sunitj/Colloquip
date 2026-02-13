@@ -1,7 +1,6 @@
 """Tests for the Colloquip REST API and WebSocket endpoints."""
 
 import asyncio
-import json
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -34,9 +33,12 @@ class TestHealth:
 
 class TestCreateDeliberation:
     async def test_create_session(self, client):
-        resp = await client.post("/api/deliberations", json={
-            "hypothesis": "Test hypothesis",
-        })
+        resp = await client.post(
+            "/api/deliberations",
+            json={
+                "hypothesis": "Test hypothesis",
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["hypothesis"] == "Test hypothesis"
@@ -44,12 +46,15 @@ class TestCreateDeliberation:
         assert "id" in data
 
     async def test_create_session_with_options(self, client):
-        resp = await client.post("/api/deliberations", json={
-            "hypothesis": "Another hypothesis",
-            "mode": "mock",
-            "seed": 123,
-            "max_turns": 10,
-        })
+        resp = await client.post(
+            "/api/deliberations",
+            json={
+                "hypothesis": "Another hypothesis",
+                "mode": "mock",
+                "seed": 123,
+                "max_turns": 10,
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["hypothesis"] == "Another hypothesis"
@@ -63,24 +68,25 @@ class TestCreateDeliberation:
         assert resp.status_code == 422
 
     async def test_create_session_invalid_mode(self, client):
-        resp = await client.post("/api/deliberations", json={
-            "hypothesis": "Test", "mode": "invalid"
-        })
+        resp = await client.post(
+            "/api/deliberations", json={"hypothesis": "Test", "mode": "invalid"}
+        )
         assert resp.status_code == 422
 
     async def test_create_session_invalid_max_turns(self, client):
-        resp = await client.post("/api/deliberations", json={
-            "hypothesis": "Test", "max_turns": 0
-        })
+        resp = await client.post("/api/deliberations", json={"hypothesis": "Test", "max_turns": 0})
         assert resp.status_code == 422
 
 
 class TestGetSession:
     async def test_get_session(self, client):
         # Create first
-        create_resp = await client.post("/api/deliberations", json={
-            "hypothesis": "Test hypothesis",
-        })
+        create_resp = await client.post(
+            "/api/deliberations",
+            json={
+                "hypothesis": "Test hypothesis",
+            },
+        )
         session_id = create_resp.json()["id"]
 
         # Retrieve
@@ -95,15 +101,19 @@ class TestGetSession:
 
     async def test_get_nonexistent_session(self, client):
         from uuid import uuid4
+
         resp = await client.get(f"/api/deliberations/{uuid4()}")
         assert resp.status_code == 404
 
 
 class TestGetEnergy:
     async def test_get_energy_empty(self, client):
-        create_resp = await client.post("/api/deliberations", json={
-            "hypothesis": "Test hypothesis",
-        })
+        create_resp = await client.post(
+            "/api/deliberations",
+            json={
+                "hypothesis": "Test hypothesis",
+            },
+        )
         session_id = create_resp.json()["id"]
 
         resp = await client.get(f"/api/deliberations/{session_id}/energy")
@@ -115,9 +125,12 @@ class TestGetEnergy:
 
 class TestGetPosts:
     async def test_get_posts_empty(self, client):
-        create_resp = await client.post("/api/deliberations", json={
-            "hypothesis": "Test hypothesis",
-        })
+        create_resp = await client.post(
+            "/api/deliberations",
+            json={
+                "hypothesis": "Test hypothesis",
+            },
+        )
         session_id = create_resp.json()["id"]
 
         resp = await client.get(f"/api/deliberations/{session_id}/posts")
@@ -128,17 +141,18 @@ class TestGetPosts:
 class TestSSEStreaming:
     async def test_start_and_stream(self, client):
         """Start a deliberation and verify SSE events are streamed."""
-        create_resp = await client.post("/api/deliberations", json={
-            "hypothesis": "Test hypothesis",
-            "mode": "mock",
-            "max_turns": 3,
-        })
+        create_resp = await client.post(
+            "/api/deliberations",
+            json={
+                "hypothesis": "Test hypothesis",
+                "mode": "mock",
+                "max_turns": 3,
+            },
+        )
         session_id = create_resp.json()["id"]
 
         # Start the deliberation via SSE
-        async with client.stream(
-            "POST", f"/api/deliberations/{session_id}/start"
-        ) as resp:
+        async with client.stream("POST", f"/api/deliberations/{session_id}/start") as resp:
             assert resp.status_code == 200
 
             event_types = set()
@@ -161,6 +175,7 @@ class TestSSEStreaming:
     async def test_start_nonexistent_session(self, client):
         """Starting a non-existent session returns 404."""
         from uuid import uuid4
+
         resp = await client.post(f"/api/deliberations/{uuid4()}/start")
         assert resp.status_code == 404
 
@@ -168,6 +183,7 @@ class TestSSEStreaming:
 class TestIntervention:
     async def test_intervene_nonexistent_session(self, client):
         from uuid import uuid4
+
         resp = await client.post(
             f"/api/deliberations/{uuid4()}/intervene",
             json={"type": "question", "content": "What about safety?"},
@@ -175,9 +191,12 @@ class TestIntervention:
         assert resp.status_code == 404
 
     async def test_intervene_invalid_type(self, client):
-        create_resp = await client.post("/api/deliberations", json={
-            "hypothesis": "Test hypothesis",
-        })
+        create_resp = await client.post(
+            "/api/deliberations",
+            json={
+                "hypothesis": "Test hypothesis",
+            },
+        )
         session_id = create_resp.json()["id"]
         resp = await client.post(
             f"/api/deliberations/{session_id}/intervene",
@@ -186,9 +205,12 @@ class TestIntervention:
         assert resp.status_code == 422
 
     async def test_intervene_empty_content(self, client):
-        create_resp = await client.post("/api/deliberations", json={
-            "hypothesis": "Test hypothesis",
-        })
+        create_resp = await client.post(
+            "/api/deliberations",
+            json={
+                "hypothesis": "Test hypothesis",
+            },
+        )
         session_id = create_resp.json()["id"]
         resp = await client.post(
             f"/api/deliberations/{session_id}/intervene",
@@ -199,9 +221,12 @@ class TestIntervention:
 
 class TestGetEvents:
     async def test_get_events_empty(self, client):
-        create_resp = await client.post("/api/deliberations", json={
-            "hypothesis": "Test hypothesis",
-        })
+        create_resp = await client.post(
+            "/api/deliberations",
+            json={
+                "hypothesis": "Test hypothesis",
+            },
+        )
         session_id = create_resp.json()["id"]
 
         resp = await client.get(f"/api/deliberations/{session_id}/events")
@@ -209,9 +234,12 @@ class TestGetEvents:
         assert resp.json()["events"] == []
 
     async def test_get_events_with_since(self, client):
-        create_resp = await client.post("/api/deliberations", json={
-            "hypothesis": "Test hypothesis",
-        })
+        create_resp = await client.post(
+            "/api/deliberations",
+            json={
+                "hypothesis": "Test hypothesis",
+            },
+        )
         session_id = create_resp.json()["id"]
 
         resp = await client.get(f"/api/deliberations/{session_id}/events?since=0")

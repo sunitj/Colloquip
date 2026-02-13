@@ -6,12 +6,11 @@ When a real LLM is available, the same harness can be used to compare
 prompt versions against actual Claude output.
 """
 
-import asyncio
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set
 
 from colloquip.agents.base import BaseDeliberationAgent
-from colloquip.config import EnergyConfig, ObserverConfig
+from colloquip.config import EnergyConfig
 from colloquip.energy import EnergyCalculator
 from colloquip.engine import EmergentDeliberationEngine
 from colloquip.llm.mock import MockBehavior, MockLLM
@@ -21,7 +20,6 @@ from colloquip.models import (
     DeliberationSession,
     EnergyUpdate,
     Phase,
-    PhaseSignal,
     Post,
 )
 from colloquip.observer import ObserverAgent
@@ -129,7 +127,9 @@ async def evaluate_prompt_version(
         min_posts=12,
     )
 
-    session = DeliberationSession(hypothesis="GLP-1 agonists may improve cognitive function in Alzheimer's patients")
+    session = DeliberationSession(
+        hypothesis="GLP-1 agonists may improve cognitive function in Alzheimer's patients"
+    )
 
     posts: List[Post] = []
     prev_phase: Optional[Phase] = None
@@ -164,7 +164,9 @@ async def evaluate_prompt_version(
     if posts:
         result.avg_claims_per_post = sum(len(p.key_claims) for p in posts) / len(posts)
         result.avg_questions_per_post = sum(len(p.questions_raised) for p in posts) / len(posts)
-        result.avg_connections_per_post = sum(len(p.connections_identified) for p in posts) / len(posts)
+        result.avg_connections_per_post = sum(len(p.connections_identified) for p in posts) / len(
+            posts
+        )
 
     if result.energy_curve:
         result.final_energy = result.energy_curve[-1]
@@ -183,6 +185,7 @@ async def compare_versions(
     """Run evaluation for multiple prompt versions and return results."""
     if versions is None:
         from colloquip.agents.prompts import PROMPT_VERSIONS
+
         versions = list(PROMPT_VERSIONS.keys())
 
     results = []

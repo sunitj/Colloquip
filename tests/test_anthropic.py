@@ -1,8 +1,6 @@
 """Tests for Anthropic Claude adapter response parsing."""
 
-import pytest
-
-from colloquip.llm.anthropic import parse_agent_response, _extract_list_items
+from colloquip.llm.anthropic import _extract_list_items, parse_agent_response
 from colloquip.models import AgentStance
 
 
@@ -84,12 +82,7 @@ class TestParseAgentResponse:
         assert result.stance == AgentStance.SUPPORTIVE
 
     def test_partial_response(self):
-        raw = (
-            "Analysis here.\n\n"
-            "**Stance**: NEUTRAL\n\n"
-            "**Key Claims**:\n"
-            "- One claim\n"
-        )
+        raw = "Analysis here.\n\n**Stance**: NEUTRAL\n\n**Key Claims**:\n- One claim\n"
         result = parse_agent_response(raw)
         assert result.stance == AgentStance.NEUTRAL
         assert len(result.key_claims) == 1

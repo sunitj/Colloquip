@@ -40,9 +40,7 @@ class BaseDeliberationAgent:
     def display_name(self) -> str:
         return self.config.display_name
 
-    def should_respond(
-        self, posts: List[Post], phase: Phase
-    ) -> Tuple[bool, List[str]]:
+    def should_respond(self, posts: List[Post], phase: Phase) -> Tuple[bool, List[str]]:
         """Evaluate trigger rules to decide if agent should respond."""
         return self.trigger_evaluator.evaluate(posts, phase)
 

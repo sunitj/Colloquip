@@ -1,0 +1,15 @@
+# Staging engine configuration overrides
+# Mock embeddings, relaxed limits for testing
+
+engine:
+  max_turns: 30
+
+energy:
+  min_posts: 8
+  max_posts: 30
+  energy_threshold: 0.25
+  low_energy_rounds: 2
+
+observer:
+  hysteresis_threshold: 2
+  min_posts_before_converge: 8

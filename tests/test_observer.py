@@ -4,7 +4,6 @@ import pytest
 
 from colloquip.models import AgentStance, Citation, Phase
 from colloquip.observer import ObserverAgent
-
 from tests.conftest import create_post
 
 
@@ -38,9 +37,7 @@ class TestMetricCalculation:
         assert metrics.topic_diversity == pytest.approx(4 / 6, abs=0.01)
 
     def test_citation_density(self, observer):
-        citation = Citation(
-            document_id="D1", title="Test", excerpt="Excerpt", relevance=0.9
-        )
+        citation = Citation(document_id="D1", title="Test", excerpt="Excerpt", relevance=0.9)
         posts = [
             create_post(citations=[citation, citation]),
             create_post(citations=[citation], agent_id="chemistry"),
@@ -82,9 +79,7 @@ class TestPhaseDetection:
 
     def test_debate_detected(self, observer):
         """High disagreement + citations → DEBATE after sustained signal."""
-        citation = Citation(
-            document_id="D1", title="Paper", excerpt="Evidence", relevance=0.9
-        )
+        citation = Citation(document_id="D1", title="Paper", excerpt="Evidence", relevance=0.9)
         debate_posts = [
             create_post(
                 stance=AgentStance.CRITICAL,
@@ -135,9 +130,7 @@ class TestPhaseDetection:
 class TestHysteresis:
     def test_single_signal_no_transition(self, observer):
         """One signal shouldn't cause phase change."""
-        citation = Citation(
-            document_id="D1", title="P", excerpt="E", relevance=0.9
-        )
+        citation = Citation(document_id="D1", title="P", excerpt="E", relevance=0.9)
         debate_posts = [
             create_post(
                 stance=AgentStance.CRITICAL,
@@ -151,9 +144,7 @@ class TestHysteresis:
 
     def test_three_consecutive_signals_cause_transition(self, observer):
         """Three consecutive signals → transition."""
-        citation = Citation(
-            document_id="D1", title="P", excerpt="E", relevance=0.9
-        )
+        citation = Citation(document_id="D1", title="P", excerpt="E", relevance=0.9)
         debate_posts = [
             create_post(
                 stance=AgentStance.CRITICAL,
@@ -169,9 +160,7 @@ class TestHysteresis:
 
     def test_interrupted_signal_resets_counter(self, observer):
         """Interrupted signal → counter resets, no transition."""
-        citation = Citation(
-            document_id="D1", title="P", excerpt="E", relevance=0.9
-        )
+        citation = Citation(document_id="D1", title="P", excerpt="E", relevance=0.9)
         debate_posts = [
             create_post(
                 stance=AgentStance.CRITICAL,
@@ -205,9 +194,7 @@ class TestConfidence:
         assert signal.confidence >= 0.8
 
     def test_lower_confidence_during_pending_transition(self, observer):
-        citation = Citation(
-            document_id="D1", title="P", excerpt="E", relevance=0.9
-        )
+        citation = Citation(document_id="D1", title="P", excerpt="E", relevance=0.9)
         debate_posts = [
             create_post(
                 stance=AgentStance.CRITICAL,
@@ -252,10 +239,7 @@ class TestMetaObservations:
         assert "circling" in signal.observation
 
     def test_high_disagreement_observation(self, observer):
-        posts = [
-            create_post(stance=AgentStance.CRITICAL, agent_id=f"a{i}")
-            for i in range(8)
-        ]
+        posts = [create_post(stance=AgentStance.CRITICAL, agent_id=f"a{i}") for i in range(8)]
         signal = observer.detect_phase(posts)
         assert signal.observation is not None
         assert "disagreement" in signal.observation

@@ -6,6 +6,7 @@ described in the design — the 'magic' that arises from simple rules.
 
 import pytest
 
+from colloquip.cli import create_default_agents
 from colloquip.config import EnergyConfig, ObserverConfig
 from colloquip.energy import EnergyCalculator
 from colloquip.engine import EmergentDeliberationEngine
@@ -20,8 +21,7 @@ from colloquip.models import (
     SessionStatus,
 )
 from colloquip.observer import ObserverAgent
-from colloquip.cli import create_default_agents
-from tests.conftest import create_session, create_post
+from tests.conftest import create_post, create_session
 
 
 def _create_engine(
@@ -70,9 +70,7 @@ class TestRedTeamPreventsConsensus:
 
         # Red Team should have posted at some point (after seed phase at minimum)
         red_team_posts = [p for p in posts if p.agent_id == "redteam"]
-        assert len(red_team_posts) >= 1, (
-            "Red Team did not respond despite supportive consensus"
-        )
+        assert len(red_team_posts) >= 1, "Red Team did not respond despite supportive consensus"
 
     @pytest.mark.asyncio
     @pytest.mark.integration
@@ -259,9 +257,7 @@ class TestMultiAgentDiversity:
                 agent_ids.add(event.agent_id)
 
         expected_agents = {"biology", "chemistry", "admet", "clinical", "regulatory", "redteam"}
-        assert expected_agents.issubset(agent_ids), (
-            f"Missing agents: {expected_agents - agent_ids}"
-        )
+        assert expected_agents.issubset(agent_ids), f"Missing agents: {expected_agents - agent_ids}"
 
     @pytest.mark.asyncio
     @pytest.mark.integration
@@ -276,9 +272,7 @@ class TestMultiAgentDiversity:
                 stances_seen.add(event.stance)
 
         # Mixed behavior should produce at least 2 distinct stances
-        assert len(stances_seen) >= 2, (
-            f"Expected at least 2 stances, saw: {stances_seen}"
-        )
+        assert len(stances_seen) >= 2, f"Expected at least 2 stances, saw: {stances_seen}"
 
 
 class TestConsensusQuality:
@@ -326,7 +320,7 @@ class TestEnergyInjection:
     @pytest.mark.asyncio
     async def test_human_intervention_boosts_energy(self):
         """Human intervention should increase energy."""
-        from colloquip.models import HumanIntervention, EnergySource
+        from colloquip.models import HumanIntervention
 
         engine = _create_engine(max_turns=10, min_posts=6, seed=42)
         session = create_session()
@@ -351,9 +345,7 @@ class TestEnergyInjection:
             type="question",
             content="What about the blood-brain barrier?",
         )
-        result = await engine.handle_intervention(
-            session, intervention, posts, energy_history
-        )
+        result = await engine.handle_intervention(session, intervention, posts, energy_history)
 
         assert len(result) >= 1  # At least the human post
         assert energy_history[-1] >= energy_before, "Energy should not decrease after intervention"
