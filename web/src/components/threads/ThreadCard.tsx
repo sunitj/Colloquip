@@ -8,10 +8,10 @@ interface ThreadCardProps {
 }
 
 const STATUS_STYLES: Record<string, string> = {
-  active: 'text-green-400',
-  paused: 'text-amber-400',
+  active: 'text-pastel-mint',
+  paused: 'text-pastel-lemon',
   completed: 'text-text-muted',
-  failed: 'text-red-400',
+  failed: 'text-pastel-rose',
   cancelled: 'text-text-muted',
 };
 
@@ -24,12 +24,12 @@ export function ThreadCard({ thread }: ThreadCardProps) {
       params={{ name: thread.subreddit_name, threadId: thread.id }}
       className="block"
     >
-      <div className="rounded-lg border border-border-subtle bg-bg-secondary p-4 hover:bg-bg-tertiary/50 hover:border-border-default transition-all">
+      <div className="rounded-lg border border-border-subtle bg-bg-secondary p-5 border-l-2 hover:bg-bg-tertiary/50 hover:border-border-default transition-all" style={{ borderLeftColor: phaseColor }}>
         <div className="flex items-start justify-between gap-3 mb-2">
           <h3 className="text-sm font-semibold text-text-primary leading-snug">
             {thread.title}
           </h3>
-          <span className={cn('text-[10px] font-semibold uppercase shrink-0', STATUS_STYLES[thread.status] || 'text-text-muted')}>
+          <span className={cn('text-xs font-semibold uppercase shrink-0', STATUS_STYLES[thread.status] || 'text-text-muted')}>
             {thread.status}
           </span>
         </div>
@@ -38,7 +38,7 @@ export function ThreadCard({ thread }: ThreadCardProps) {
           {thread.hypothesis}
         </p>
 
-        <div className="flex items-center gap-3 text-[11px] text-text-muted">
+        <div className="flex items-center gap-3 text-xs text-text-muted">
           <span
             className="font-semibold uppercase tracking-wider"
             style={{ color: phaseColor }}

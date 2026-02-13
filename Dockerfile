@@ -30,6 +30,8 @@ ENV PATH="/app/.venv/bin:$PATH"
 # Copy application source
 COPY src/ ./src/
 COPY config/ ./config/
+COPY alembic/ ./alembic/
+COPY alembic.ini ./
 
 # Copy frontend build from stage 2
 COPY --from=frontend-build /web/dist ./static/

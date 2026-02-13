@@ -10,12 +10,12 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, subtitle, actions, breadcrumb, className }: PageHeaderProps) {
   return (
-    <div className={cn('mb-6', className)}>
+    <div className={cn('mb-10', className)}>
       {breadcrumb && <div className="mb-2">{breadcrumb}</div>}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-text-primary">{title}</h1>
-          {subtitle && <p className="text-sm text-text-secondary mt-0.5">{subtitle}</p>}
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-text-primary font-[family-name:var(--font-heading)]">{title}</h1>
+          {subtitle && <p className="text-sm sm:text-base text-text-secondary mt-1">{subtitle}</p>}
         </div>
         {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
       </div>

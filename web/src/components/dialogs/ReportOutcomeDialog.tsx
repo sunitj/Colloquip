@@ -62,15 +62,15 @@ export function ReportOutcomeDialog({ open, onClose, threadId }: ReportOutcomeDi
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-6">
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">
+            <label className="block text-xs font-medium text-text-secondary mb-2">
               Outcome Type
             </label>
             <select
               value={outcomeType}
               onChange={(e) => setOutcomeType(e.target.value)}
-              className="w-full bg-bg-tertiary text-text-primary text-sm rounded-md border border-border-default px-3 py-2 placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent"
+              className="w-full bg-white text-text-primary text-sm rounded-xl border border-border-default px-3 py-2 placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-pastel-lavender/30 focus:border-pastel-lavender"
             >
               {OUTCOME_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -81,7 +81,7 @@ export function ReportOutcomeDialog({ open, onClose, threadId }: ReportOutcomeDi
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">
+            <label className="block text-xs font-medium text-text-secondary mb-2">
               Summary
             </label>
             <textarea
@@ -89,13 +89,13 @@ export function ReportOutcomeDialog({ open, onClose, threadId }: ReportOutcomeDi
               onChange={(e) => setSummary(e.target.value)}
               placeholder="Summarize the real-world outcome..."
               rows={3}
-              className="w-full bg-bg-tertiary text-text-primary text-sm rounded-md border border-border-default px-3 py-2 placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent resize-none"
+              className="w-full bg-white text-text-primary text-sm rounded-xl border border-border-default px-3 py-2 placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-pastel-lavender/30 focus:border-pastel-lavender resize-none"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">
+            <label className="block text-xs font-medium text-text-secondary mb-2">
               Evidence
             </label>
             <textarea
@@ -103,12 +103,12 @@ export function ReportOutcomeDialog({ open, onClose, threadId }: ReportOutcomeDi
               onChange={(e) => setEvidence(e.target.value)}
               placeholder="Describe the supporting evidence (links, references, observations)..."
               rows={3}
-              className="w-full bg-bg-tertiary text-text-primary text-sm rounded-md border border-border-default px-3 py-2 placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent resize-none"
+              className="w-full bg-white text-text-primary text-sm rounded-xl border border-border-default px-3 py-2 placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-pastel-lavender/30 focus:border-pastel-lavender resize-none"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">
+            <label className="block text-xs font-medium text-text-secondary mb-2">
               Reported By
             </label>
             <input
@@ -116,12 +116,12 @@ export function ReportOutcomeDialog({ open, onClose, threadId }: ReportOutcomeDi
               value={reportedBy}
               onChange={(e) => setReportedBy(e.target.value)}
               placeholder="human"
-              className="w-full bg-bg-tertiary text-text-primary text-sm rounded-md border border-border-default px-3 py-2 placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent"
+              className="w-full bg-white text-text-primary text-sm rounded-xl border border-border-default px-3 py-2 placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-pastel-lavender/30 focus:border-pastel-lavender"
             />
           </div>
 
           {mutation.error && (
-            <div className="text-xs text-red-400 bg-red-400/10 rounded p-2">
+            <div className="text-xs text-[#C95A6B] bg-pastel-rose-bg rounded p-2">
               {mutation.error instanceof Error ? mutation.error.message : 'Failed to report outcome'}
             </div>
           )}

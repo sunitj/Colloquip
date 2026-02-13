@@ -58,13 +58,13 @@ export function CreateWatcherDialog({ open, onClose, subredditName }: CreateWatc
           <DialogDescription>Set up automated monitoring to detect events that may need deliberation.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-6">
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Type</label>
+            <label className="block text-xs font-medium text-text-secondary mb-2">Type</label>
             <select
               value={watcherType}
               onChange={(e) => setWatcherType(e.target.value)}
-              className="w-full bg-bg-tertiary text-text-secondary text-sm rounded-md border border-border-default px-3 py-2 focus:outline-none focus:ring-1 focus:ring-accent"
+              className="w-full bg-white text-text-secondary text-sm rounded-xl border border-border-default px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pastel-lavender/30 focus:border-pastel-lavender"
             >
               <option value="literature">Literature</option>
               <option value="scheduled">Scheduled</option>
@@ -73,42 +73,42 @@ export function CreateWatcherDialog({ open, onClose, subredditName }: CreateWatc
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Name</label>
+            <label className="block text-xs font-medium text-text-secondary mb-2">Name</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. PubMed SGLT2 monitor"
-              className="w-full bg-bg-tertiary text-text-primary text-sm rounded-md border border-border-default px-3 py-2 placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent"
+              className="w-full bg-white text-text-primary text-sm rounded-xl border border-border-default px-3 py-2 placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-pastel-lavender/30 focus:border-pastel-lavender"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Description</label>
+            <label className="block text-xs font-medium text-text-secondary mb-2">Description</label>
             <input
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="What does this watcher monitor?"
-              className="w-full bg-bg-tertiary text-text-primary text-sm rounded-md border border-border-default px-3 py-2 placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent"
+              className="w-full bg-white text-text-primary text-sm rounded-xl border border-border-default px-3 py-2 placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-pastel-lavender/30 focus:border-pastel-lavender"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Query</label>
+            <label className="block text-xs font-medium text-text-secondary mb-2">Query</label>
             <textarea
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search query or monitoring expression..."
               rows={2}
-              className="w-full bg-bg-tertiary text-text-primary text-sm rounded-md border border-border-default px-3 py-2 placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent resize-none"
+              className="w-full bg-white text-text-primary text-sm rounded-xl border border-border-default px-3 py-2 placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-pastel-lavender/30 focus:border-pastel-lavender resize-none"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">
+            <label className="block text-xs font-medium text-text-secondary mb-2">
               Poll Interval ({Math.round(pollInterval / 60)} min)
             </label>
             <input
@@ -120,14 +120,14 @@ export function CreateWatcherDialog({ open, onClose, subredditName }: CreateWatc
               step={300}
               className="w-full accent-accent"
             />
-            <div className="flex justify-between text-[10px] text-text-muted mt-0.5">
+            <div className="flex justify-between text-xs text-text-muted mt-0.5">
               <span>5 min</span>
               <span>24 hr</span>
             </div>
           </div>
 
           {mutation.error && (
-            <div className="text-xs text-red-400 bg-red-400/10 rounded p-2">
+            <div className="text-xs text-[#C95A6B] bg-pastel-rose-bg rounded p-2">
               {mutation.error instanceof Error ? mutation.error.message : 'Failed to create watcher'}
             </div>
           )}

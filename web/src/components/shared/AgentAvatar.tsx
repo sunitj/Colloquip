@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { getAgentColor, getAgentBgColor, getAgentInitials } from '@/lib/agentColors';
+import { getAgentColor, getAgentTextColor, getAgentInitials } from '@/lib/agentColors';
 
 interface AgentAvatarProps {
   agentType: string;
@@ -10,14 +10,14 @@ interface AgentAvatarProps {
 }
 
 const sizeStyles = {
-  sm: 'w-6 h-6 text-[9px]',
-  md: 'w-8 h-8 text-[11px]',
-  lg: 'w-10 h-10 text-xs',
+  sm: 'w-7 h-7 text-xs',
+  md: 'w-9 h-9 text-xs',
+  lg: 'w-11 h-11 text-xs',
 };
 
 export function AgentAvatar({ agentType, displayName, isRedTeam, size = 'md', className }: AgentAvatarProps) {
-  const color = getAgentColor(agentType, isRedTeam);
-  const bgColor = getAgentBgColor(color);
+  const bgColor = getAgentColor(agentType, isRedTeam);
+  const textColor = getAgentTextColor(agentType, isRedTeam);
   const initials = getAgentInitials(displayName);
 
   return (
@@ -27,7 +27,7 @@ export function AgentAvatar({ agentType, displayName, isRedTeam, size = 'md', cl
         sizeStyles[size],
         className,
       )}
-      style={{ backgroundColor: bgColor, color, border: `1px solid ${color}40` }}
+      style={{ backgroundColor: `${bgColor}25`, color: textColor }}
       title={displayName}
     >
       {initials}

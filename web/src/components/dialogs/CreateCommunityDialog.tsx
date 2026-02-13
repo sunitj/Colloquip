@@ -60,49 +60,49 @@ export function CreateCommunityDialog({ open, onClose }: CreateCommunityDialogPr
           <DialogDescription>Set up a new deliberation community with specialized agents.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-6">
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Name (slug)</label>
+            <label className="block text-xs font-semibold text-text-primary mb-2">Name (slug)</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. drug_discovery"
-              className="w-full bg-bg-tertiary text-text-primary text-sm rounded-md border border-border-default px-3 py-2 placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent"
+              className="w-full bg-white text-text-primary text-sm rounded-xl border border-border-default px-3 py-2 h-11 placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent focus:bg-bg-secondary transition-all duration-200"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Display Name</label>
+            <label className="block text-xs font-semibold text-text-primary mb-2">Display Name</label>
             <input
               type="text"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder="e.g. Drug Discovery"
-              className="w-full bg-bg-tertiary text-text-primary text-sm rounded-md border border-border-default px-3 py-2 placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent"
+              className="w-full bg-white text-text-primary text-sm rounded-xl border border-border-default px-3 py-2 h-11 placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent focus:bg-bg-secondary transition-all duration-200"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Description</label>
+            <label className="block text-xs font-semibold text-text-primary mb-2">Description</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="What will this community deliberate about?"
               rows={3}
-              className="w-full bg-bg-tertiary text-text-primary text-sm rounded-md border border-border-default px-3 py-2 placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent resize-none"
+              className="w-full bg-white text-text-primary text-sm rounded-xl border border-border-default px-3 py-2 placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent focus:bg-bg-secondary resize-none transition-all duration-200"
               required
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-6">
             <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1">Thinking Type</label>
+              <label className="block text-xs font-semibold text-text-primary mb-2">Thinking Type</label>
               <select
                 value={thinkingType}
                 onChange={(e) => setThinkingType(e.target.value)}
-                className="w-full bg-bg-tertiary text-text-secondary text-sm rounded-md border border-border-default px-3 py-2 focus:outline-none focus:ring-1 focus:ring-accent"
+                className="w-full bg-white text-text-secondary text-sm rounded-xl border border-border-default px-3 py-2 h-11 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent focus:bg-bg-secondary transition-all duration-200"
               >
                 <option value="assessment">Assessment</option>
                 <option value="analysis">Analysis</option>
@@ -111,19 +111,19 @@ export function CreateCommunityDialog({ open, onClose }: CreateCommunityDialogPr
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1">Primary Domain</label>
+              <label className="block text-xs font-semibold text-text-primary mb-2">Primary Domain</label>
               <input
                 type="text"
                 value={primaryDomain}
                 onChange={(e) => setPrimaryDomain(e.target.value)}
                 placeholder="e.g. pharmacology"
-                className="w-full bg-bg-tertiary text-text-primary text-sm rounded-md border border-border-default px-3 py-2 placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent"
+                className="w-full bg-white text-text-primary text-sm rounded-xl border border-border-default px-3 py-2 h-11 placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent focus:bg-bg-secondary transition-all duration-200"
               />
             </div>
           </div>
 
           {mutation.error && (
-            <div className="text-xs text-red-400 bg-red-400/10 rounded p-2">
+            <div className="text-xs text-[#C95A6B] bg-pastel-rose-bg border border-pastel-rose/30 rounded-xl p-2">
               {mutation.error instanceof Error ? mutation.error.message : 'Failed to create community'}
             </div>
           )}

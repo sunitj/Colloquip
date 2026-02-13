@@ -17,7 +17,7 @@ export function TabsList({ className, ...props }: TabsListProps) {
   return (
     <div
       className={cn(
-        'inline-flex items-center gap-0.5 rounded-md bg-bg-tertiary p-0.5',
+        'inline-flex items-center gap-1 border-b border-border-default',
         className,
       )}
       role="tablist"
@@ -37,9 +37,9 @@ export function TabsTrigger({ className, active, ...props }: TabsTriggerProps) {
       role="tab"
       aria-selected={active}
       className={cn(
-        'px-3 py-1.5 text-xs font-semibold uppercase tracking-wide rounded-sm transition-colors cursor-pointer',
+        'px-4 py-2.5 text-sm font-medium transition-all duration-200 cursor-pointer -mb-px',
         active
-          ? 'bg-bg-secondary text-text-primary'
+          ? 'text-text-primary border-b-2 border-accent'
           : 'text-text-muted hover:text-text-secondary',
         className,
       )}

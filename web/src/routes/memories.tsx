@@ -25,9 +25,9 @@ function getConfidenceLevel(confidence: number): 'high' | 'medium' | 'low' {
 }
 
 function getConfidenceColor(confidence: number): string {
-  if (confidence > 0.8) return 'bg-green-500';
-  if (confidence > 0.5) return 'bg-amber-500';
-  return 'bg-red-500';
+  if (confidence > 0.8) return 'bg-pastel-mint';
+  if (confidence > 0.5) return 'bg-pastel-lemon';
+  return 'bg-pastel-rose';
 }
 
 function getAnnotationVariant(type: AnnotationType): 'critical' | 'novel' | 'supportive' | 'phase' {
@@ -71,7 +71,7 @@ function MemoriesPage() {
   });
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-4 sm:p-6 md:p-8 lg:p-10 max-w-4xl mx-auto">
       <PageHeader
         title="Memories"
         subtitle="Institutional knowledge from deliberations"
@@ -84,10 +84,10 @@ function MemoriesPage() {
           placeholder="Search memories..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="h-9 rounded-md border border-border-default bg-bg-secondary px-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent sm:w-72"
+          className="h-10 rounded-xl border border-border-default bg-white px-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-pastel-lavender/30 focus:border-pastel-lavender focus:bg-bg-secondary transition-all duration-200 sm:w-72"
         />
         <div className="flex items-center gap-1">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted mr-2">
+          <span className="text-xs font-semibold text-text-secondary mr-2">
             Confidence
           </span>
           {(['all', 'high', 'medium', 'low'] as ConfidenceFilter[]).map((level) => (
@@ -95,10 +95,10 @@ function MemoriesPage() {
               key={level}
               onClick={() => setConfidenceFilter(level)}
               className={cn(
-                'rounded-md px-3 py-1 text-xs font-medium transition-colors cursor-pointer',
+                'rounded-lg px-3 py-1 text-xs font-medium transition-all duration-200 cursor-pointer',
                 confidenceFilter === level
-                  ? 'bg-accent text-white'
-                  : 'bg-bg-tertiary text-text-secondary hover:text-text-primary',
+                  ? 'bg-pastel-lavender text-white shadow-sm'
+                  : 'bg-bg-tertiary/50 text-text-secondary hover:text-text-primary',
               )}
             >
               {level.charAt(0).toUpperCase() + level.slice(1)}
@@ -118,7 +118,7 @@ function MemoriesPage() {
 
       {/* Error state */}
       {isError && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400">
+        <div className="rounded-xl border border-pastel-rose/30 bg-pastel-rose-bg p-4 text-sm text-[#C95A6B]">
           Failed to load memories: {error?.message ?? 'Unknown error'}
         </div>
       )}
@@ -152,7 +152,7 @@ function MemoryCard({ memory }: { memory: Memory }) {
   const [showAnnotationForm, setShowAnnotationForm] = useState(false);
 
   return (
-    <div className="rounded-lg border border-border-subtle bg-bg-secondary p-4">
+    <div className="rounded-2xl bg-bg-secondary border border-border-default p-6">
       {/* Header row */}
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-center gap-2 flex-wrap">
@@ -165,7 +165,7 @@ function MemoryCard({ memory }: { memory: Memory }) {
       {/* Confidence bar */}
       <div className="mb-3">
         <div className="flex items-center justify-between mb-1">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
+          <span className="text-xs font-semibold text-text-secondary">
             Confidence
           </span>
           <span className="text-xs text-text-secondary">
@@ -183,7 +183,7 @@ function MemoryCard({ memory }: { memory: Memory }) {
       {/* Key conclusions */}
       {memory.key_conclusions.length > 0 && (
         <div className="mb-3">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
+          <span className="text-xs font-semibold text-text-secondary">
             Key Conclusions
           </span>
           <ul className="mt-1 space-y-1">
@@ -262,7 +262,7 @@ function MemoryCard({ memory }: { memory: Memory }) {
 
 function AnnotationItem({ annotation }: { annotation: MemoryAnnotation }) {
   return (
-    <div className="rounded-md border border-border-subtle bg-bg-tertiary p-3">
+    <div className="rounded-xl bg-bg-tertiary/50 p-3">
       <div className="flex items-center gap-2 mb-1.5">
         <Badge variant={getAnnotationVariant(annotation.annotation_type)}>
           {annotation.annotation_type}
@@ -297,15 +297,15 @@ function AnnotationForm({ memoryId, onClose }: { memoryId: string; onClose: () =
   };
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-md border border-border-default bg-bg-tertiary p-3 space-y-3">
+    <form onSubmit={handleSubmit} className="rounded-xl bg-bg-tertiary/50 p-3 space-y-3">
       <div>
-        <label className="text-[10px] font-bold uppercase tracking-widest text-text-muted block mb-1">
+        <label className="text-xs font-semibold text-text-primary block mb-1">
           Type
         </label>
         <select
           value={annotationType}
           onChange={(e) => setAnnotationType(e.target.value as AnnotationType)}
-          className="h-8 w-full rounded-md border border-border-default bg-bg-secondary px-2 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
+          className="h-8 w-full rounded-xl border border-border-default bg-bg-secondary px-2 text-xs text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all duration-200"
         >
           <option value="outdated">Outdated</option>
           <option value="correction">Correction</option>
@@ -314,7 +314,7 @@ function AnnotationForm({ memoryId, onClose }: { memoryId: string; onClose: () =
         </select>
       </div>
       <div>
-        <label className="text-[10px] font-bold uppercase tracking-widest text-text-muted block mb-1">
+        <label className="text-xs font-semibold text-text-primary block mb-1">
           Content
         </label>
         <textarea
@@ -322,18 +322,18 @@ function AnnotationForm({ memoryId, onClose }: { memoryId: string; onClose: () =
           onChange={(e) => setContent(e.target.value)}
           rows={3}
           placeholder="Enter annotation content..."
-          className="w-full rounded-md border border-border-default bg-bg-secondary px-3 py-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent resize-none"
+          className="w-full rounded-xl border border-border-default bg-bg-secondary px-3 py-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent resize-none transition-all duration-200"
         />
       </div>
       <div>
-        <label className="text-[10px] font-bold uppercase tracking-widest text-text-muted block mb-1">
+        <label className="text-xs font-semibold text-text-primary block mb-1">
           Created By
         </label>
         <input
           type="text"
           value={createdBy}
           onChange={(e) => setCreatedBy(e.target.value)}
-          className="h-8 w-full rounded-md border border-border-default bg-bg-secondary px-3 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent"
+          className="h-8 w-full rounded-xl border border-border-default bg-bg-secondary px-3 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all duration-200"
         />
       </div>
       <div className="flex items-center gap-2 justify-end">
@@ -345,7 +345,7 @@ function AnnotationForm({ memoryId, onClose }: { memoryId: string; onClose: () =
         </Button>
       </div>
       {mutation.isError && (
-        <p className="text-xs text-red-400">
+        <p className="text-xs text-red-700">
           Failed to submit: {mutation.error?.message ?? 'Unknown error'}
         </p>
       )}

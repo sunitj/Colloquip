@@ -58,58 +58,58 @@ export function CreateThreadDialog({ open, onClose, subredditName }: CreateThrea
           <DialogDescription>Start a new multi-agent deliberation on a hypothesis.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-6">
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Title</label>
+            <label className="block text-xs font-semibold text-text-primary mb-2">Title</label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Brief title for the deliberation"
-              className="w-full bg-bg-tertiary text-text-primary text-sm rounded-md border border-border-default px-3 py-2 placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent"
+              className="w-full bg-white text-text-primary text-sm rounded-xl border border-border-default px-3 py-2 h-11 placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent focus:bg-bg-secondary transition-all duration-200"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Hypothesis</label>
+            <label className="block text-xs font-semibold text-text-primary mb-2">Hypothesis</label>
             <textarea
               value={hypothesis}
               onChange={(e) => setHypothesis(e.target.value)}
               placeholder="The hypothesis or question for agents to deliberate..."
               rows={4}
-              className="w-full bg-bg-tertiary text-text-primary text-sm rounded-md border border-border-default px-3 py-2 placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent resize-none"
+              className="w-full bg-white text-text-primary text-sm rounded-xl border border-border-default px-3 py-2 placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent focus:bg-bg-secondary resize-none transition-all duration-200"
               required
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-6">
             <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1">Mode</label>
+              <label className="block text-xs font-semibold text-text-primary mb-2">Mode</label>
               <select
                 value={mode}
                 onChange={(e) => setMode(e.target.value)}
-                className="w-full bg-bg-tertiary text-text-secondary text-sm rounded-md border border-border-default px-3 py-2 focus:outline-none focus:ring-1 focus:ring-accent"
+                className="w-full bg-white text-text-secondary text-sm rounded-xl border border-border-default px-3 py-2 h-11 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent focus:bg-bg-secondary transition-all duration-200"
               >
                 <option value="mock">Mock (fast, no LLM)</option>
                 <option value="live">Live (real LLM calls)</option>
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1">Max Turns</label>
+              <label className="block text-xs font-semibold text-text-primary mb-2">Max Turns</label>
               <input
                 type="number"
                 value={maxTurns}
                 onChange={(e) => setMaxTurns(parseInt(e.target.value) || 30)}
                 min={5}
                 max={200}
-                className="w-full bg-bg-tertiary text-text-primary text-sm rounded-md border border-border-default px-3 py-2 focus:outline-none focus:ring-1 focus:ring-accent"
+                className="w-full bg-white text-text-primary text-sm rounded-xl border border-border-default px-3 py-2 h-11 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent focus:bg-bg-secondary transition-all duration-200"
               />
             </div>
           </div>
 
           {mutation.error && (
-            <div className="text-xs text-red-400 bg-red-400/10 rounded p-2">
+            <div className="text-xs text-[#C95A6B] bg-pastel-rose-bg border border-pastel-rose/30 rounded-xl p-2">
               {mutation.error instanceof Error ? mutation.error.message : 'Failed to create thread'}
             </div>
           )}

@@ -21,13 +21,13 @@ export function InterventionBar({ onIntervene, status }: InterventionBarProps) {
 
   return (
     <form
-      className="flex items-center gap-2 p-3 bg-bg-elevated rounded-lg border border-border-default"
+      className="flex items-center gap-2 p-3 bg-bg-secondary rounded-xl border border-border-default"
       onSubmit={handleSubmit}
     >
       <select
         value={type}
         onChange={(e) => setType(e.target.value)}
-        className="bg-bg-tertiary text-text-secondary text-xs rounded-md border border-border-default px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-accent"
+        className="bg-bg-tertiary/50 text-text-secondary text-xs rounded-xl border border-border-default px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all duration-200"
       >
         <option value="question">Question</option>
         <option value="data">New Data</option>
@@ -39,16 +39,16 @@ export function InterventionBar({ onIntervene, status }: InterventionBarProps) {
         value={content}
         onChange={(e) => setContent(e.target.value)}
         placeholder="Inject human input into the deliberation..."
-        className="flex-1 bg-bg-tertiary text-text-primary text-sm rounded-md border border-border-default px-3 py-1.5 placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent"
+        className="flex-1 bg-white text-text-primary text-sm rounded-xl border border-border-default h-11 px-3 placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all duration-200"
         maxLength={5000}
       />
       <button
         type="submit"
         disabled={!content.trim()}
         className={cn(
-          'px-4 py-1.5 rounded-md text-sm font-medium transition-colors',
+          'px-4 py-1.5 rounded-xl text-sm font-medium transition-all duration-200',
           content.trim()
-            ? 'bg-accent text-white hover:bg-accent/90'
+            ? 'bg-[#B49ADE] text-white shadow-sm hover:bg-[#A389D0] hover:shadow-md'
             : 'bg-bg-tertiary text-text-muted cursor-not-allowed',
         )}
       >

@@ -10,7 +10,8 @@ export function CommunityHeader({ community }: CommunityHeaderProps) {
     <div className="space-y-3">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-text-primary">c/{community.name}</h1>
+          <h1 className="text-2xl font-bold text-text-primary">c/{community.name}</h1>
+          <div className="w-16 h-0.5 rounded-full mt-2 bg-gradient-to-r from-pastel-rose via-pastel-mint to-pastel-lavender" />
           {community.display_name !== community.name && (
             <div className="text-sm text-text-secondary mt-0.5">{community.display_name}</div>
           )}
@@ -32,7 +33,7 @@ export function CommunityHeader({ community }: CommunityHeaderProps) {
 
       {community.core_questions.length > 0 && (
         <div className="pt-2 border-t border-border-subtle">
-          <div className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-1.5">
+          <div className="text-xs font-semibold text-text-secondary mb-1.5">
             Core Questions
           </div>
           <ul className="space-y-1">

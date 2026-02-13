@@ -120,7 +120,7 @@ function ThreadDetailPage() {
           <Skeleton className="h-4 w-full" />
           <Skeleton className="h-96 w-full" />
         </div>
-        <div className="w-80 p-4 space-y-4 border-l border-border-default">
+        <div className="w-[var(--right-panel-width)] p-6 space-y-4 border-l border-border-default">
           <Skeleton className="h-32 w-full" />
           <Skeleton className="h-48 w-full" />
         </div>
@@ -133,7 +133,7 @@ function ThreadDetailPage() {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Header */}
-        <div className="shrink-0 px-6 pt-4 pb-3 border-b border-border-subtle">
+        <div className="shrink-0 px-4 sm:px-6 pt-4 pb-3 border-b border-border-default">
           <Breadcrumb
             items={[
               { label: 'Home', href: '/' },
@@ -142,26 +142,26 @@ function ThreadDetailPage() {
             ]}
           />
           {store.hypothesis && (
-            <h1 className="text-lg font-bold text-text-primary mt-2 leading-snug">
+            <h1 className="text-lg font-bold text-text-primary font-[family-name:var(--font-heading)] mt-2 leading-snug">
               {store.hypothesis}
             </h1>
           )}
           <div className="flex items-center gap-3 mt-1.5 text-xs text-text-muted">
             <span className={cn(
               'font-semibold uppercase',
-              store.status === 'running' ? 'text-green-400' :
+              store.status === 'running' ? 'text-green-600' :
               store.status === 'completed' ? 'text-text-muted' :
-              store.status === 'paused' ? 'text-amber-400' : 'text-text-muted',
+              store.status === 'paused' ? 'text-amber-600' : 'text-text-muted',
             )}>
               {store.status}
             </span>
             <span>{store.posts.length} posts</span>
-            {store.connected && <span className="text-green-400">live</span>}
+            {store.connected && <span className="text-green-600">live</span>}
           </div>
         </div>
 
         {/* Conversation area */}
-        <div className="flex-1 overflow-hidden px-6 py-4 relative" aria-live="polite">
+        <div className="flex-1 overflow-hidden px-4 py-3 sm:px-6 sm:py-4 relative" aria-live="polite">
           <PhaseTransitionBanner
             phase={store.phase}
             previousPhase={prevPhaseRef.current as typeof store.phase | null}
@@ -169,8 +169,8 @@ function ThreadDetailPage() {
           {store.consensus ? (
             <div className="overflow-y-auto h-full scrollbar-thin">
               <ConsensusView consensus={store.consensus} />
-              <div className="mt-8 border-t border-border-default pt-6">
-                <h3 className="text-xs font-bold uppercase tracking-widest text-text-muted mb-4">
+              <div className="mt-8 border-t border-border-subtle pt-6">
+                <h3 className="text-sm font-semibold text-text-primary mb-4">
                   Full Conversation
                 </h3>
                 <ConversationStream
@@ -190,7 +190,7 @@ function ThreadDetailPage() {
         </div>
 
         {/* Intervention bar */}
-        <div className="shrink-0 px-6 pb-4">
+        <div className="shrink-0 px-4 sm:px-6 pb-4">
           <InterventionBar onIntervene={handleIntervene} status={store.status} />
         </div>
 
@@ -198,7 +198,7 @@ function ThreadDetailPage() {
         <div className="shrink-0 border-t border-border-subtle">
           <button
             onClick={() => setShowTriggers(!showTriggers)}
-            className="w-full px-6 py-2 text-[10px] font-bold uppercase tracking-widest text-text-muted hover:text-text-secondary transition-colors text-left flex items-center gap-2"
+            className="w-full px-6 py-2 text-xs font-semibold text-text-secondary hover:text-text-primary transition-colors text-left flex items-center gap-2 cursor-pointer"
           >
             <span className={cn('transition-transform', showTriggers && 'rotate-180')}>
               &#9660;
@@ -226,13 +226,13 @@ function ThreadDetailPage() {
 
       {/* Right panel */}
       <aside className={cn(
-        'w-80 shrink-0 border-l border-border-default overflow-y-auto p-4 space-y-6 bg-bg-secondary scrollbar-thin',
+        'w-[var(--right-panel-width)] shrink-0 border-l border-border-default overflow-y-auto p-6 space-y-8 bg-bg-secondary scrollbar-thin',
         'fixed inset-y-0 right-0 z-40 lg:relative lg:z-auto transition-transform duration-200',
         showRightPanel ? 'translate-x-0' : 'translate-x-full lg:translate-x-0',
       )}>
         {/* Energy */}
         <div>
-          <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-3">
+          <h3 className="text-sm font-semibold text-text-primary mb-3">
             Energy
           </h3>
           <EnergyChart history={store.energyHistory} />
@@ -240,7 +240,7 @@ function ThreadDetailPage() {
 
         {/* Phase */}
         <div>
-          <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-3">
+          <h3 className="text-sm font-semibold text-text-primary mb-3">
             Phase
           </h3>
           <PhaseTimeline
@@ -252,7 +252,7 @@ function ThreadDetailPage() {
         {/* Agents */}
         {agents.length > 0 && (
           <div>
-            <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-3">
+            <h3 className="text-sm font-semibold text-text-primary mb-3">
               Agents ({agents.length})
             </h3>
             <AgentRoster
@@ -269,7 +269,7 @@ function ThreadDetailPage() {
 
         {/* Export */}
         <div>
-          <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-3">
+          <h3 className="text-sm font-semibold text-text-primary mb-3">
             Export
           </h3>
           <div className="flex gap-2">
@@ -285,7 +285,7 @@ function ThreadDetailPage() {
         {/* Report Outcome (completed threads only) */}
         {store.status === 'completed' && (
           <div>
-            <h3 className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-3">
+            <h3 className="text-sm font-semibold text-text-primary mb-3">
               Feedback
             </h3>
             <Button size="sm" variant="outline" onClick={() => setShowOutcomeDialog(true)}>

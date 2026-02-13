@@ -47,7 +47,7 @@ export function CommunityWatchersPanel({ subredditName }: CommunityWatchersPanel
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <div className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
+        <div className="text-sm font-semibold text-text-primary">
           Watchers ({isLoading ? '--' : watchers.length})
         </div>
         <Button size="sm" variant="outline" onClick={() => setDialogOpen(true)}>
@@ -64,7 +64,7 @@ export function CommunityWatchersPanel({ subredditName }: CommunityWatchersPanel
           {watchers.map((watcher) => (
             <div
               key={watcher.id}
-              className="rounded-lg border border-border-subtle bg-bg-tertiary/50 p-3"
+              className="rounded-lg border border-border-default bg-bg-tertiary/50 p-3"
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
@@ -78,14 +78,14 @@ export function CommunityWatchersPanel({ subredditName }: CommunityWatchersPanel
                     </Badge>
                   </div>
                   {watcher.description && (
-                    <div className="text-[10px] text-text-muted mt-1">
+                    <div className="text-xs text-text-muted mt-1">
                       {watcher.description}
                     </div>
                   )}
-                  <div className="text-[10px] text-text-muted mt-1 font-mono">
+                  <div className="text-xs text-text-muted mt-1 font-mono">
                     {truncate(watcher.query, 80)}
                   </div>
-                  <div className="text-[10px] text-text-muted mt-1">
+                  <div className="text-xs text-text-muted mt-1">
                     Poll every {formatPollInterval(watcher.poll_interval_seconds)}
                   </div>
                 </div>

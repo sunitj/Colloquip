@@ -21,16 +21,16 @@ function HomePage() {
   const subreddits = data?.subreddits ?? [];
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-4 sm:p-6 md:p-8 lg:p-10 max-w-4xl mx-auto">
       <PageHeader
         title="Home"
         subtitle="Browse communities and recent deliberations"
       />
 
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-32 rounded-lg bg-bg-tertiary animate-pulse" />
+            <div key={i} className="h-32 rounded-2xl bg-bg-tertiary/70 animate-pulse" />
           ))}
         </div>
       ) : subreddits.length === 0 ? (
@@ -39,7 +39,7 @@ function HomePage() {
           description="Initialize the platform or create your first community to get started."
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
           {subreddits.map((sub) => (
             <Link key={sub.name} to="/c/$name" params={{ name: sub.name }}>
               <Card hover className="h-full">

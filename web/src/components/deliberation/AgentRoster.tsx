@@ -33,7 +33,7 @@ export function AgentRoster({ agents, posts, triggers, status }: AgentRosterProp
   const refractoryAgents = posts.slice(-4, -2).map(p => p.agent_id);
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {agents.map((agent) => {
         const color = getAgentColor(agent.agent_type, agent.is_red_team);
         const bgColor = getAgentBgColor(color);
@@ -48,14 +48,14 @@ export function AgentRoster({ agents, posts, triggers, status }: AgentRosterProp
           <div
             key={agent.agent_id}
             className={cn(
-              'rounded-lg border-l-2 p-3 transition-all',
+              'rounded-xl border-l-2 p-3 transition-all',
               isActive && 'ring-1 ring-accent/30',
             )}
             style={{ borderLeftColor: color, backgroundColor: bgColor }}
           >
             <div className="flex items-center gap-2 mb-1">
               <div
-                className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+                className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
                 style={{ backgroundColor: color }}
               >
                 {initials}
@@ -65,13 +65,13 @@ export function AgentRoster({ agents, posts, triggers, status }: AgentRosterProp
               </span>
               <span className={cn(
                 'w-2 h-2 rounded-full ml-auto shrink-0',
-                isActive ? 'bg-green-400 animate-pulse' : isRefractory ? 'bg-amber-400' : 'bg-text-muted/30',
+                isActive ? 'bg-green-500 animate-pulse' : isRefractory ? 'bg-amber-500' : 'bg-gray-300',
               )} />
             </div>
-            <div className="flex items-center gap-2 text-[11px] text-text-muted">
+            <div className="flex items-center gap-2 text-xs text-text-muted">
               <span>{count} posts</span>
               {stance && (
-                <span style={{ color: STANCE_COLORS[stance] || '#94A3B8' }}>
+                <span style={{ color: STANCE_COLORS[stance] || '#6B7280' }}>
                   {stance.replace(/_/g, ' ')}
                 </span>
               )}
@@ -79,7 +79,7 @@ export function AgentRoster({ agents, posts, triggers, status }: AgentRosterProp
             {trigger && !trigger.includes('seed_phase') && (
               <div className="flex flex-wrap gap-1 mt-1.5">
                 {trigger.map(r => (
-                  <span key={r} className="text-[10px] px-1 py-0.5 rounded bg-bg-tertiary text-text-muted">
+                  <span key={r} className="text-xs px-1 py-0.5 rounded bg-bg-tertiary/50 text-text-muted">
                     {r.replace(/_/g, ' ')}
                   </span>
                 ))}

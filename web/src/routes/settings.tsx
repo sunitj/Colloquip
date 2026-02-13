@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { ErrorBanner } from '@/components/shared/ErrorBanner';
 import { cn } from '@/lib/utils';
 import type { CalibrationReport } from '@/types/platform';
 
@@ -20,8 +21,8 @@ export const Route = createFileRoute('/settings')({
 // ---------------------------------------------------------------------------
 function StatCard({ value, label }: { value: string | number; label: string }) {
   return (
-    <div className="rounded-lg border border-border-subtle bg-bg-secondary p-4 text-center">
-      <div className="text-2xl font-bold text-text-primary">{value}</div>
+    <div className="rounded-2xl bg-bg-secondary border border-border-default p-5 text-center">
+      <div className="text-2xl font-bold text-text-primary font-[family-name:var(--font-heading)]">{value}</div>
       <div className="text-xs text-text-muted mt-1">{label}</div>
     </div>
   );
@@ -35,10 +36,10 @@ function PlatformActionsSection() {
 
   return (
     <section>
-      <h2 className="text-xs font-bold uppercase tracking-widest text-text-muted mb-3">
+      <h2 className="text-sm font-semibold text-text-primary mb-3">
         Platform Actions
       </h2>
-      <div className="rounded-lg border border-border-subtle bg-bg-secondary p-4">
+      <div className="rounded-2xl bg-bg-secondary border border-border-default p-6">
         <p className="text-sm text-text-secondary mb-4">
           Run platform initialization to set up communities, recruit agents, and configure watchers.
         </p>
@@ -52,12 +53,12 @@ function PlatformActionsSection() {
           </Button>
 
           {mutation.isSuccess && (
-            <span className="text-sm text-stance-supportive">
+            <span className="text-sm text-green-600">
               Platform initialized successfully.
             </span>
           )}
           {mutation.isError && (
-            <span className="text-sm text-error">
+            <span className="text-sm text-red-600">
               {mutation.error instanceof Error
                 ? mutation.error.message
                 : 'Initialization failed.'}
@@ -76,7 +77,7 @@ function AgentAccuracyBar({ report }: { report: CalibrationReport }) {
   const pct = Math.round(report.accuracy * 100);
 
   return (
-    <div className="rounded-lg border border-border-subtle bg-bg-secondary p-4">
+    <div className="rounded-2xl bg-bg-secondary border border-border-default p-6">
       {/* Header row */}
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm font-medium text-text-primary">{report.agent_id}</span>
@@ -88,7 +89,7 @@ function AgentAccuracyBar({ report }: { report: CalibrationReport }) {
       {/* Progress bar */}
       <div className="h-2 bg-bg-tertiary rounded-full mb-3">
         <div
-          className="h-2 bg-accent rounded-full transition-all"
+          className="h-2 bg-pastel-lavender rounded-full transition-all"
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -96,13 +97,13 @@ function AgentAccuracyBar({ report }: { report: CalibrationReport }) {
       {/* Counts */}
       <div className="flex gap-4 text-xs text-text-secondary mb-2">
         <span>
-          Correct: <span className="text-stance-supportive font-medium">{report.correct}</span>
+          Correct: <span className="text-green-600 font-medium">{report.correct}</span>
         </span>
         <span>
-          Partial: <span className="text-stance-neutral font-medium">{report.partial}</span>
+          Partial: <span className="text-gray-500 font-medium">{report.partial}</span>
         </span>
         <span>
-          Incorrect: <span className="text-stance-critical font-medium">{report.incorrect}</span>
+          Incorrect: <span className="text-[#C95A6B] bg-pastel-rose-bg rounded px-1 font-medium">{report.incorrect}</span>
         </span>
         <span>
           Total: <span className="font-medium text-text-primary">{report.total_evaluations}</span>
@@ -134,13 +135,13 @@ function CalibrationOverviewSection() {
 
   return (
     <section>
-      <h2 className="text-xs font-bold uppercase tracking-widest text-text-muted mb-3">
+      <h2 className="text-sm font-semibold text-text-primary mb-3">
         Calibration Overview
       </h2>
 
       {isLoading && (
         <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
             <Skeleton className="h-20" />
             <Skeleton className="h-20" />
             <Skeleton className="h-20" />
@@ -150,9 +151,9 @@ function CalibrationOverviewSection() {
       )}
 
       {isError && (
-        <div className="rounded-lg border border-border-subtle bg-bg-secondary p-4 text-sm text-error">
-          {error instanceof Error ? error.message : 'Failed to load calibration data.'}
-        </div>
+        <ErrorBanner
+          message={error instanceof Error ? error.message : 'Failed to load calibration data.'}
+        />
       )}
 
       {data && data.total_outcomes === 0 && (
@@ -165,7 +166,7 @@ function CalibrationOverviewSection() {
       {data && data.total_outcomes > 0 && (
         <div className="space-y-4">
           {/* Stat cards */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
             <StatCard value={data.total_outcomes} label="Total Outcomes" />
             <StatCard value={data.agents_with_data} label="Agents With Data" />
             <StatCard value={data.agents_calibrated} label="Agents Calibrated" />
@@ -208,34 +209,34 @@ function PlatformHealthSection() {
 
   return (
     <section>
-      <h2 className="text-xs font-bold uppercase tracking-widest text-text-muted mb-3">
+      <h2 className="text-sm font-semibold text-text-primary mb-3">
         Platform Health
       </h2>
-      <div className="rounded-lg border border-border-subtle bg-bg-secondary p-4 space-y-4">
+      <div className="rounded-2xl bg-bg-secondary border border-border-default p-6 space-y-4">
         {/* Connection status */}
         <div className="flex items-center gap-2">
           <div
             className={cn(
               'h-2.5 w-2.5 rounded-full',
-              connected ? 'bg-stance-supportive' : 'bg-error',
+              connected ? 'bg-green-500' : 'bg-bg-tertiary',
             )}
           />
           <span className="text-sm text-text-primary">
-            WebSocket: {connected ? 'Connected' : 'Disconnected'}
+            WebSocket: {connected ? 'Connected' : 'Standby'}
           </span>
-          <Badge variant={connected ? 'supportive' : 'critical'}>
-            {connected ? 'Online' : 'Offline'}
+          <Badge variant={connected ? 'supportive' : 'neutral'}>
+            {connected ? 'Online' : 'Standby'}
           </Badge>
         </div>
 
         {/* Counts */}
         {isLoading ? (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <Skeleton className="h-20" />
             <Skeleton className="h-20" />
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <StatCard value={communityCount} label="Communities" />
             <StatCard value={agentCount} label="Agents" />
           </div>
@@ -250,10 +251,10 @@ function PlatformHealthSection() {
 // ---------------------------------------------------------------------------
 function SettingsPage() {
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-4 sm:p-6 md:p-8 lg:p-10 max-w-4xl mx-auto">
       <PageHeader title="Settings" subtitle="Platform configuration and health" />
 
-      <div className="space-y-8">
+      <div className="space-y-10">
         <PlatformActionsSection />
         <CalibrationOverviewSection />
         <PlatformHealthSection />

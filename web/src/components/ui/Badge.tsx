@@ -1,30 +1,37 @@
+import { Chip } from '@heroui/react';
 import { cn } from '@/lib/utils';
 
 type BadgeVariant = 'default' | 'outline' | 'supportive' | 'critical' | 'neutral' | 'novel' | 'phase';
 
-interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
+interface BadgeProps {
   variant?: BadgeVariant;
+  className?: string;
+  children?: React.ReactNode;
+  style?: React.CSSProperties;
 }
 
-const variantStyles: Record<BadgeVariant, string> = {
+const colorMap: Record<BadgeVariant, string> = {
   default: 'bg-bg-tertiary text-text-secondary',
   outline: 'border border-border-default text-text-secondary bg-transparent',
-  supportive: 'bg-stance-supportive/15 text-stance-supportive border border-stance-supportive/30',
-  critical: 'bg-stance-critical/15 text-stance-critical border border-stance-critical/30',
-  neutral: 'bg-stance-neutral/15 text-stance-neutral border border-stance-neutral/30',
-  novel: 'bg-stance-novel/15 text-stance-novel border border-stance-novel/30',
-  phase: 'bg-accent/15 text-accent border border-accent/30',
+  supportive: 'bg-pastel-mint-bg text-[#3D9B6E]',
+  critical: 'bg-pastel-rose-bg text-[#C95A6B]',
+  neutral: 'bg-bg-tertiary text-text-secondary',
+  novel: 'bg-pastel-lavender-bg text-[#8B6DBF]',
+  phase: 'bg-pastel-lavender-bg text-[#8B6DBF]',
 };
 
-export function Badge({ className, variant = 'default', ...props }: BadgeProps) {
+export function Badge({ className, variant = 'default', children, style }: BadgeProps) {
   return (
-    <span
+    <Chip
+      size="sm"
+      style={style}
       className={cn(
-        'inline-flex items-center rounded-sm px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
-        variantStyles[variant],
+        'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide',
+        colorMap[variant],
         className,
       )}
-      {...props}
-    />
+    >
+      {children}
+    </Chip>
   );
 }

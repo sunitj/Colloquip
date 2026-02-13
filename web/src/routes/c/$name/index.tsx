@@ -35,7 +35,7 @@ function CommunityPage() {
   const members = community?.members ?? [];
 
   return (
-    <div className="flex gap-6 p-6 max-w-7xl mx-auto">
+    <div className="flex gap-8 p-8 max-w-7xl mx-auto">
       {/* Main content */}
       <div className="flex-1 min-w-0">
         {loadingCommunity ? (
@@ -50,7 +50,7 @@ function CommunityPage() {
 
         <div className="mt-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-bold uppercase tracking-widest text-text-muted">
+            <h2 className="text-base font-semibold text-text-primary">
               Threads
             </h2>
             <Button size="sm" onClick={() => setShowCreateThread(true)}>
@@ -59,7 +59,7 @@ function CommunityPage() {
           </div>
 
           {loadingThreads ? (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {[1, 2, 3].map((i) => (
                 <Skeleton key={i} className="h-28 w-full" />
               ))}
@@ -70,7 +70,7 @@ function CommunityPage() {
               description="Start a new deliberation thread to get the conversation going."
             />
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {threads.map((thread) => (
                 <ThreadCard key={thread.id} thread={thread} />
               ))}

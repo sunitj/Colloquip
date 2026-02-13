@@ -9,9 +9,12 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --extra api --extra db --extra db-pg --extra llm --extra embeddings --extra monitoring
 
-# Copy source (will be overridden by volume mount in docker-compose.dev.yml)
-COPY . .
-RUN pip install --no-cache-dir --no-deps -e .
+# Copy only what's needed for editable install (volumes override src/ at runtime)
+COPY src/ ./src/
+COPY config/ ./config/
+COPY alembic/ ./alembic/
+COPY alembic.ini ./
+RUN uv pip install --no-deps -e .
 
 EXPOSE 8000
 EXPOSE 5678

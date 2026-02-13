@@ -35,12 +35,12 @@ export function TriggerLog({ triggers, agents }: TriggerLogProps) {
   return (
     <div className="space-y-3">
       {/* Filter chips */}
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap gap-2">
         <button
           className={cn(
-            'text-[10px] px-2 py-1 rounded-full border transition-colors',
+            'text-xs px-3 py-1.5 rounded-full border transition-colors cursor-pointer',
             activeFilter === null
-              ? 'border-accent text-accent bg-accent/10'
+              ? 'border-pastel-lavender text-[#8B6DBF] bg-pastel-lavender-bg'
               : 'border-border-default text-text-muted hover:text-text-secondary',
           )}
           onClick={() => setActiveFilter(null)}
@@ -56,7 +56,7 @@ export function TriggerLog({ triggers, agents }: TriggerLogProps) {
             <button
               key={agent.agent_id}
               className={cn(
-                'text-[10px] px-2 py-1 rounded-full border transition-colors',
+                'text-xs px-3 py-1.5 rounded-full border transition-colors cursor-pointer',
                 activeFilter === agent.agent_id
                   ? 'bg-opacity-10'
                   : 'border-border-default text-text-muted hover:text-text-secondary',
@@ -75,12 +75,12 @@ export function TriggerLog({ triggers, agents }: TriggerLogProps) {
       </div>
 
       {/* Entries */}
-      <div className="space-y-1 max-h-64 overflow-y-auto scrollbar-thin">
+      <div className="space-y-2 max-h-64 overflow-y-auto scrollbar-thin">
         {filtered.map((entry, i) => {
           const agent = agents.find(a => a.agent_id === entry.agentId);
           const color = agent ? getAgentColor(agent.agent_type, agent.is_red_team) : '#94a3b8';
           return (
-            <div key={i} className="flex items-center gap-2 text-[11px] py-1">
+            <div key={i} className="flex items-center gap-2 text-xs py-1">
               <span className="font-medium shrink-0" style={{ color }}>
                 {entry.agentName}
               </span>
@@ -89,7 +89,7 @@ export function TriggerLog({ triggers, agents }: TriggerLogProps) {
                 {entry.rules.map((rule) => (
                   <span
                     key={rule}
-                    className="px-1.5 py-0.5 rounded border text-text-muted"
+                    className="px-1.5 py-0.5 rounded-full border text-text-muted"
                     style={{ borderColor: TRIGGER_COLORS[rule] || '#64748b' }}
                   >
                     {rule.replace(/_/g, ' ')}

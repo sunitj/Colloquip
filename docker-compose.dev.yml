@@ -9,6 +9,8 @@ services:
       - ./tests:/app/tests
       - ./config:/app/config
       - ./web:/app/web
+      - ./alembic:/app/alembic
+      - ./alembic.ini:/app/alembic.ini
     environment:
       DATABASE_URL: "postgresql+asyncpg://colloquip:devpassword@postgres:5432/colloquip"
       ENVIRONMENT: development

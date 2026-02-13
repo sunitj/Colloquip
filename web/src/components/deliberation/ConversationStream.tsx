@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
-import { getAgentColor, getAgentBgColor, getAgentInitials, STANCE_COLORS, PHASE_LABELS, TRIGGER_COLORS } from '@/lib/agentColors';
+import { getAgentColor, getAgentBgColor, getAgentInitials, STANCE_COLORS, PHASE_COLORS, PHASE_LABELS, TRIGGER_COLORS } from '@/lib/agentColors';
 import { ThinkingIndicator } from './ThinkingIndicator';
 import type { Phase, Post, SessionStatus } from '@/types/deliberation';
 
@@ -56,16 +56,17 @@ export function ConversationStream({ posts, status, thinking }: ConversationStre
 
     // Phase separator
     if (lastPhase !== null && post.phase !== lastPhase) {
+      const phaseColor = PHASE_COLORS[post.phase] || '#6B7280';
       items.push(
         <div key={`phase-sep-${i}`} className="flex items-center gap-3 py-3">
-          <div className="flex-1 h-px bg-border-default" />
+          <div className="flex-1 h-px" style={{ background: `linear-gradient(to right, transparent, ${phaseColor}40, transparent)` }} />
           <span
-            className="text-[10px] font-bold tracking-widest uppercase px-2"
-            style={{ color: PHASE_LABELS[post.phase] ? (post.phase === 'explore' ? '#3B82F6' : post.phase === 'debate' ? '#EF4444' : post.phase === 'deepen' ? '#F59E0B' : post.phase === 'converge' ? '#22C55E' : '#A855F7') : '#94A3B8' }}
+            className="text-xs font-bold tracking-widest uppercase px-2"
+            style={{ color: phaseColor }}
           >
             {PHASE_LABELS[post.phase] || post.phase}
           </span>
-          <div className="flex-1 h-px bg-border-default" />
+          <div className="flex-1 h-px" style={{ background: `linear-gradient(to right, transparent, ${phaseColor}40, transparent)` }} />
         </div>,
       );
     }
@@ -79,7 +80,7 @@ export function ConversationStream({ posts, status, thinking }: ConversationStre
       <div
         key={post.id || i}
         className={cn(
-          'rounded-lg border-l-2 p-4 mb-2 transition-colors',
+          'rounded-xl border-l-2 p-5 mb-2 transition-colors',
           isSeed && 'opacity-70',
           animClass,
         )}
@@ -90,9 +91,9 @@ export function ConversationStream({ posts, status, thinking }: ConversationStre
         }}
       >
         {/* Header */}
-        <div className="flex items-center gap-2 mb-2 flex-wrap">
+        <div className="flex items-center gap-3 mb-2 flex-wrap">
           <div
-            className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+            className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
             style={{ backgroundColor: agentColor }}
           >
             {initials}
@@ -101,24 +102,24 @@ export function ConversationStream({ posts, status, thinking }: ConversationStre
             {post.agent_id}
           </span>
           {isSeed && (
-            <span className="text-[10px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded bg-bg-tertiary text-text-muted">
+            <span className="text-xs font-bold tracking-wider uppercase px-1.5 py-0.5 rounded-full bg-bg-tertiary text-text-muted">
               SEED
             </span>
           )}
-          <span className="text-[10px] text-text-muted uppercase tracking-wider">
+          <span className="text-xs text-text-muted uppercase tracking-wider">
             {PHASE_LABELS[post.phase] || post.phase}
           </span>
           <span
-            className="text-[10px] font-semibold uppercase tracking-wider"
-            style={{ color: STANCE_COLORS[post.stance] || '#94A3B8' }}
+            className="text-xs font-semibold uppercase tracking-wider"
+            style={{ color: STANCE_COLORS[post.stance] || '#6B7280' }}
           >
             {post.stance.replace(/_/g, ' ')}
           </span>
-          <span className="text-[10px] text-text-muted ml-auto">#{i + 1}</span>
+          <span className="text-xs text-text-muted ml-auto">#{i + 1}</span>
         </div>
 
         {/* Content */}
-        <div className="text-sm text-text-secondary leading-relaxed mb-3">
+        <div className="text-base text-text-secondary leading-relaxed mb-3">
           {post.content.length > 300 ? post.content.slice(0, 300) + '...' : post.content}
         </div>
 
@@ -127,9 +128,9 @@ export function ConversationStream({ posts, status, thinking }: ConversationStre
           <div className="space-y-2 mb-3">
             {post.key_claims.length > 0 && (
               <div className="flex flex-wrap gap-1.5 items-center">
-                <span className="text-[10px] font-semibold text-text-muted uppercase tracking-wider">Claims:</span>
+                <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Claims:</span>
                 {post.key_claims.map((c, j) => (
-                  <span key={j} className="text-[11px] px-2 py-0.5 rounded-full bg-bg-tertiary text-text-secondary">
+                  <span key={j} className="text-xs px-2 py-0.5 rounded-full bg-pastel-mint-bg text-[#3D9B6E]">
                     {c}
                   </span>
                 ))}
@@ -137,9 +138,9 @@ export function ConversationStream({ posts, status, thinking }: ConversationStre
             )}
             {post.questions_raised.length > 0 && (
               <div className="flex flex-wrap gap-1.5 items-center">
-                <span className="text-[10px] font-semibold text-text-muted uppercase tracking-wider">Questions:</span>
+                <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Questions:</span>
                 {post.questions_raised.map((q, j) => (
-                  <span key={j} className="text-[11px] px-2 py-0.5 rounded-full bg-accent/10 text-accent">
+                  <span key={j} className="text-xs px-2 py-0.5 rounded-full bg-pastel-sky-bg text-[#3B7AB5]">
                     {q}
                   </span>
                 ))}
@@ -149,17 +150,17 @@ export function ConversationStream({ posts, status, thinking }: ConversationStre
         )}
 
         {/* Triggers */}
-        <div className="flex flex-wrap gap-1.5 items-center">
+        <div className="flex flex-wrap gap-2 items-center">
           {post.triggered_by.map((rule) => (
             <span
               key={rule}
-              className="text-[10px] px-1.5 py-0.5 rounded border text-text-muted"
-              style={{ borderColor: TRIGGER_COLORS[rule] || '#64748b' }}
+              className="text-xs px-1.5 py-0.5 rounded-full border text-text-muted"
+              style={{ borderColor: TRIGGER_COLORS[rule] || '#6b7280' }}
             >
               {rule.replace(/_/g, ' ')}
             </span>
           ))}
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg-tertiary text-text-muted ml-auto">
+          <span className="text-xs px-1.5 py-0.5 rounded-full bg-bg-tertiary/50 text-text-muted ml-auto">
             novelty: {(post.novelty_score * 100).toFixed(0)}%
           </span>
         </div>
@@ -169,7 +170,7 @@ export function ConversationStream({ posts, status, thinking }: ConversationStre
 
   return (
     <div
-      className="flex-1 overflow-y-auto space-y-1 pr-2 scrollbar-thin"
+      className="flex-1 overflow-y-auto space-y-2 pr-2 scrollbar-thin"
       ref={containerRef}
       onScroll={handleScroll}
     >

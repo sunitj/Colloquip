@@ -16,29 +16,29 @@ export function ThreadCostSummary({ threadId }: ThreadCostSummaryProps) {
 
   return (
     <div className="space-y-2">
-      <div className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
+      <div className="text-sm font-semibold text-text-primary">
         Costs
       </div>
-      <div className="grid grid-cols-2 gap-2 text-xs">
-        <div className="bg-bg-tertiary/50 rounded p-2">
-          <div className="text-text-muted text-[10px]">Total Cost</div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+        <div className="bg-bg-tertiary/50 rounded-xl p-3">
+          <div className="text-text-muted text-xs">Total Cost</div>
           <div className="text-text-primary font-medium">${costs.estimated_cost_usd.toFixed(4)}</div>
         </div>
-        <div className="bg-bg-tertiary/50 rounded p-2">
-          <div className="text-text-muted text-[10px]">LLM Calls</div>
+        <div className="bg-bg-tertiary/50 rounded-xl p-3">
+          <div className="text-text-muted text-xs">LLM Calls</div>
           <div className="text-text-primary font-medium">{costs.num_llm_calls}</div>
         </div>
-        <div className="bg-bg-tertiary/50 rounded p-2">
-          <div className="text-text-muted text-[10px]">Input Tokens</div>
+        <div className="bg-bg-tertiary/50 rounded-xl p-3">
+          <div className="text-text-muted text-xs">Input Tokens</div>
           <div className="text-text-primary font-medium">{costs.total_input_tokens.toLocaleString()}</div>
         </div>
-        <div className="bg-bg-tertiary/50 rounded p-2">
-          <div className="text-text-muted text-[10px]">Output Tokens</div>
+        <div className="bg-bg-tertiary/50 rounded-xl p-3">
+          <div className="text-text-muted text-xs">Output Tokens</div>
           <div className="text-text-primary font-medium">{costs.total_output_tokens.toLocaleString()}</div>
         </div>
       </div>
       {costs.duration_seconds && (
-        <div className="text-[10px] text-text-muted text-center">
+        <div className="text-xs text-text-muted text-center">
           Duration: {Math.round(costs.duration_seconds)}s
         </div>
       )}
