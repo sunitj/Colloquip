@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
-      - run: uv sync --group dev --extra db
+      - run: uv sync --group dev --extra db --extra db-pg
       - name: Verify migrations apply cleanly
         run: |
           uv run alembic upgrade head
