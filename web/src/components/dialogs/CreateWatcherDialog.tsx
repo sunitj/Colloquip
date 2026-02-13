@@ -1,147 +1,229 @@
-import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createWatcher } from '@/lib/api';
-import { queryKeys } from '@/lib/queryKeys';
-import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/Dialog';
-import { Button } from '@/components/ui/Button';
+import { useState, useCallback } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import { createWatcher } from "@/lib/api";
+import { queryKeys } from "@/lib/queryKeys";
 
 interface CreateWatcherDialogProps {
   open: boolean;
-  onClose: () => void;
-  subredditName: string;
+  onOpenChange: (open: boolean) => void;
+  communityName: string;
 }
 
-export function CreateWatcherDialog({ open, onClose, subredditName }: CreateWatcherDialogProps) {
+const WATCHER_TYPES = [
+  { value: "literature", label: "Literature" },
+  { value: "scheduled", label: "Scheduled" },
+  { value: "webhook", label: "Webhook" },
+] as const;
+
+const POLL_INTERVALS = [
+  { value: "5", label: "5 min" },
+  { value: "15", label: "15 min" },
+  { value: "30", label: "30 min" },
+  { value: "60", label: "1 hr" },
+  { value: "360", label: "6 hr" },
+  { value: "720", label: "12 hr" },
+  { value: "1440", label: "24 hr" },
+] as const;
+
+const initialFormState = {
+  watcherType: "",
+  name: "",
+  description: "",
+  query: "",
+  pollInterval: "60",
+};
+
+export function CreateWatcherDialog({
+  open,
+  onOpenChange,
+  communityName,
+}: CreateWatcherDialogProps) {
+  const [form, setForm] = useState(initialFormState);
   const queryClient = useQueryClient();
 
-  const [watcherType, setWatcherType] = useState('literature');
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [query, setQuery] = useState('');
-  const [pollInterval, setPollInterval] = useState(3600);
+  const resetForm = useCallback(() => {
+    setForm(initialFormState);
+  }, []);
+
+  const handleOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (!nextOpen) {
+        resetForm();
+      }
+      onOpenChange(nextOpen);
+    },
+    [onOpenChange, resetForm]
+  );
 
   const mutation = useMutation({
     mutationFn: () =>
-      createWatcher(subredditName, {
-        watcher_type: watcherType,
-        name: name.trim(),
-        description: description.trim(),
-        query: query.trim(),
-        poll_interval_seconds: pollInterval,
+      createWatcher(communityName, {
+        watcher_type: form.watcherType,
+        name: form.name,
+        description: form.description,
+        query: form.query,
+        poll_interval_seconds: Number(form.pollInterval) * 60,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.subreddits.watchers(subredditName) });
-      onClose();
-      resetForm();
+      toast.success(`Watcher "${form.name}" created`);
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.subreddits.watchers(communityName),
+      });
+      handleOpenChange(false);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to create watcher");
     },
   });
 
-  const resetForm = () => {
-    setWatcherType('literature');
-    setName('');
-    setDescription('');
-    setQuery('');
-    setPollInterval(3600);
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !query.trim()) return;
     mutation.mutate();
   };
 
+  const isValid =
+    form.watcherType.trim() !== "" &&
+    form.name.trim() !== "" &&
+    form.query.trim() !== "";
+
   return (
-    <Dialog open={open} onClose={onClose}>
-      <form onSubmit={handleSubmit}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Add Watcher to c/{subredditName}</DialogTitle>
-          <DialogDescription>Set up automated monitoring to detect events that may need deliberation.</DialogDescription>
+          <DialogTitle>Create Watcher</DialogTitle>
+          <DialogDescription>
+            Set up an automated watcher to monitor for new information.
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-2">Type</label>
-            <select
-              value={watcherType}
-              onChange={(e) => setWatcherType(e.target.value)}
-              className="w-full bg-white text-text-secondary text-sm rounded-xl border border-border-default px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pastel-lavender/30 focus:border-pastel-lavender"
-            >
-              <option value="literature">Literature</option>
-              <option value="scheduled">Scheduled</option>
-              <option value="webhook">Webhook</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-2">Name</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. PubMed SGLT2 monitor"
-              className="w-full bg-white text-text-primary text-sm rounded-xl border border-border-default px-3 py-2 placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-pastel-lavender/30 focus:border-pastel-lavender"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-2">Description</label>
-            <input
-              type="text"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="What does this watcher monitor?"
-              className="w-full bg-white text-text-primary text-sm rounded-xl border border-border-default px-3 py-2 placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-pastel-lavender/30 focus:border-pastel-lavender"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-2">Query</label>
-            <textarea
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search query or monitoring expression..."
-              rows={2}
-              className="w-full bg-white text-text-primary text-sm rounded-xl border border-border-default px-3 py-2 placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-pastel-lavender/30 focus:border-pastel-lavender resize-none"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-2">
-              Poll Interval ({Math.round(pollInterval / 60)} min)
+            <label className="text-sm font-medium text-text-secondary mb-1.5 block">
+              Type
             </label>
-            <input
-              type="range"
-              value={pollInterval}
-              onChange={(e) => setPollInterval(parseInt(e.target.value))}
-              min={300}
-              max={86400}
-              step={300}
-              className="w-full accent-accent"
-            />
-            <div className="flex justify-between text-xs text-text-muted mt-0.5">
-              <span>5 min</span>
-              <span>24 hr</span>
-            </div>
+            <Select
+              value={form.watcherType}
+              onValueChange={(value) =>
+                setForm((prev) => ({ ...prev, watcherType: value }))
+              }
+              disabled={mutation.isPending}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select watcher type" />
+              </SelectTrigger>
+              <SelectContent>
+                {WATCHER_TYPES.map((type) => (
+                  <SelectItem key={type.value} value={type.value}>
+                    {type.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          {mutation.error && (
-            <div className="text-xs text-[#C95A6B] bg-pastel-rose-bg rounded p-2">
-              {mutation.error instanceof Error ? mutation.error.message : 'Failed to create watcher'}
-            </div>
-          )}
-        </div>
+          <div>
+            <label className="text-sm font-medium text-text-secondary mb-1.5 block">
+              Name
+            </label>
+            <Input
+              placeholder="Watcher name"
+              value={form.name}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, name: e.target.value }))
+              }
+              disabled={mutation.isPending}
+            />
+          </div>
 
-        <DialogFooter>
-          <Button type="button" variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={!name.trim() || !query.trim() || mutation.isPending}>
-            {mutation.isPending ? 'Creating...' : 'Create Watcher'}
-          </Button>
-        </DialogFooter>
-      </form>
+          <div>
+            <label className="text-sm font-medium text-text-secondary mb-1.5 block">
+              Description
+            </label>
+            <Textarea
+              placeholder="Describe what this watcher monitors..."
+              value={form.description}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, description: e.target.value }))
+              }
+              disabled={mutation.isPending}
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-text-secondary mb-1.5 block">
+              Query
+            </label>
+            <Input
+              placeholder="Search query or webhook URL"
+              value={form.query}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, query: e.target.value }))
+              }
+              disabled={mutation.isPending}
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-text-secondary mb-1.5 block">
+              Poll Interval
+            </label>
+            <Select
+              value={form.pollInterval}
+              onValueChange={(value) =>
+                setForm((prev) => ({ ...prev, pollInterval: value }))
+              }
+              disabled={mutation.isPending}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select interval" />
+              </SelectTrigger>
+              <SelectContent>
+                {POLL_INTERVALS.map((interval) => (
+                  <SelectItem key={interval.value} value={interval.value}>
+                    {interval.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => handleOpenChange(false)}
+              disabled={mutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={!isValid || mutation.isPending}
+            >
+              {mutation.isPending ? "Creating..." : "Create Watcher"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
     </Dialog>
   );
 }

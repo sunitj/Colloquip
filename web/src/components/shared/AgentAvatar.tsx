@@ -1,33 +1,39 @@
 import { cn } from '@/lib/utils';
-import { getAgentColor, getAgentTextColor, getAgentInitials } from '@/lib/agentColors';
+import { getAgentColor, getAgentInitials } from '@/lib/agentColors';
 
 interface AgentAvatarProps {
-  agentType: string;
   displayName: string;
+  agentType: string;
   isRedTeam?: boolean;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
 }
 
-const sizeStyles = {
-  sm: 'w-7 h-7 text-xs',
-  md: 'w-9 h-9 text-xs',
-  lg: 'w-11 h-11 text-xs',
-};
+const sizeMap = {
+  sm: 'h-8 w-8 text-xs',
+  md: 'h-10 w-10 text-sm',
+  lg: 'h-12 w-12 text-base',
+  xl: 'h-16 w-16 text-lg',
+} as const;
 
-export function AgentAvatar({ agentType, displayName, isRedTeam, size = 'md', className }: AgentAvatarProps) {
-  const bgColor = getAgentColor(agentType, isRedTeam);
-  const textColor = getAgentTextColor(agentType, isRedTeam);
+export function AgentAvatar({
+  displayName,
+  agentType,
+  isRedTeam = false,
+  size = 'md',
+  className,
+}: AgentAvatarProps) {
+  const color = getAgentColor(agentType, isRedTeam);
   const initials = getAgentInitials(displayName);
 
   return (
     <div
       className={cn(
-        'inline-flex items-center justify-center rounded-full font-bold shrink-0',
-        sizeStyles[size],
+        'inline-flex items-center justify-center rounded-full font-semibold text-white shrink-0',
+        sizeMap[size],
         className,
       )}
-      style={{ backgroundColor: `${bgColor}25`, color: textColor }}
+      style={{ backgroundColor: color }}
       title={displayName}
     >
       {initials}

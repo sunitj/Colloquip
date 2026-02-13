@@ -1,16 +1,22 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getMemories, annotateMemory } from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
+import { Search, Brain } from 'lucide-react';
+import { getMemories } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { Skeleton } from '@/components/ui/Skeleton';
-import { cn } from '@/lib/utils';
-import { timeAgo } from '@/lib/utils';
-import type { Memory, MemoryAnnotation, AnnotationType } from '@/types/platform';
+import { AnimatedList, AnimatedItem } from '@/components/shared/AnimatedList';
+import { MemoryCard } from '@/components/memories/MemoryCard';
 
 export const Route = createFileRoute('/memories')({
   component: MemoriesPage,
@@ -18,337 +24,104 @@ export const Route = createFileRoute('/memories')({
 
 type ConfidenceFilter = 'all' | 'high' | 'medium' | 'low';
 
-function getConfidenceLevel(confidence: number): 'high' | 'medium' | 'low' {
-  if (confidence > 0.8) return 'high';
-  if (confidence > 0.5) return 'medium';
-  return 'low';
-}
-
-function getConfidenceColor(confidence: number): string {
-  if (confidence > 0.8) return 'bg-pastel-mint';
-  if (confidence > 0.5) return 'bg-pastel-lemon';
-  return 'bg-pastel-rose';
-}
-
-function getAnnotationVariant(type: AnnotationType): 'critical' | 'novel' | 'supportive' | 'phase' {
-  switch (type) {
-    case 'outdated':
-      return 'critical';
-    case 'correction':
-      return 'novel';
-    case 'confirmed':
-      return 'supportive';
-    case 'context':
-      return 'phase';
-  }
-}
-
 function MemoriesPage() {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchText, setSearchText] = useState('');
   const [confidenceFilter, setConfidenceFilter] = useState<ConfidenceFilter>('all');
 
-  const { data, isLoading, isError, error } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: queryKeys.memories.all(),
     queryFn: () => getMemories(),
   });
 
   const memories = data?.memories ?? [];
 
-  const filteredMemories = memories.filter((memory) => {
-    if (confidenceFilter !== 'all' && getConfidenceLevel(memory.confidence) !== confidenceFilter) {
-      return false;
+  const filtered = useMemo(() => {
+    let result = memories;
+
+    // Filter by search text
+    if (searchText.trim()) {
+      const query = searchText.toLowerCase();
+      result = result.filter((m) =>
+        m.topic.toLowerCase().includes(query),
+      );
     }
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const matchesTopic = memory.topic.toLowerCase().includes(q);
-      const matchesSubreddit = memory.subreddit_name.toLowerCase().includes(q);
-      const matchesConclusions = memory.key_conclusions.some((c) => c.toLowerCase().includes(q));
-      if (!matchesTopic && !matchesSubreddit && !matchesConclusions) {
-        return false;
-      }
+
+    // Filter by confidence
+    switch (confidenceFilter) {
+      case 'high':
+        result = result.filter((m) => m.confidence > 0.7);
+        break;
+      case 'medium':
+        result = result.filter((m) => m.confidence > 0.4 && m.confidence <= 0.7);
+        break;
+      case 'low':
+        result = result.filter((m) => m.confidence <= 0.4);
+        break;
     }
-    return true;
-  });
+
+    return result;
+  }, [memories, searchText, confidenceFilter]);
 
   return (
-    <div className="p-4 sm:p-6 md:p-8 lg:p-10 max-w-4xl mx-auto">
+    <div>
       <PageHeader
-        title="Memories"
-        subtitle="Institutional knowledge from deliberations"
+        title="Institutional Knowledge"
+        subtitle="Memories distilled from deliberations across all communities"
       />
 
-      {/* Filter controls */}
+      {/* Filters */}
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <input
-          type="text"
-          placeholder="Search memories..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="h-10 rounded-xl border border-border-default bg-white px-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-pastel-lavender/30 focus:border-pastel-lavender focus:bg-bg-secondary transition-all duration-200 sm:w-72"
-        />
-        <div className="flex items-center gap-1">
-          <span className="text-xs font-semibold text-text-secondary mr-2">
-            Confidence
-          </span>
-          {(['all', 'high', 'medium', 'low'] as ConfidenceFilter[]).map((level) => (
-            <button
-              key={level}
-              onClick={() => setConfidenceFilter(level)}
-              className={cn(
-                'rounded-lg px-3 py-1 text-xs font-medium transition-all duration-200 cursor-pointer',
-                confidenceFilter === level
-                  ? 'bg-pastel-lavender text-white shadow-sm'
-                  : 'bg-bg-tertiary/50 text-text-secondary hover:text-text-primary',
-              )}
-            >
-              {level.charAt(0).toUpperCase() + level.slice(1)}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Loading state */}
-      {isLoading && (
-        <div className="space-y-4">
-          <Skeleton className="h-40 w-full" />
-          <Skeleton className="h-40 w-full" />
-          <Skeleton className="h-40 w-full" />
-        </div>
-      )}
-
-      {/* Error state */}
-      {isError && (
-        <div className="rounded-xl border border-pastel-rose/30 bg-pastel-rose-bg p-4 text-sm text-[#C95A6B]">
-          Failed to load memories: {error?.message ?? 'Unknown error'}
-        </div>
-      )}
-
-      {/* Empty state */}
-      {!isLoading && !isError && filteredMemories.length === 0 && (
-        <EmptyState
-          title="No memories found"
-          description={
-            searchQuery || confidenceFilter !== 'all'
-              ? 'Try adjusting your search or filter criteria.'
-              : 'Memories are created when deliberations produce conclusions.'
-          }
-        />
-      )}
-
-      {/* Memory list */}
-      {!isLoading && !isError && filteredMemories.length > 0 && (
-        <div className="space-y-4">
-          {filteredMemories.map((memory) => (
-            <MemoryCard key={memory.id} memory={memory} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function MemoryCard({ memory }: { memory: Memory }) {
-  const [annotationsExpanded, setAnnotationsExpanded] = useState(false);
-  const [showAnnotationForm, setShowAnnotationForm] = useState(false);
-
-  return (
-    <div className="rounded-2xl bg-bg-secondary border border-border-default p-6">
-      {/* Header row */}
-      <div className="flex items-start justify-between gap-3 mb-3">
-        <div className="flex items-center gap-2 flex-wrap">
-          <h3 className="text-sm font-bold text-text-primary">{memory.topic}</h3>
-          <Badge variant="outline">c/{memory.subreddit_name}</Badge>
-        </div>
-        <span className="text-xs text-text-muted whitespace-nowrap">{timeAgo(memory.created_at)}</span>
-      </div>
-
-      {/* Confidence bar */}
-      <div className="mb-3">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-xs font-semibold text-text-secondary">
-            Confidence
-          </span>
-          <span className="text-xs text-text-secondary">
-            {(memory.confidence * 100).toFixed(0)}%
-          </span>
-        </div>
-        <div className="h-1.5 w-full rounded-full bg-bg-tertiary overflow-hidden">
-          <div
-            className={cn('h-full rounded-full transition-all', getConfidenceColor(memory.confidence))}
-            style={{ width: `${memory.confidence * 100}%` }}
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
+          <Input
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            placeholder="Search memories by topic..."
+            className="pl-9"
           />
         </div>
-      </div>
-
-      {/* Key conclusions */}
-      {memory.key_conclusions.length > 0 && (
-        <div className="mb-3">
-          <span className="text-xs font-semibold text-text-secondary">
-            Key Conclusions
-          </span>
-          <ul className="mt-1 space-y-1">
-            {memory.key_conclusions.map((conclusion, i) => (
-              <li key={i} className="flex items-start gap-2 text-xs text-text-secondary">
-                <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-text-muted" />
-                {conclusion}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Metadata row */}
-      <div className="flex flex-wrap items-center gap-2 mb-3">
-        <Badge variant="default">{memory.evidence_quality}</Badge>
-        <Badge variant="default">{memory.template_type}</Badge>
-        <span className="text-xs text-text-muted">
-          {memory.citations_used.length} citation{memory.citations_used.length !== 1 ? 's' : ''}
-        </span>
-        <span className="text-xs text-text-muted">
-          {memory.agents_involved.length} agent{memory.agents_involved.length !== 1 ? 's' : ''}
-        </span>
-      </div>
-
-      {/* Annotations section */}
-      <div className="border-t border-border-subtle pt-3">
-        <div className="flex items-center justify-between">
-          <button
-            onClick={() => setAnnotationsExpanded(!annotationsExpanded)}
-            className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
-          >
-            <svg
-              className={cn('h-3 w-3 transition-transform', annotationsExpanded && 'rotate-90')}
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-            {memory.annotations.length} annotation{memory.annotations.length !== 1 ? 's' : ''}
-          </button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setShowAnnotationForm(!showAnnotationForm);
-              if (!annotationsExpanded) setAnnotationsExpanded(true);
-            }}
-          >
-            Add Annotation
-          </Button>
-        </div>
-
-        {annotationsExpanded && (
-          <div className="mt-3 space-y-2">
-            {memory.annotations.length === 0 && !showAnnotationForm && (
-              <p className="text-xs text-text-muted">No annotations yet.</p>
-            )}
-            {memory.annotations.map((annotation) => (
-              <AnnotationItem key={annotation.id} annotation={annotation} />
-            ))}
-            {showAnnotationForm && (
-              <AnnotationForm
-                memoryId={memory.id}
-                onClose={() => setShowAnnotationForm(false)}
-              />
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function AnnotationItem({ annotation }: { annotation: MemoryAnnotation }) {
-  return (
-    <div className="rounded-xl bg-bg-tertiary/50 p-3">
-      <div className="flex items-center gap-2 mb-1.5">
-        <Badge variant={getAnnotationVariant(annotation.annotation_type)}>
-          {annotation.annotation_type}
-        </Badge>
-        <span className="text-xs text-text-muted">by {annotation.created_by}</span>
-        <span className="text-xs text-text-muted">{timeAgo(annotation.created_at)}</span>
-      </div>
-      <p className="text-xs text-text-secondary">{annotation.content}</p>
-    </div>
-  );
-}
-
-function AnnotationForm({ memoryId, onClose }: { memoryId: string; onClose: () => void }) {
-  const queryClient = useQueryClient();
-  const [annotationType, setAnnotationType] = useState<AnnotationType>('context');
-  const [content, setContent] = useState('');
-  const [createdBy, setCreatedBy] = useState('human');
-
-  const mutation = useMutation({
-    mutationFn: (data: { annotation_type: string; content: string; created_by: string }) =>
-      annotateMemory(memoryId, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.memories.all() });
-      onClose();
-    },
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!content.trim()) return;
-    mutation.mutate({ annotation_type: annotationType, content: content.trim(), created_by: createdBy.trim() || 'human' });
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="rounded-xl bg-bg-tertiary/50 p-3 space-y-3">
-      <div>
-        <label className="text-xs font-semibold text-text-primary block mb-1">
-          Type
-        </label>
-        <select
-          value={annotationType}
-          onChange={(e) => setAnnotationType(e.target.value as AnnotationType)}
-          className="h-8 w-full rounded-xl border border-border-default bg-bg-secondary px-2 text-xs text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all duration-200"
+        <Select
+          value={confidenceFilter}
+          onValueChange={(v) => setConfidenceFilter(v as ConfidenceFilter)}
         >
-          <option value="outdated">Outdated</option>
-          <option value="correction">Correction</option>
-          <option value="confirmed">Confirmed</option>
-          <option value="context">Context</option>
-        </select>
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue placeholder="Confidence" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Confidence</SelectItem>
+            <SelectItem value="high">High (&gt;0.7)</SelectItem>
+            <SelectItem value="medium">Medium (0.4-0.7)</SelectItem>
+            <SelectItem value="low">Low (&lt;0.4)</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
-      <div>
-        <label className="text-xs font-semibold text-text-primary block mb-1">
-          Content
-        </label>
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          rows={3}
-          placeholder="Enter annotation content..."
-          className="w-full rounded-xl border border-border-default bg-bg-secondary px-3 py-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent resize-none transition-all duration-200"
+
+      {/* Content */}
+      {isLoading ? (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-56 rounded-radius-lg" />
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          icon={<Brain className="h-12 w-12" />}
+          title="No memories found"
+          description={
+            memories.length === 0
+              ? 'Memories are created when deliberations conclude. Start a thread to build institutional knowledge.'
+              : 'Try adjusting your search or confidence filter.'
+          }
         />
-      </div>
-      <div>
-        <label className="text-xs font-semibold text-text-primary block mb-1">
-          Created By
-        </label>
-        <input
-          type="text"
-          value={createdBy}
-          onChange={(e) => setCreatedBy(e.target.value)}
-          className="h-8 w-full rounded-xl border border-border-default bg-bg-secondary px-3 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all duration-200"
-        />
-      </div>
-      <div className="flex items-center gap-2 justify-end">
-        <Button type="button" variant="ghost" size="sm" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button type="submit" size="sm" disabled={!content.trim() || mutation.isPending}>
-          {mutation.isPending ? 'Submitting...' : 'Submit'}
-        </Button>
-      </div>
-      {mutation.isError && (
-        <p className="text-xs text-red-700">
-          Failed to submit: {mutation.error?.message ?? 'Unknown error'}
-        </p>
+      ) : (
+        <AnimatedList className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          {filtered.map((memory) => (
+            <AnimatedItem key={memory.id}>
+              <MemoryCard memory={memory} />
+            </AnimatedItem>
+          ))}
+        </AnimatedList>
       )}
-    </form>
+    </div>
   );
 }

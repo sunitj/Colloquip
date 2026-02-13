@@ -1,10 +1,26 @@
 import { useState } from 'react';
-import { cn } from '@/lib/utils';
+import { Send } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@/components/ui/select';
 
 interface InterventionBarProps {
-  onIntervene: (content: string, type?: string) => void;
+  onIntervene: (content: string, type: string) => void;
   status: string;
 }
+
+const INTERVENTION_TYPES = [
+  { value: 'question', label: 'Question' },
+  { value: 'new_data', label: 'New Data' },
+  { value: 'redirect', label: 'Redirect' },
+  { value: 'terminate', label: 'Terminate' },
+] as const;
 
 export function InterventionBar({ onIntervene, status }: InterventionBarProps) {
   const [content, setContent] = useState('');
@@ -12,48 +28,54 @@ export function InterventionBar({ onIntervene, status }: InterventionBarProps) {
 
   if (status !== 'running') return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = () => {
     if (!content.trim()) return;
     onIntervene(content.trim(), type);
     setContent('');
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
+
   return (
-    <form
-      className="flex items-center gap-2 p-3 bg-bg-secondary rounded-xl border border-border-default"
-      onSubmit={handleSubmit}
-    >
-      <select
-        value={type}
-        onChange={(e) => setType(e.target.value)}
-        className="bg-bg-tertiary/50 text-text-secondary text-xs rounded-xl border border-border-default px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all duration-200"
-      >
-        <option value="question">Question</option>
-        <option value="data">New Data</option>
-        <option value="redirect">Redirect</option>
-        <option value="terminate">Terminate</option>
-      </select>
-      <input
-        type="text"
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        placeholder="Inject human input into the deliberation..."
-        className="flex-1 bg-white text-text-primary text-sm rounded-xl border border-border-default h-11 px-3 placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all duration-200"
-        maxLength={5000}
-      />
-      <button
-        type="submit"
-        disabled={!content.trim()}
-        className={cn(
-          'px-4 py-1.5 rounded-xl text-sm font-medium transition-all duration-200',
-          content.trim()
-            ? 'bg-[#B49ADE] text-white shadow-sm hover:bg-[#A389D0] hover:shadow-md'
-            : 'bg-bg-tertiary text-text-muted cursor-not-allowed',
-        )}
-      >
-        Intervene
-      </button>
-    </form>
+    <div className="bg-bg-surface border-t border-border-default p-4">
+      <div className="flex items-start gap-3">
+        <Select value={type} onValueChange={setType}>
+          <SelectTrigger className="w-[140px] shrink-0">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {INTERVENTION_TYPES.map((t) => (
+              <SelectItem key={t.value} value={t.value}>
+                {t.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Textarea
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Intervene in the deliberation..."
+          className="flex-1 min-h-[40px] max-h-[120px] resize-y"
+          rows={1}
+        />
+
+        <Button
+          onClick={handleSubmit}
+          disabled={!content.trim()}
+          size="default"
+          className="shrink-0"
+        >
+          <Send className="h-4 w-4 mr-1" />
+          Send
+        </Button>
+      </div>
+    </div>
   );
 }

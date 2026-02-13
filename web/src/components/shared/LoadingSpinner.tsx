@@ -1,7 +1,26 @@
 import { cn } from '@/lib/utils';
 
-export function LoadingSpinner({ className }: { className?: string }) {
+interface LoadingSpinnerProps {
+  size?: 'sm' | 'md' | 'lg';
+  className?: string;
+}
+
+const sizeMap = {
+  sm: 'h-4 w-4 border-2',
+  md: 'h-8 w-8 border-2',
+  lg: 'h-12 w-12 border-3',
+} as const;
+
+export function LoadingSpinner({ size = 'md', className }: LoadingSpinnerProps) {
   return (
-    <div className={cn('w-5 h-5 border-2 border-border-default border-t-accent rounded-full animate-spin', className)} />
+    <div
+      className={cn(
+        'animate-spin rounded-full border-text-muted/30 border-t-text-accent',
+        sizeMap[size],
+        className,
+      )}
+      role="status"
+      aria-label="Loading"
+    />
   );
 }

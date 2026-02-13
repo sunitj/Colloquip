@@ -10,7 +10,7 @@ import type {
   TriggerEntry,
   WSEvent,
 } from '../types/deliberation';
-import { AGENT_META } from '../components/agentMeta';
+
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 const WS_BASE = API_BASE.replace(/^http/, 'ws');
@@ -62,7 +62,7 @@ export function useDeliberation() {
         const trigger: TriggerEntry = {
           timestamp: post.created_at,
           agentId: post.agent_id,
-          agentName: AGENT_META[post.agent_id]?.name ?? post.agent_id,
+          agentName: post.agent_id,
           rules: post.triggered_by,
           postIndex: -1, // set below
         };
@@ -223,7 +223,7 @@ export function useDeliberation() {
       const triggers: TriggerEntry[] = data.posts.map((post, i) => ({
         timestamp: post.created_at,
         agentId: post.agent_id,
-        agentName: AGENT_META[post.agent_id]?.name ?? post.agent_id,
+        agentName: post.agent_id,
         rules: post.triggered_by,
         postIndex: i,
       }));

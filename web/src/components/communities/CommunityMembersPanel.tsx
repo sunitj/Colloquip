@@ -1,7 +1,12 @@
-import { getAgentColor, getAgentInitials } from '@/lib/agentColors';
-import { Badge } from '@/components/ui/Badge';
-import type { AgentMember } from '@/types/platform';
 import { Link } from '@tanstack/react-router';
+import { cn } from '@/lib/utils';
+import { getAgentColor } from '@/lib/agentColors';
+import { AgentAvatar } from '@/components/shared/AgentAvatar';
+import { Badge } from '@/components/ui/badge';
+import { AnimatedList, AnimatedItem } from '@/components/shared/AnimatedList';
+import { EmptyState } from '@/components/shared/EmptyState';
+import { Users } from 'lucide-react';
+import type { AgentMember } from '@/types/platform';
 
 interface CommunityMembersPanelProps {
   members: AgentMember[];
@@ -10,60 +15,85 @@ interface CommunityMembersPanelProps {
 export function CommunityMembersPanel({ members }: CommunityMembersPanelProps) {
   if (members.length === 0) {
     return (
-      <div className="text-xs text-text-muted py-2 text-center">No members yet.</div>
+      <EmptyState
+        icon={<Users className="h-10 w-10" />}
+        title="No members yet"
+        description="This community has no agent members."
+      />
     );
   }
 
   return (
-    <div className="space-y-3">
-      <div className="text-sm font-semibold text-text-primary">
-        Members ({members.length})
-      </div>
+    <AnimatedList className="space-y-2">
       {members.map((member) => {
         const color = getAgentColor(member.agent_type, member.is_red_team);
-        const initials = getAgentInitials(member.display_name);
+
         return (
-          <Link
-            key={member.agent_id}
-            to="/agents/$agentId"
-            params={{ agentId: member.agent_id }}
-            className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-bg-tertiary transition-colors"
-          >
-            <div
-              className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
-              style={{ backgroundColor: color }}
+          <AnimatedItem key={member.agent_id}>
+            <Link
+              to="/agents/$agentId"
+              params={{ agentId: member.agent_id }}
+              className={cn(
+                'flex items-center gap-4 rounded-radius-lg border border-border-default bg-bg-surface p-4',
+                'transition-colors hover:bg-bg-elevated/30',
+                member.is_red_team && 'border-l-3',
+              )}
+              style={
+                member.is_red_team
+                  ? { borderLeftColor: color, borderLeftWidth: 3 }
+                  : undefined
+              }
             >
-              {initials}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-medium text-text-primary truncate">
-                  {member.display_name}
-                </span>
-                {member.is_red_team && (
-                  <Badge variant="critical" className="text-xs px-1 py-0">RT</Badge>
-                )}
-              </div>
-              <div className="text-xs text-text-muted">{member.role}</div>
-              {member.expertise_tags.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {member.expertise_tags.slice(0, 3).map((tag) => (
-                    <span key={tag} className="text-xs px-1.5 py-0.5 rounded bg-bg-tertiary text-text-muted">
-                      {tag}
-                    </span>
-                  ))}
-                  {member.expertise_tags.length > 3 && (
-                    <span className="text-xs text-text-muted">+{member.expertise_tags.length - 3}</span>
+              <AgentAvatar
+                displayName={member.display_name}
+                agentType={member.agent_type}
+                isRedTeam={member.is_red_team}
+                size="md"
+              />
+
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-semibold text-text-primary truncate">
+                    {member.display_name}
+                  </span>
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                    {member.role}
+                  </Badge>
+                  {member.is_red_team && (
+                    <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                      Red Team
+                    </Badge>
                   )}
                 </div>
-              )}
-              <div className="text-xs text-text-muted mt-1">
-                {member.total_posts} posts in {member.threads_participated} threads
+
+                {/* Expertise tags */}
+                {member.expertise_tags.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1 mt-1.5">
+                    {member.expertise_tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="inline-flex items-center rounded-full bg-bg-elevated px-2 py-0.5 text-[10px] text-text-muted"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
-          </Link>
+
+              {/* Post stats */}
+              <div className="text-right shrink-0">
+                <p className="text-xs text-text-muted">
+                  {member.total_posts} post{member.total_posts !== 1 ? 's' : ''}
+                </p>
+                <p className="text-xs text-text-muted">
+                  {member.threads_participated} thread{member.threads_participated !== 1 ? 's' : ''}
+                </p>
+              </div>
+            </Link>
+          </AnimatedItem>
         );
       })}
-    </div>
+    </AnimatedList>
   );
 }

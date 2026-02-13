@@ -1,129 +1,197 @@
-import { useState } from 'react';
-import { useNavigate } from '@tanstack/react-router';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createThread } from '@/lib/api';
-import { queryKeys } from '@/lib/queryKeys';
-import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/Dialog';
-import { Button } from '@/components/ui/Button';
+import { useState, useCallback } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import { createThread } from "@/lib/api";
+import { queryKeys } from "@/lib/queryKeys";
 
 interface CreateThreadDialogProps {
   open: boolean;
-  onClose: () => void;
-  subredditName: string;
+  onOpenChange: (open: boolean) => void;
+  communityName: string;
 }
 
-export function CreateThreadDialog({ open, onClose, subredditName }: CreateThreadDialogProps) {
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
+const MODES = [
+  { value: "mock", label: "Mock" },
+  { value: "live", label: "Live" },
+] as const;
 
-  const [title, setTitle] = useState('');
-  const [hypothesis, setHypothesis] = useState('');
-  const [mode, setMode] = useState('mock');
-  const [maxTurns, setMaxTurns] = useState(30);
+const initialFormState = {
+  title: "",
+  hypothesis: "",
+  mode: "mock",
+  maxTurns: "30",
+};
+
+export function CreateThreadDialog({
+  open,
+  onOpenChange,
+  communityName,
+}: CreateThreadDialogProps) {
+  const [form, setForm] = useState(initialFormState);
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
+  const resetForm = useCallback(() => {
+    setForm(initialFormState);
+  }, []);
+
+  const handleOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (!nextOpen) {
+        resetForm();
+      }
+      onOpenChange(nextOpen);
+    },
+    [onOpenChange, resetForm]
+  );
 
   const mutation = useMutation({
     mutationFn: () =>
-      createThread(subredditName, {
-        title: title.trim(),
-        hypothesis: hypothesis.trim(),
-        mode,
-        max_turns: maxTurns,
+      createThread(communityName, {
+        title: form.title,
+        hypothesis: form.hypothesis,
+        mode: form.mode || undefined,
+        max_turns: form.maxTurns ? Number(form.maxTurns) : undefined,
       }),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.subreddits.threads(subredditName) });
-      onClose();
-      resetForm();
-      navigate({ to: '/c/$name/thread/$threadId', params: { name: subredditName, threadId: data.id } });
+    onSuccess: (result) => {
+      toast.success(`Deliberation "${form.title}" started`);
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.subreddits.threads(communityName),
+      });
+      navigate({ to: `/c/${communityName}/thread/${result.id}` });
+      handleOpenChange(false);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to create thread");
     },
   });
 
-  const resetForm = () => {
-    setTitle('');
-    setHypothesis('');
-    setMode('mock');
-    setMaxTurns(30);
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !hypothesis.trim()) return;
     mutation.mutate();
   };
 
+  const isValid =
+    form.title.trim() !== "" && form.hypothesis.trim() !== "";
+
   return (
-    <Dialog open={open} onClose={onClose}>
-      <form onSubmit={handleSubmit}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>New Thread in c/{subredditName}</DialogTitle>
-          <DialogDescription>Start a new multi-agent deliberation on a hypothesis.</DialogDescription>
+          <DialogTitle>Start Deliberation</DialogTitle>
+          <DialogDescription>
+            Create a new deliberation thread in this community.
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-text-primary mb-2">Title</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Brief title for the deliberation"
-              className="w-full bg-white text-text-primary text-sm rounded-xl border border-border-default px-3 py-2 h-11 placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent focus:bg-bg-secondary transition-all duration-200"
-              required
+            <label className="text-sm font-medium text-text-secondary mb-1.5 block">
+              Title
+            </label>
+            <Input
+              placeholder="Deliberation title"
+              value={form.title}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, title: e.target.value }))
+              }
+              disabled={mutation.isPending}
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-text-primary mb-2">Hypothesis</label>
-            <textarea
-              value={hypothesis}
-              onChange={(e) => setHypothesis(e.target.value)}
-              placeholder="The hypothesis or question for agents to deliberate..."
-              rows={4}
-              className="w-full bg-white text-text-primary text-sm rounded-xl border border-border-default px-3 py-2 placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent focus:bg-bg-secondary resize-none transition-all duration-200"
-              required
+            <label className="text-sm font-medium text-text-secondary mb-1.5 block">
+              Hypothesis
+            </label>
+            <Textarea
+              className="min-h-[120px]"
+              placeholder="Enter the hypothesis to deliberate..."
+              value={form.hypothesis}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, hypothesis: e.target.value }))
+              }
+              disabled={mutation.isPending}
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <label className="block text-xs font-semibold text-text-primary mb-2">Mode</label>
-              <select
-                value={mode}
-                onChange={(e) => setMode(e.target.value)}
-                className="w-full bg-white text-text-secondary text-sm rounded-xl border border-border-default px-3 py-2 h-11 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent focus:bg-bg-secondary transition-all duration-200"
-              >
-                <option value="mock">Mock (fast, no LLM)</option>
-                <option value="live">Live (real LLM calls)</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-text-primary mb-2">Max Turns</label>
-              <input
-                type="number"
-                value={maxTurns}
-                onChange={(e) => setMaxTurns(parseInt(e.target.value) || 30)}
-                min={5}
-                max={200}
-                className="w-full bg-white text-text-primary text-sm rounded-xl border border-border-default px-3 py-2 h-11 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent focus:bg-bg-secondary transition-all duration-200"
-              />
-            </div>
+          <div>
+            <label className="text-sm font-medium text-text-secondary mb-1.5 block">
+              Mode
+            </label>
+            <Select
+              value={form.mode}
+              onValueChange={(value) =>
+                setForm((prev) => ({ ...prev, mode: value }))
+              }
+              disabled={mutation.isPending}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select mode" />
+              </SelectTrigger>
+              <SelectContent>
+                {MODES.map((mode) => (
+                  <SelectItem key={mode.value} value={mode.value}>
+                    {mode.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          {mutation.error && (
-            <div className="text-xs text-[#C95A6B] bg-pastel-rose-bg border border-pastel-rose/30 rounded-xl p-2">
-              {mutation.error instanceof Error ? mutation.error.message : 'Failed to create thread'}
-            </div>
-          )}
-        </div>
+          <div>
+            <label className="text-sm font-medium text-text-secondary mb-1.5 block">
+              Max Turns
+            </label>
+            <Input
+              type="number"
+              min={1}
+              max={200}
+              placeholder="30"
+              value={form.maxTurns}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, maxTurns: e.target.value }))
+              }
+              disabled={mutation.isPending}
+            />
+          </div>
 
-        <DialogFooter>
-          <Button type="button" variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={!title.trim() || !hypothesis.trim() || mutation.isPending}>
-            {mutation.isPending ? 'Creating...' : 'Start Deliberation'}
-          </Button>
-        </DialogFooter>
-      </form>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => handleOpenChange(false)}
+              disabled={mutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={!isValid || mutation.isPending}
+            >
+              {mutation.isPending ? "Creating..." : "Start Deliberation"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
     </Dialog>
   );
 }

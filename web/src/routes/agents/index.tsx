@@ -1,108 +1,104 @@
-import { useState } from 'react';
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { useState, useMemo } from 'react';
+import { createFileRoute } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
+import { Search, Bot } from 'lucide-react';
 import { getAgents } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
-import { getAgentColor, getAgentTextColor, getAgentInitials } from '@/lib/agentColors';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { Badge } from '@/components/ui/Badge';
+import { AgentCard } from '@/components/agents/AgentCard';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { Skeleton } from '@/components/ui/Skeleton';
+import { AnimatedList, AnimatedItem } from '@/components/shared/AnimatedList';
+import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export const Route = createFileRoute('/agents/')({
   component: AgentPoolPage,
 });
 
+function AgentCardSkeleton() {
+  return (
+    <div className="rounded-radius-lg border border-border-default bg-bg-surface p-5 space-y-3 flex flex-col items-center">
+      <Skeleton className="h-16 w-16 rounded-full" />
+      <Skeleton className="h-5 w-32" />
+      <Skeleton className="h-4 w-20" />
+      <div className="flex gap-1.5">
+        <Skeleton className="h-5 w-14 rounded-full" />
+        <Skeleton className="h-5 w-16 rounded-full" />
+        <Skeleton className="h-5 w-12 rounded-full" />
+      </div>
+      <Skeleton className="h-3 w-24" />
+    </div>
+  );
+}
+
 function AgentPoolPage() {
   const [search, setSearch] = useState('');
 
-  const { data, isLoading } = useQuery({
+  const agentsQuery = useQuery({
     queryKey: queryKeys.agents.all,
-    queryFn: getAgents,
+    queryFn: () => getAgents(),
   });
 
-  const agents = data?.agents ?? [];
-  const filtered = search
-    ? agents.filter(
-        (a) =>
-          a.display_name.toLowerCase().includes(search.toLowerCase()) ||
-          a.agent_type.toLowerCase().includes(search.toLowerCase()) ||
-          a.expertise_tags.some((t) => t.toLowerCase().includes(search.toLowerCase())),
-      )
-    : agents;
+  const agents = agentsQuery.data?.agents ?? [];
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return agents;
+    const q = search.toLowerCase();
+    return agents.filter(
+      (a) =>
+        a.display_name.toLowerCase().includes(q) ||
+        a.agent_type.toLowerCase().includes(q) ||
+        a.expertise_tags.some((t) => t.toLowerCase().includes(q)),
+    );
+  }, [agents, search]);
 
   return (
-    <div className="p-4 sm:p-6 md:p-8 lg:p-10 max-w-4xl mx-auto">
-      <PageHeader title="Agent Pool" subtitle="Browse and manage all deliberation agents" />
+    <div>
+      <PageHeader
+        title="Agent Pool"
+        subtitle={
+          agents.length > 0
+            ? `${agents.length} agent${agents.length === 1 ? '' : 's'} registered`
+            : undefined
+        }
+      />
 
       {/* Search */}
-      <div className="mb-6">
-        <input
-          type="text"
+      <div className="relative mb-6 max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
+        <Input
+          placeholder="Search agents by name, type, or expertise..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search agents by name, type, or expertise..."
-          className="w-full bg-white text-text-primary text-sm rounded-xl border border-border-default px-4 py-2.5 placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent focus:bg-bg-secondary transition-all duration-200"
+          className="pl-9"
         />
       </div>
 
-      {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Skeleton key={i} className="h-40" />
+      {/* Content */}
+      {agentsQuery.isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <AgentCardSkeleton key={i} />
           ))}
         </div>
       ) : filtered.length === 0 ? (
         <EmptyState
-          title={search ? 'No matching agents' : 'No agents yet'}
-          description={search ? 'Try a different search term.' : 'Initialize the platform to create agents.'}
+          icon={<Bot className="h-10 w-10" />}
+          title={search ? 'No agents match your search' : 'No agents yet'}
+          description={
+            search
+              ? 'Try adjusting your search terms.'
+              : 'Agents will appear here once they are registered in the platform.'
+          }
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filtered.map((agent) => {
-            const color = getAgentColor(agent.agent_type, agent.is_red_team);
-            const textColor = getAgentTextColor(agent.agent_type, agent.is_red_team);
-            const initials = getAgentInitials(agent.display_name);
-            return (
-              <Link key={agent.id} to="/agents/$agentId" params={{ agentId: agent.id }}>
-                <div className="rounded-2xl bg-bg-secondary border border-border-default p-5 hover:border-border-accent transition-all duration-200 h-full cursor-pointer">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
-                      style={{ backgroundColor: `${color}25`, color: textColor }}
-                    >
-                      {initials}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-sm font-semibold text-text-primary truncate">
-                        {agent.display_name}
-                      </div>
-                      <div className="text-xs text-text-muted">{agent.agent_type}</div>
-                    </div>
-                    {agent.is_red_team && <Badge variant="critical" className="ml-auto shrink-0">Red Team</Badge>}
-                  </div>
-
-                  {agent.expertise_tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mb-3">
-                      {agent.expertise_tags.slice(0, 5).map((tag) => (
-                        <span key={tag} className="text-xs px-2 py-0.5 rounded-full bg-bg-tertiary text-text-muted">
-                          {tag}
-                        </span>
-                      ))}
-                      {agent.expertise_tags.length > 5 && (
-                        <span className="text-xs text-text-muted">+{agent.expertise_tags.length - 5}</span>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="text-xs text-text-muted">
-                    {agent.subreddit_count} {agent.subreddit_count === 1 ? 'community' : 'communities'}
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
+        <AnimatedList className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filtered.map((agent) => (
+            <AnimatedItem key={agent.id}>
+              <AgentCard agent={agent} />
+            </AnimatedItem>
+          ))}
+        </AnimatedList>
       )}
     </div>
   );
