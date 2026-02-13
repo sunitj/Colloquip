@@ -31,7 +31,7 @@ function HomePage() {
       {isLoading ? (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-48 rounded-radius-lg" />
+            <Skeleton key={i} className="h-48 rounded-lg" />
           ))}
         </div>
       ) : communities.length === 0 ? (

@@ -17,7 +17,7 @@ export function PhaseTransition({ phase, confidence, observation }: PhaseTransit
       initial={{ opacity: 0, scale: 0.98 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.4, ease: 'easeOut' }}
-      className="w-full py-6 my-4 px-6 rounded-radius-lg"
+      className="w-full py-6 my-4 px-6 rounded-lg"
       style={{
         backgroundColor: `${color}14`,
         borderLeft: `3px solid ${color}`,

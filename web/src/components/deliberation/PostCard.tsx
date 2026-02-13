@@ -45,7 +45,7 @@ export function PostCard({ post, members }: PostCardProps) {
   return (
     <div
       className={cn(
-        'bg-bg-surface rounded-radius-lg p-5',
+        'bg-bg-surface rounded-lg p-5',
         agent.isRedTeam && 'bg-red-500/[0.03]',
       )}
       style={{ borderLeft: `3px solid ${color}` }}
@@ -74,7 +74,7 @@ export function PostCard({ post, members }: PostCardProps) {
           {triggerRules.map((rule) => (
             <span
               key={rule}
-              className="text-xs text-text-muted px-1.5 py-0.5 rounded-radius-sm"
+              className="text-xs text-text-muted px-1.5 py-0.5 rounded-sm"
               style={{
                 backgroundColor: `${TRIGGER_COLORS[rule] ?? '#6B7280'}1A`,
                 color: TRIGGER_COLORS[rule] ?? '#6B7280',

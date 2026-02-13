@@ -100,7 +100,7 @@ function MemoriesPage() {
       {isLoading ? (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-56 rounded-radius-lg" />
+            <Skeleton key={i} className="h-56 rounded-lg" />
           ))}
         </div>
       ) : filtered.length === 0 ? (

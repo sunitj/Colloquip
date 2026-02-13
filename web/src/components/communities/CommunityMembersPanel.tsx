@@ -34,7 +34,7 @@ export function CommunityMembersPanel({ members }: CommunityMembersPanelProps) {
               to="/agents/$agentId"
               params={{ agentId: member.agent_id }}
               className={cn(
-                'flex items-center gap-4 rounded-radius-lg border border-border-default bg-bg-surface p-4',
+                'flex items-center gap-4 rounded-lg border border-border-default bg-bg-surface p-4',
                 'transition-colors hover:bg-bg-elevated/30',
                 member.is_red_team && 'border-l-3',
               )}

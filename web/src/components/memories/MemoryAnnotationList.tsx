@@ -50,7 +50,7 @@ export function MemoryAnnotationList({ annotations }: MemoryAnnotationListProps)
         return (
           <div
             key={annotation.id}
-            className="rounded-radius-md border border-border-default bg-bg-elevated p-4"
+            className="rounded-md border border-border-default bg-bg-elevated p-4"
           >
             <div className="flex items-center justify-between gap-2">
               <Badge variant={config.variant} className="gap-1">

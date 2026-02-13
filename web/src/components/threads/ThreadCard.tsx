@@ -20,7 +20,7 @@ export function ThreadCard({ thread, communityName }: ThreadCardProps) {
       to="/c/$name/thread/$threadId"
       params={{ name: communityName, threadId: thread.id }}
       className={cn(
-        'group block rounded-radius-lg border border-border-default bg-bg-surface p-5',
+        'group block rounded-lg border border-border-default bg-bg-surface p-5',
         'transition-all duration-150',
         'hover:bg-bg-elevated/30',
       )}

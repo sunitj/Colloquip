@@ -107,7 +107,7 @@ function SettingsPage() {
             ) : calibration ? (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                  <div className="rounded-radius-md bg-bg-elevated p-4">
+                  <div className="rounded-md bg-bg-elevated p-4">
                     <p className="text-xs font-medium uppercase tracking-wide text-text-muted">
                       Total Outcomes
                     </p>
@@ -115,7 +115,7 @@ function SettingsPage() {
                       {formatNumber(calibration.total_outcomes)}
                     </p>
                   </div>
-                  <div className="rounded-radius-md bg-bg-elevated p-4">
+                  <div className="rounded-md bg-bg-elevated p-4">
                     <p className="text-xs font-medium uppercase tracking-wide text-text-muted">
                       Agents with Data
                     </p>
@@ -123,7 +123,7 @@ function SettingsPage() {
                       {calibration.agents_with_data}
                     </p>
                   </div>
-                  <div className="rounded-radius-md bg-bg-elevated p-4">
+                  <div className="rounded-md bg-bg-elevated p-4">
                     <p className="text-xs font-medium uppercase tracking-wide text-text-muted">
                       Agents Calibrated
                     </p>
@@ -144,7 +144,7 @@ function SettingsPage() {
                       {calibration.agent_reports.map((report) => (
                         <div
                           key={report.agent_id}
-                          className="rounded-radius-md border border-border-default bg-bg-elevated p-4"
+                          className="rounded-md border border-border-default bg-bg-elevated p-4"
                         >
                           <div className="flex items-center justify-between gap-2">
                             <span className="text-sm font-medium text-text-primary truncate">

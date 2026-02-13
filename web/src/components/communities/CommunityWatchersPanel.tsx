@@ -27,14 +27,14 @@ function WatcherSkeleton() {
       {Array.from({ length: 3 }).map((_, i) => (
         <div
           key={i}
-          className="flex items-center gap-4 rounded-radius-lg border border-border-default bg-bg-surface p-4"
+          className="flex items-center gap-4 rounded-lg border border-border-default bg-bg-surface p-4"
         >
           <Skeleton className="h-8 w-8 rounded-full" />
           <div className="flex-1 space-y-2">
             <Skeleton className="h-4 w-40" />
             <Skeleton className="h-3 w-60" />
           </div>
-          <Skeleton className="h-8 w-8 rounded-radius-md" />
+          <Skeleton className="h-8 w-8 rounded-md" />
         </div>
       ))}
     </div>
@@ -80,7 +80,7 @@ export function CommunityWatchersPanel({ communityName }: CommunityWatchersPanel
         <AnimatedItem key={watcher.id}>
           <div
             className={cn(
-              'flex items-start gap-4 rounded-radius-lg border border-border-default bg-bg-surface p-4',
+              'flex items-start gap-4 rounded-lg border border-border-default bg-bg-surface p-4',
               'transition-colors hover:bg-bg-elevated/30',
             )}
           >

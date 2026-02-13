@@ -13,7 +13,7 @@ export function CommunityCard({ community }: CommunityCardProps) {
       to="/c/$name"
       params={{ name: community.name }}
       className={cn(
-        'group block rounded-radius-lg border border-border-default bg-bg-surface p-5',
+        'group block rounded-lg border border-border-default bg-bg-surface p-5',
         'transition-all duration-200 ease-out',
         'hover:-translate-y-0.5 hover:border-border-accent hover:shadow-md',
       )}
@@ -29,7 +29,7 @@ export function CommunityCard({ community }: CommunityCardProps) {
           </p>
         </div>
 
-        <span className="shrink-0 rounded-radius-sm bg-bg-elevated px-2 py-0.5 text-xs text-text-muted">
+        <span className="shrink-0 rounded-sm bg-bg-elevated px-2 py-0.5 text-xs text-text-muted">
           {community.thinking_type}
         </span>
       </div>

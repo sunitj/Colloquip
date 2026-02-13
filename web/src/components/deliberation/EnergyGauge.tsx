@@ -39,7 +39,7 @@ function CustomTooltip({
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-radius-md border border-border-default bg-bg-overlay px-3 py-2 text-text-primary shadow-lg">
+    <div className="rounded-md border border-border-default bg-bg-overlay px-3 py-2 text-text-primary shadow-lg">
       <p className="text-xs text-text-muted">Turn {label}</p>
       <p className="text-sm font-semibold">{(payload[0].value as number).toFixed(3)}</p>
     </div>

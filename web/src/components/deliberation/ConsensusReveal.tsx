@@ -26,7 +26,7 @@ export function ConsensusReveal({ consensus, members }: ConsensusRevealProps) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="bg-bg-surface p-6 rounded-radius-xl border border-border-default"
+        className="bg-bg-surface p-6 rounded-xl border border-border-default"
       >
         <h3 className="text-sm font-medium text-text-muted mb-2">Consensus Summary</h3>
         <p className="text-lg text-text-primary leading-relaxed">{consensus.summary}</p>
@@ -42,7 +42,7 @@ export function ConsensusReveal({ consensus, members }: ConsensusRevealProps) {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.4, delay: 0.15 * i + 0.3 }}
-              className="bg-bg-surface p-4 rounded-radius-lg"
+              className="bg-bg-surface p-4 rounded-lg"
               style={{ borderLeft: '3px solid #22C55E' }}
             >
               <p className="text-sm text-text-primary">{agreement}</p>
@@ -61,7 +61,7 @@ export function ConsensusReveal({ consensus, members }: ConsensusRevealProps) {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.4, delay: 0.15 * i + 0.5 }}
-              className="bg-bg-surface p-4 rounded-radius-lg"
+              className="bg-bg-surface p-4 rounded-lg"
               style={{ borderLeft: '3px solid #EF4444' }}
             >
               <p className="text-sm text-text-primary">{disagreement}</p>
@@ -80,7 +80,7 @@ export function ConsensusReveal({ consensus, members }: ConsensusRevealProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.4, delay: 0.15 * i + 0.8 }}
-              className="bg-bg-surface p-4 rounded-radius-lg"
+              className="bg-bg-surface p-4 rounded-lg"
               style={{ borderLeft: '3px solid #F59E0B' }}
             >
               <p className="text-sm text-text-primary">{position}</p>
@@ -99,7 +99,7 @@ export function ConsensusReveal({ consensus, members }: ConsensusRevealProps) {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.4, delay: 0.15 * i + 1.0 }}
-              className="bg-bg-surface p-4 rounded-radius-lg"
+              className="bg-bg-surface p-4 rounded-lg"
               style={{ borderLeft: '3px solid #A855F7' }}
             >
               <p className="text-xs font-medium mb-1" style={{ color: '#A855F7' }}>

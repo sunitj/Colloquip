@@ -17,7 +17,7 @@ export const Route = createFileRoute('/agents/')({
 
 function AgentCardSkeleton() {
   return (
-    <div className="rounded-radius-lg border border-border-default bg-bg-surface p-5 space-y-3 flex flex-col items-center">
+    <div className="rounded-lg border border-border-default bg-bg-surface p-5 space-y-3 flex flex-col items-center">
       <Skeleton className="h-16 w-16 rounded-full" />
       <Skeleton className="h-5 w-32" />
       <Skeleton className="h-4 w-20" />

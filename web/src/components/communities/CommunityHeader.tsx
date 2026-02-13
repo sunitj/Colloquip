@@ -93,7 +93,7 @@ export function CommunityHeader({ community }: CommunityHeaderProps) {
 
       {/* Decision context */}
       {community.decision_context && (
-        <p className="text-xs text-text-muted bg-bg-elevated/40 rounded-radius-lg px-4 py-3 leading-relaxed max-w-2xl">
+        <p className="text-xs text-text-muted bg-bg-elevated/40 rounded-lg px-4 py-3 leading-relaxed max-w-2xl">
           {community.decision_context}
         </p>
       )}

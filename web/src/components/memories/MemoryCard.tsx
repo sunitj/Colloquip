@@ -37,7 +37,7 @@ export function MemoryCard({ memory }: MemoryCardProps) {
   return (
     <div
       className={cn(
-        'rounded-radius-lg border border-border-default bg-bg-surface p-5',
+        'rounded-lg border border-border-default bg-bg-surface p-5',
         'transition-all duration-200 ease-out',
         'hover:border-border-accent hover:shadow-md',
       )}

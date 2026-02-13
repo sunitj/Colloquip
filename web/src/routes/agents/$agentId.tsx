@@ -36,8 +36,8 @@ function ProfileSkeleton() {
       {/* Tabs skeleton */}
       <div className="space-y-4">
         <Skeleton className="h-10 w-72" />
-        <Skeleton className="h-32 w-full rounded-radius-lg" />
-        <Skeleton className="h-24 w-full rounded-radius-lg" />
+        <Skeleton className="h-32 w-full rounded-lg" />
+        <Skeleton className="h-24 w-full rounded-lg" />
       </div>
     </div>
   );
@@ -46,7 +46,7 @@ function ProfileSkeleton() {
 function CalibrationSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="rounded-radius-lg border border-border-default bg-bg-surface p-5 space-y-4">
+      <div className="rounded-lg border border-border-default bg-bg-surface p-5 space-y-4">
         <Skeleton className="h-5 w-32" />
         <Skeleton className="h-10 w-20" />
         <Skeleton className="h-3 w-full" />
@@ -147,7 +147,7 @@ function AgentProfilePage() {
                   <CardTitle>Persona</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <blockquote className="rounded-radius-md bg-bg-elevated border-l-2 border-accent p-4 text-sm text-text-secondary italic leading-relaxed whitespace-pre-wrap">
+                  <blockquote className="rounded-md bg-bg-elevated border-l-2 border-accent p-4 text-sm text-text-secondary italic leading-relaxed whitespace-pre-wrap">
                     {agent.persona_prompt}
                   </blockquote>
                 </CardContent>
@@ -178,9 +178,9 @@ function AgentProfilePage() {
                       ([phase, mandate]) => (
                         <details
                           key={phase}
-                          className="group rounded-radius-sm border border-border-default"
+                          className="group rounded-sm border border-border-default"
                         >
-                          <summary className="flex cursor-pointer items-center gap-2 px-4 py-3 text-sm font-medium text-text-primary hover:bg-bg-elevated transition-colors rounded-radius-sm">
+                          <summary className="flex cursor-pointer items-center gap-2 px-4 py-3 text-sm font-medium text-text-primary hover:bg-bg-elevated transition-colors rounded-sm">
                             <ChevronRight className="h-4 w-4 text-text-muted transition-transform group-open:rotate-90" />
                             {PHASE_LABELS[phase] ?? phase}
                           </summary>

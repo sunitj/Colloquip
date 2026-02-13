@@ -75,6 +75,29 @@
 }
 
 /* ── Base styles ── */
+
+/* Explicit dark-theme custom properties outside @layer theme for cascade priority */
+:root {
+  --color-bg-root: #09090B;
+  --color-bg-surface: #0F0F13;
+  --color-bg-elevated: #1A1A23;
+  --color-bg-overlay: #222233;
+  --color-bg-sidebar: #0C0C10;
+  --color-bg-input: #12121A;
+  --color-border-default: rgba(255, 255, 255, 0.06);
+  --color-border-subtle: rgba(255, 255, 255, 0.03);
+  --color-border-accent: rgba(99, 102, 241, 0.4);
+  --color-text-primary: #F1F5F9;
+  --color-text-secondary: #94A3B8;
+  --color-text-muted: #4B5563;
+  --color-text-accent: #818CF8;
+  --color-accent: #6366F1;
+  --color-accent-hover: #818CF8;
+  --color-destructive: #EF4444;
+  --color-success: #22C55E;
+  --color-warning: #F59E0B;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -86,9 +109,9 @@ html {
 }
 
 body {
-  background: var(--color-bg-root);
-  color: var(--color-text-primary);
-  font-family: var(--font-sans);
+  background: var(--color-bg-root, #09090B);
+  color: var(--color-text-primary, #F1F5F9);
+  font-family: var(--font-sans, 'Inter', -apple-system, system-ui, sans-serif);
   font-size: 15px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;

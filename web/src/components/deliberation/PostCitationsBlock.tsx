@@ -10,7 +10,7 @@ export function PostCitationsBlock({ citations }: PostCitationsBlockProps) {
       {citations.map((citation) => (
         <button
           key={citation.document_id}
-          className="inline-flex items-center bg-bg-elevated rounded-radius-sm px-2 py-0.5 text-xs text-text-accent hover:bg-bg-overlay transition-colors cursor-pointer"
+          className="inline-flex items-center bg-bg-elevated rounded-sm px-2 py-0.5 text-xs text-text-accent hover:bg-bg-overlay transition-colors cursor-pointer"
           title={`Relevance: ${Math.round(citation.relevance * 100)}%`}
         >
           {citation.title}

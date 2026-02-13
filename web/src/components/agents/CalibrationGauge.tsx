@@ -29,7 +29,7 @@ export function CalibrationGauge({ report }: CalibrationGaugeProps) {
     <div className="space-y-6">
       {/* Not meaningful notice */}
       {!report.is_meaningful && (
-        <div className="flex items-start gap-3 rounded-radius-md border border-border-default bg-bg-elevated p-4">
+        <div className="flex items-start gap-3 rounded-md border border-border-default bg-bg-elevated p-4">
           <Info className="h-5 w-5 shrink-0 text-text-muted mt-0.5" />
           <div>
             <p className="text-sm font-medium text-text-primary">

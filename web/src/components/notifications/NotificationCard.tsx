@@ -18,7 +18,7 @@ export function NotificationCard({ notification, onAct }: NotificationCardProps)
   return (
     <div
       className={cn(
-        'rounded-radius-lg border border-border-default bg-bg-surface p-5',
+        'rounded-lg border border-border-default bg-bg-surface p-5',
         'transition-all duration-200 ease-out',
         isPending && 'border-l-2 border-l-accent',
       )}

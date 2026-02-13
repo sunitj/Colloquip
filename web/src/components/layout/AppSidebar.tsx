@@ -59,7 +59,7 @@ export function AppSidebar() {
           <Link
             key={to}
             to={to}
-            className="group flex items-center gap-3 rounded-radius-md transition-colors"
+            className="group flex items-center gap-3 rounded-md transition-colors"
             activeProps={{
               className:
                 'border-l-2 border-text-accent bg-bg-elevated/50 text-text-primary',
@@ -110,7 +110,7 @@ export function AppSidebar() {
                 key={community.name}
                 to="/c/$name"
                 params={{ name: community.name }}
-                className="group flex items-center gap-3 rounded-radius-md transition-colors"
+                className="group flex items-center gap-3 rounded-md transition-colors"
                 activeProps={{
                   className: 'bg-bg-elevated/50 text-text-primary',
                 }}
@@ -143,7 +143,7 @@ export function AppSidebar() {
         {/* Create community button */}
         {!isCollapsed && (
           <button
-            className="flex items-center gap-2 w-full px-3 py-2 mt-2 text-sm text-text-muted rounded-radius-md transition-colors hover:text-text-secondary hover:border-dashed hover:border hover:border-border-default"
+            className="flex items-center gap-2 w-full px-3 py-2 mt-2 text-sm text-text-muted rounded-md transition-colors hover:text-text-secondary hover:border-dashed hover:border hover:border-border-default"
             onClick={() => setCreateCommunityOpen(true)}
           >
             <Plus className="h-4 w-4" />
@@ -152,7 +152,7 @@ export function AppSidebar() {
         )}
         {isCollapsed && (
           <button
-            className="flex items-center justify-center w-full px-2 py-2 mt-2 text-text-muted rounded-radius-md transition-colors hover:text-text-secondary hover:bg-bg-elevated/30"
+            className="flex items-center justify-center w-full px-2 py-2 mt-2 text-text-muted rounded-md transition-colors hover:text-text-secondary hover:bg-bg-elevated/30"
             onClick={() => setCreateCommunityOpen(true)}
           >
             <Plus className="h-4 w-4" />

@@ -66,7 +66,7 @@ function NotificationsPage() {
           {isLoading ? (
             <div className="space-y-4">
               {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-40 rounded-radius-lg" />
+                <Skeleton key={i} className="h-40 rounded-lg" />
               ))}
             </div>
           ) : notifications.length === 0 ? (

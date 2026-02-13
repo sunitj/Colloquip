@@ -57,7 +57,7 @@ export function TriggerDrawer({ triggers }: TriggerDrawerProps) {
                   {trigger.rules.map((rule) => (
                     <span
                       key={rule}
-                      className="px-1.5 py-0.5 rounded-radius-sm"
+                      className="px-1.5 py-0.5 rounded-sm"
                       style={{
                         backgroundColor: `${TRIGGER_COLORS[rule] ?? '#6B7280'}1A`,
                         color: TRIGGER_COLORS[rule] ?? '#6B7280',
