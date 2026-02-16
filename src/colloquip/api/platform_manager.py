@@ -222,13 +222,14 @@ class PlatformManager:
         seed: int = 42,
         model: Optional[str] = None,
         max_turns: int = 30,
+        thread_id: Optional[str] = None,
     ) -> dict:
         """Create a deliberation thread within a subreddit.
 
         This creates the thread metadata and delegates to SessionManager
         for the actual deliberation engine setup.
         """
-        thread_id = str(uuid4())
+        thread_id = thread_id or str(uuid4())
         thread = {
             "id": thread_id,
             "subreddit_id": subreddit_id,
@@ -245,6 +246,25 @@ class PlatformManager:
         self._threads.setdefault(subreddit_id, []).append(thread)
 
         return thread
+
+    def update_thread_status(
+        self,
+        thread_id: str,
+        status: Optional[str] = None,
+        phase: Optional[str] = None,
+        post_count: Optional[int] = None,
+    ) -> None:
+        """Update an existing thread's status/phase/post_count in-place."""
+        for threads in self._threads.values():
+            for thread in threads:
+                if thread["id"] == thread_id:
+                    if status is not None:
+                        thread["status"] = status
+                    if phase is not None:
+                        thread["phase"] = phase
+                    if post_count is not None:
+                        thread["post_count"] = post_count
+                    return
 
     # ---- Costs ----
 

@@ -5,11 +5,11 @@ Endpoints for listing, viewing, and annotating synthesis memories.
 
 import logging
 from typing import List, Literal, Optional
-from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from colloquip.api.utils import parse_uuid as _parse_uuid
 from colloquip.memory.store import MemoryStore
 
 logger = logging.getLogger(__name__)
@@ -26,14 +26,6 @@ def _get_store(request: Request) -> MemoryStore:
     if store is None:
         raise HTTPException(status_code=503, detail="Memory system not initialized")
     return store
-
-
-def _parse_uuid(value: str, label: str = "ID") -> UUID:
-    """Parse a UUID string, raising 400 if invalid."""
-    try:
-        return UUID(value)
-    except (ValueError, AttributeError):
-        raise HTTPException(status_code=400, detail=f"Invalid {label}: {value!r}")
 
 
 # --- Request / Response schemas ---
@@ -73,9 +65,30 @@ class MemoryResponse(BaseModel):
     annotations: List[AnnotationResponse] = Field(default_factory=list)
 
 
+class CrossReferenceResponse(BaseModel):
+    id: str
+    source_memory_id: str
+    target_memory_id: str
+    source_subreddit_id: str
+    target_subreddit_id: str
+    source_subreddit_name: str
+    target_subreddit_name: str
+    similarity: float
+    shared_entities: List[str]
+    reasoning: str
+    status: str
+    reviewed_by: Optional[str]
+    created_at: str
+
+
 class MemoryListResponse(BaseModel):
     memories: List[MemoryResponse]
     total: int
+
+
+class MemoryGraphResponse(BaseModel):
+    memories: List[MemoryResponse]
+    cross_references: List[CrossReferenceResponse]
 
 
 # --- Endpoints ---
@@ -153,6 +166,50 @@ async def annotate_memory(
         created_by=ann.get("created_by"),
         created_at=str(ann.get("created_at", "")),
     )
+
+
+@router.get("/memories/graph")
+async def get_memory_graph(request: Request) -> MemoryGraphResponse:
+    """Get all memories and cross-references for graph visualization."""
+    store = _get_store(request)
+
+    memories = await store.list_all(limit=500)
+
+    result_memories = []
+    for mem in memories:
+        annotations = await store.get_annotations(mem.id)
+        result_memories.append(_format_memory(mem, annotations))
+
+    # Load cross-references from DB if available, otherwise from store
+    cross_refs_raw = []
+    sm = getattr(request.app.state, "session_manager", None)
+    if sm and sm._db_factory:
+        async with sm._db_factory() as db:
+            from colloquip.db.repository import SessionRepository
+
+            repo = SessionRepository(db)
+            cross_refs_raw = await repo.list_cross_references()
+
+    cross_refs = [
+        CrossReferenceResponse(
+            id=str(cr["id"]),
+            source_memory_id=str(cr["source_memory_id"]),
+            target_memory_id=str(cr["target_memory_id"]),
+            source_subreddit_id=str(cr["source_subreddit_id"]),
+            target_subreddit_id=str(cr["target_subreddit_id"]),
+            source_subreddit_name=cr["source_subreddit_name"],
+            target_subreddit_name=cr["target_subreddit_name"],
+            similarity=cr["similarity"],
+            shared_entities=cr["shared_entities"],
+            reasoning=cr["reasoning"],
+            status=cr["status"],
+            reviewed_by=cr.get("reviewed_by"),
+            created_at=str(cr["created_at"]),
+        )
+        for cr in cross_refs_raw
+    ]
+
+    return MemoryGraphResponse(memories=result_memories, cross_references=cross_refs)
 
 
 @router.get("/subreddits/{subreddit_name}/memories")

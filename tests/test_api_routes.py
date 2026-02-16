@@ -11,8 +11,7 @@ from httpx import ASGITransport, AsyncClient
 
 from colloquip.api import create_app
 from colloquip.api.app import SessionManager
-from colloquip.feedback.outcome import InMemoryOutcomeTracker
-from colloquip.memory.store import InMemoryStore, SynthesisMemory
+from colloquip.memory.store import SynthesisMemory
 from colloquip.models import (
     Notification,
     TriageSignal,
@@ -278,15 +277,8 @@ class TestExternalResults:
 
 
 @pytest.fixture
-def app_with_tracker(manager):
-    app = create_app(session_manager=manager)
-    app.state.outcome_tracker = InMemoryOutcomeTracker()
-    return app
-
-
-@pytest.fixture
-async def feedback_client(app_with_tracker):
-    transport = ASGITransport(app=app_with_tracker)
+async def feedback_client(app):
+    transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         yield c
 
@@ -318,8 +310,8 @@ class TestReportOutcome:
         )
         assert resp.status_code == 422
 
-    async def test_report_outcome_no_tracker(self, client):
-        """503 when outcome_tracker not attached."""
+    async def test_report_outcome_default_tracker(self, client):
+        """Outcome tracker is always initialized by create_app."""
         resp = await client.post(
             f"/api/threads/{uuid4()}/outcome",
             json={
@@ -327,7 +319,7 @@ class TestReportOutcome:
                 "summary": "Some outcome.",
             },
         )
-        assert resp.status_code == 503
+        assert resp.status_code == 200
 
     async def test_report_outcome_invalid_uuid(self, feedback_client):
         resp = await feedback_client.post(
@@ -354,9 +346,12 @@ class TestCalibration:
         data = resp.json()
         assert data["total_outcomes"] == 0
 
-    async def test_calibration_no_tracker(self, client):
+    async def test_calibration_default_tracker(self, client):
+        """Calibration works with default tracker (returns empty data)."""
         resp = await client.get("/api/agents/biology/calibration")
-        assert resp.status_code == 503
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total_evaluations"] == 0
 
 
 # =========================================================================
@@ -365,15 +360,8 @@ class TestCalibration:
 
 
 @pytest.fixture
-def app_with_memory(manager):
-    app = create_app(session_manager=manager)
-    app.state.memory_store = InMemoryStore()
-    return app
-
-
-@pytest.fixture
-async def memory_client(app_with_memory):
-    transport = ASGITransport(app=app_with_memory)
+async def memory_client(app):
+    transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         yield c
 
@@ -386,8 +374,8 @@ class TestListMemories:
         assert data["memories"] == []
         assert data["total"] == 0
 
-    async def test_list_memories_with_data(self, app_with_memory, memory_client):
-        store = app_with_memory.state.memory_store
+    async def test_list_memories_with_data(self, app, memory_client):
+        store = app.state.memory_store
         mem = _make_memory()
         await store.save(mem)
 
@@ -397,14 +385,17 @@ class TestListMemories:
         assert data["total"] == 1
         assert data["memories"][0]["topic"] == "GLP-1 and cognition"
 
-    async def test_list_memories_no_store(self, client):
+    async def test_list_memories_default_store(self, client):
+        """Memory store is always initialized by create_app (returns empty list)."""
         resp = await client.get("/api/memories")
-        assert resp.status_code == 503
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["memories"] == []
 
 
 class TestGetMemory:
-    async def test_get_memory_success(self, app_with_memory, memory_client):
-        store = app_with_memory.state.memory_store
+    async def test_get_memory_success(self, app, memory_client):
+        store = app.state.memory_store
         mem = _make_memory()
         await store.save(mem)
 
@@ -424,8 +415,8 @@ class TestGetMemory:
 
 
 class TestAnnotateMemory:
-    async def test_annotate_success(self, app_with_memory, memory_client):
-        store = app_with_memory.state.memory_store
+    async def test_annotate_success(self, app, memory_client):
+        store = app.state.memory_store
         mem = _make_memory()
         await store.save(mem)
 
@@ -453,8 +444,8 @@ class TestAnnotateMemory:
         )
         assert resp.status_code == 404
 
-    async def test_annotate_invalid_type(self, app_with_memory, memory_client):
-        store = app_with_memory.state.memory_store
+    async def test_annotate_invalid_type(self, app, memory_client):
+        store = app.state.memory_store
         mem = _make_memory()
         await store.save(mem)
 
@@ -467,8 +458,8 @@ class TestAnnotateMemory:
         )
         assert resp.status_code == 422
 
-    async def test_annotate_empty_content(self, app_with_memory, memory_client):
-        store = app_with_memory.state.memory_store
+    async def test_annotate_empty_content(self, app, memory_client):
+        store = app.state.memory_store
         mem = _make_memory()
         await store.save(mem)
 
@@ -483,8 +474,8 @@ class TestAnnotateMemory:
 
 
 class TestSubredditMemories:
-    async def test_get_subreddit_memories(self, app_with_memory, memory_client):
-        store = app_with_memory.state.memory_store
+    async def test_get_subreddit_memories(self, app, memory_client):
+        store = app.state.memory_store
         mem = _make_memory(subreddit_name="pharma-research")
         await store.save(mem)
 
@@ -494,8 +485,8 @@ class TestSubredditMemories:
         assert data["total"] == 1
         assert data["memories"][0]["subreddit_name"] == "pharma-research"
 
-    async def test_get_subreddit_memories_no_match(self, app_with_memory, memory_client):
-        store = app_with_memory.state.memory_store
+    async def test_get_subreddit_memories_no_match(self, app, memory_client):
+        store = app.state.memory_store
         mem = _make_memory(subreddit_name="pharma-research")
         await store.save(mem)
 

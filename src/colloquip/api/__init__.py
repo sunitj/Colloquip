@@ -47,7 +47,7 @@ def create_app(
             await dispose_engine()
 
     app = FastAPI(
-        title="Colloquip",
+        title="Colloquium",
         description="Emergent multi-agent deliberation API",
         version="0.1.0",
         lifespan=lifespan,
@@ -80,6 +80,16 @@ def create_app(
 
     app.state.platform_manager = PlatformManager()
     app.state.platform_manager.initialize()
+
+    # Outcome tracker for calibration endpoint
+    from colloquip.feedback.outcome import InMemoryOutcomeTracker
+
+    app.state.outcome_tracker = InMemoryOutcomeTracker()
+
+    # Memory store for institutional memory
+    from colloquip.memory.store import InMemoryStore
+
+    app.state.memory_store = InMemoryStore()
 
     @app.get("/health")
     async def health():

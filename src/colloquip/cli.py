@@ -190,7 +190,7 @@ def _create_llm(mode: str, seed: int = 42, model: Optional[str] = None):
 
     from colloquip.llm.anthropic import AnthropicLLM
 
-    return AnthropicLLM(model=model or "claude-sonnet-4-5-20250929")
+    return AnthropicLLM(model=model or "claude-opus-4-6")
 
 
 async def run_deliberation(
@@ -279,7 +279,7 @@ async def run_deliberation(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Colloquip: Emergent multi-agent deliberation")
+    parser = argparse.ArgumentParser(description="Colloquium: Emergent multi-agent deliberation")
     parser.add_argument(
         "--hypothesis",
         "-H",
@@ -297,7 +297,7 @@ def main():
         "--model",
         type=str,
         default=None,
-        help="Claude model to use in real mode (default: claude-sonnet-4-5-20250929)",
+        help="Claude model to use in real mode (default: claude-opus-4-6)",
     )
     parser.add_argument(
         "--seed",

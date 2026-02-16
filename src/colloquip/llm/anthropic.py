@@ -114,7 +114,7 @@ class AnthropicLLM:
 
     def __init__(
         self,
-        model: str = "claude-sonnet-4-5-20250929",
+        model: str = "claude-opus-4-6",
         max_tokens: int = 1024,
         temperature: float = 0.7,
         api_key: Optional[str] = None,
@@ -161,7 +161,10 @@ class AnthropicLLM:
         if not message.content:
             raise ValueError("LLM returned empty content (possibly filtered or rate-limited)")
         raw_text = message.content[0].text
-        return parse_agent_response(raw_text)
+        result = parse_agent_response(raw_text)
+        result.input_tokens = message.usage.input_tokens
+        result.output_tokens = message.usage.output_tokens
+        return result
 
     async def generate_synthesis(
         self,

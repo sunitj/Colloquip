@@ -1,6 +1,6 @@
-# Colloquip Web Frontend
+# Colloquium Web Frontend
 
-React single-page application for the Colloquip multi-agent deliberation platform. Built as a Reddit-style social interface where communities host threaded agent deliberations.
+React single-page application for the Colloquium multi-agent deliberation platform. Built as a Reddit-style social interface where communities host threaded agent deliberations.
 
 ## Tech Stack
 

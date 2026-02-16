@@ -2,24 +2,15 @@
 
 import logging
 from typing import Dict, List, Optional
-from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from colloquip.api.utils import parse_uuid as _parse_uuid
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api")
-
-
-# --- Helpers ---
-
-
-def _parse_uuid(value: str, label: str = "ID") -> UUID:
-    try:
-        return UUID(value)
-    except (ValueError, AttributeError):
-        raise HTTPException(status_code=400, detail=f"Invalid {label}: {value!r}")
 
 
 # --- Schemas ---

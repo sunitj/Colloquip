@@ -56,6 +56,7 @@ export const getMemories = (subredditName?: string) => {
 export const getMemory = (memoryId: string) => request<import('@/types/platform').Memory>(`/memories/${memoryId}`);
 export const annotateMemory = (memoryId: string, data: { annotation_type: string; content: string; created_by: string }) => request<import('@/types/platform').MemoryAnnotation>(`/memories/${memoryId}/annotate`, { method: 'POST', body: JSON.stringify(data) });
 export const getSubredditMemories = (subredditName: string) => request<{ memories: import('@/types/platform').Memory[]; total: number }>(`/subreddits/${subredditName}/memories`);
+export const getMemoryGraph = () => request<{ memories: import('@/types/platform').Memory[]; cross_references: import('@/types/platform').CrossReference[] }>('/memories/graph');
 
 // Watchers
 export const getWatchers = (subredditName: string) => request<{ watchers: import('@/types/platform').Watcher[]; total: number }>(`/subreddits/${subredditName}/watchers`);

@@ -11,6 +11,7 @@ from colloquip.db.tables import (
     DBAgentIdentity,
     DBConsensusMap,
     DBCostRecord,
+    DBCrossReference,
     DBEnergyHistory,
     DBMemoryAnnotation,
     DBPost,
@@ -569,6 +570,54 @@ class SessionRepository:
             for r in result.scalars().all()
         ]
 
+    # ---- Cross-References ----
+
+    async def save_cross_reference(
+        self,
+        cross_ref_id: str,
+        source_memory_id: str,
+        target_memory_id: str,
+        source_subreddit_id: str,
+        target_subreddit_id: str,
+        source_subreddit_name: str = "",
+        target_subreddit_name: str = "",
+        similarity: float = 0.0,
+        shared_entities: list = None,
+        reasoning: str = "",
+        status: str = "pending",
+    ) -> None:
+        """Save a cross-reference between two memories."""
+        row = await self.db.get(DBCrossReference, cross_ref_id)
+        if row:
+            row.similarity = similarity
+            row.shared_entities = shared_entities or []
+            row.reasoning = reasoning
+            row.status = status
+        else:
+            row = DBCrossReference(
+                id=cross_ref_id,
+                source_memory_id=source_memory_id,
+                target_memory_id=target_memory_id,
+                source_subreddit_id=source_subreddit_id,
+                target_subreddit_id=target_subreddit_id,
+                source_subreddit_name=source_subreddit_name,
+                target_subreddit_name=target_subreddit_name,
+                similarity=similarity,
+                shared_entities=shared_entities or [],
+                reasoning=reasoning,
+                status=status,
+            )
+            self.db.add(row)
+        await self.db.flush()
+
+    async def list_cross_references(self, status: str = None) -> list[dict]:
+        """List all cross-references, optionally filtered by status."""
+        stmt = select(DBCrossReference).order_by(DBCrossReference.created_at.desc())
+        if status:
+            stmt = stmt.where(DBCrossReference.status == status)
+        result = await self.db.execute(stmt)
+        return [_row_to_cross_reference_dict(r) for r in result.scalars().all()]
+
     # ---- Commit ----
 
     async def commit(self) -> None:
@@ -694,5 +743,23 @@ def _row_to_memory_dict(row: DBSynthesisMemory) -> dict:
         "confidence_alpha": row.confidence_alpha,
         "confidence_beta": row.confidence_beta,
         "embedding": row.embedding or [],
+        "created_at": row.created_at,
+    }
+
+
+def _row_to_cross_reference_dict(row: DBCrossReference) -> dict:
+    return {
+        "id": row.id,
+        "source_memory_id": row.source_memory_id,
+        "target_memory_id": row.target_memory_id,
+        "source_subreddit_id": row.source_subreddit_id,
+        "target_subreddit_id": row.target_subreddit_id,
+        "source_subreddit_name": row.source_subreddit_name,
+        "target_subreddit_name": row.target_subreddit_name,
+        "similarity": row.similarity,
+        "shared_entities": row.shared_entities or [],
+        "reasoning": row.reasoning,
+        "status": row.status,
+        "reviewed_by": row.reviewed_by,
         "created_at": row.created_at,
     }

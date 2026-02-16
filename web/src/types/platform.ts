@@ -97,6 +97,22 @@ export interface Memory {
   annotations: MemoryAnnotation[];
 }
 
+export interface CrossReference {
+  id: string;
+  source_memory_id: string;
+  target_memory_id: string;
+  source_subreddit_id: string;
+  target_subreddit_id: string;
+  source_subreddit_name: string;
+  target_subreddit_name: string;
+  similarity: number;
+  shared_entities: string[];
+  reasoning: string;
+  status: string;
+  reviewed_by: string | null;
+  created_at: string;
+}
+
 export interface MemoryAnnotation {
   id: string;
   memory_id: string;

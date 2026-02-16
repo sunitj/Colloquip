@@ -46,6 +46,11 @@ class MockLLM:
         claims = self._generate_claims(agent_name, stance)
         questions = self._generate_questions(agent_name)
         connections = self._generate_connections(agent_name, novelty)
+        citations = self._generate_citations(agent_name, stance)
+
+        # Estimate token counts for mock cost tracking
+        input_tokens = len(system_prompt.split()) + len(user_prompt.split())
+        output_tokens = len(content.split()) + sum(len(c.split()) for c in claims)
 
         return LLMResult(
             content=content,
@@ -54,6 +59,9 @@ class MockLLM:
             questions_raised=questions,
             connections_identified=connections,
             novelty_score=novelty,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            citations=citations,
         )
 
     async def generate_synthesis(
@@ -108,13 +116,24 @@ class MockLLM:
         return "EXPLORATION"
 
     def _generate_content(self, agent: str, phase: str, stance: AgentStance) -> str:
-        templates = {
-            AgentStance.SUPPORTIVE: (
+        # SUPPORTIVE: sometimes omit the trailing question so question_rate can
+        # drop below the 0.3 threshold, allowing EXPLORE detection to fail and
+        # enabling DEBATE/DEEPEN phase transitions.
+        if stance == AgentStance.SUPPORTIVE and self.rng.random() < 0.5:
+            supportive_text = (
+                f"From the {agent} perspective, the evidence supports this hypothesis. "
+                f"The mechanistic data aligns with known pathway biology, and "
+                f"preclinical models show consistent results."
+            )
+        else:
+            supportive_text = (
                 f"From the {agent} perspective, the evidence supports this hypothesis. "
                 f"The mechanistic data aligns with known pathway biology, and "
                 f"preclinical models show consistent results. "
                 f"What are the key biomarkers we should track?"
-            ),
+            )
+        templates = {
+            AgentStance.SUPPORTIVE: supportive_text,
             AgentStance.CRITICAL: (
                 f"As the {agent} expert, I must challenge this assumption. "
                 f"The data clearly shows limitations that others have overlooked. "
@@ -155,3 +174,34 @@ class MockLLM:
         if novelty > 0.6:
             return [f"Cross-domain link between {agent.lower()} and clinical endpoints"]
         return []
+
+    def _generate_citations(self, agent: str, stance: AgentStance) -> List[dict]:
+        """Generate mock citations based on stance.
+
+        CRITICAL posts get 2-3, SUPPORTIVE 1-2, NOVEL_CONNECTION 1-2,
+        NEUTRAL 0-1.  This gives enough citation_density for the observer
+        to detect DEBATE phase (threshold 0.5).
+        """
+        count_map = {
+            AgentStance.CRITICAL: (2, 3),
+            AgentStance.SUPPORTIVE: (1, 2),
+            AgentStance.NOVEL_CONNECTION: (1, 2),
+            AgentStance.NEUTRAL: (0, 1),
+        }
+        lo, hi = count_map.get(stance, (0, 1))
+        n = self.rng.randint(lo, hi)
+        citations = []
+        for i in range(n):
+            pmid = self.rng.randint(10000000, 39999999)
+            citations.append(
+                {
+                    "document_id": f"PMID:{pmid}",
+                    "title": f"Mock {agent.lower()} study #{self._call_count}-{i + 1}",
+                    "excerpt": (
+                        f"Results demonstrate relevance to the {agent.lower()} "
+                        f"hypothesis under investigation."
+                    ),
+                    "relevance": round(self.rng.uniform(0.6, 0.95), 2),
+                }
+            )
+        return citations

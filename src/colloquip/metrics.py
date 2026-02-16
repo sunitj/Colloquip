@@ -119,6 +119,34 @@ llm_errors_total = _counter(
     "LLM API errors",
 )
 
+# --- Agent-level metrics ---
+agent_posts_total = _counter(
+    "colloquip_agent_posts_total",
+    "Posts generated per agent",
+    labelnames=["agent_id", "stance", "phase"],
+)
+agent_tokens_total = _counter(
+    "colloquip_agent_tokens_total",
+    "Tokens used per agent",
+    labelnames=["agent_id", "direction"],
+)
+agent_triggers_total = _counter(
+    "colloquip_agent_triggers_total",
+    "Trigger activations per agent",
+    labelnames=["agent_id", "trigger_type"],
+)
+agent_novelty_score = _histogram(
+    "colloquip_agent_novelty_score",
+    "Novelty score distribution per agent",
+    labelnames=["agent_id"],
+    buckets=[0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+)
+agent_citations_total = _counter(
+    "colloquip_agent_citations_total",
+    "Citations produced per agent",
+    labelnames=["agent_id"],
+)
+
 
 @contextmanager
 def track_duration(histogram):

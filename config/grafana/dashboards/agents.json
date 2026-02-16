@@ -1,0 +1,94 @@
+{
+  "dashboard": {
+    "title": "Colloquip Agent Metrics",
+    "uid": "colloquip-agents",
+    "timezone": "utc",
+    "refresh": "30s",
+    "panels": [
+      {
+        "title": "Posts by Agent",
+        "type": "barchart",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "sum by (agent_id) (colloquip_agent_posts_total)",
+            "legendFormat": "{{agent_id}}"
+          }
+        ]
+      },
+      {
+        "title": "Tokens by Agent",
+        "type": "barchart",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "stacking": {"mode": "normal"}
+            }
+          }
+        },
+        "targets": [
+          {
+            "expr": "sum by (agent_id, direction) (colloquip_agent_tokens_total)",
+            "legendFormat": "{{agent_id}} ({{direction}})"
+          }
+        ]
+      },
+      {
+        "title": "Stance Distribution",
+        "type": "barchart",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "stacking": {"mode": "normal"}
+            }
+          }
+        },
+        "targets": [
+          {
+            "expr": "sum by (agent_id, stance) (colloquip_agent_posts_total)",
+            "legendFormat": "{{agent_id}} ({{stance}})"
+          }
+        ]
+      },
+      {
+        "title": "Trigger Frequency",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "targets": [
+          {
+            "expr": "sum by (agent_id, trigger_type) (rate(colloquip_agent_triggers_total[5m]))",
+            "legendFormat": "{{agent_id}} ({{trigger_type}})"
+          }
+        ]
+      },
+      {
+        "title": "Novelty Distribution",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum by (le, agent_id) (rate(colloquip_agent_novelty_score_bucket[5m])))",
+            "legendFormat": "{{agent_id}} p50"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum by (le, agent_id) (rate(colloquip_agent_novelty_score_bucket[5m])))",
+            "legendFormat": "{{agent_id}} p95"
+          }
+        ]
+      },
+      {
+        "title": "Citations by Agent",
+        "type": "barchart",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+        "targets": [
+          {
+            "expr": "sum by (agent_id) (colloquip_agent_citations_total)",
+            "legendFormat": "{{agent_id}}"
+          }
+        ]
+      }
+    ]
+  }
+}

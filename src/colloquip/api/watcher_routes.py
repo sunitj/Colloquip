@@ -5,11 +5,11 @@ Endpoints for creating watchers, viewing events, and acting on notifications.
 
 import logging
 from typing import Dict, List, Optional
-from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from colloquip.api.utils import parse_uuid as _parse_uuid
 from colloquip.models import (
     NotificationAction,
     NotificationStatus,
@@ -19,17 +19,6 @@ from colloquip.models import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api")
-
-
-# --- Helpers ---
-
-
-def _parse_uuid(value: str, label: str = "ID") -> UUID:
-    """Parse a UUID string, raising 400 if invalid."""
-    try:
-        return UUID(value)
-    except (ValueError, AttributeError):
-        raise HTTPException(status_code=400, detail=f"Invalid {label}: {value!r}")
 
 
 # --- Request / Response schemas ---

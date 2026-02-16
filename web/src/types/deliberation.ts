@@ -2,7 +2,7 @@
 
 export type Phase = 'explore' | 'debate' | 'deepen' | 'converge' | 'synthesis';
 export type AgentStance = 'supportive' | 'critical' | 'neutral' | 'novel_connection';
-export type SessionStatus = 'pending' | 'running' | 'paused' | 'completed';
+export type SessionStatus = 'pending' | 'running' | 'paused' | 'completed' | 'failed';
 
 export interface Citation {
   document_id: string;

@@ -15,10 +15,18 @@ import { TriggerDrawer } from '@/components/deliberation/TriggerDrawer';
 import { PhaseTimeline } from '@/components/deliberation/PhaseTimeline';
 import { EnergyGauge } from '@/components/deliberation/EnergyGauge';
 import { AgentStage } from '@/components/deliberation/AgentStage';
+import { AhaMomentFeed } from '@/components/deliberation/AhaMomentFeed';
 import { ConsensusReveal } from '@/components/deliberation/ConsensusReveal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ReportOutcomeDialog } from '@/components/dialogs/ReportOutcomeDialog';
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 export const Route = createFileRoute('/c/$name/thread/$threadId')({
   component: ThreadPage,
@@ -29,6 +37,7 @@ function ThreadPage() {
   const { state, createAndStart, loadSession, intervene } = useDeliberation();
   const [reportOpen, setReportOpen] = useState(false);
   const [launching, setLaunching] = useState(false);
+  const [mode, setMode] = useState<'mock' | 'real'>('real');
 
   const { data: membersData } = useQuery({
     queryKey: queryKeys.subreddits.members(name),
@@ -67,8 +76,8 @@ function ThreadPage() {
   );
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="px-6 pt-6">
+    <div className="flex flex-col h-[100dvh] overflow-hidden">
+      <div className="px-6 pt-6 shrink-0">
         <PageHeader
           title={threadMeta?.title || state.hypothesis || 'Deliberation'}
           subtitle={state.hypothesis || threadMeta?.hypothesis || undefined}
@@ -133,21 +142,31 @@ function ThreadPage() {
               title="Deliberation Pending"
               description="This thread has been created but the deliberation has not started yet. Launch the session to begin the agent discussion."
               action={
-                <Button
-                  size="sm"
-                  disabled={launching}
-                  onClick={async () => {
-                    const hypothesis = state.hypothesis || threadMeta?.hypothesis;
-                    if (!hypothesis) return;
-                    setLaunching(true);
-                    const mode = threadMeta?.status === 'pending' ? 'mock' : 'mock';
-                    await createAndStart(hypothesis, mode, 30);
-                    setLaunching(false);
-                  }}
-                >
-                  <Play className="h-4 w-4" />
-                  {launching ? 'Launching...' : 'Launch Deliberation'}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Select value={mode} onValueChange={(v) => setMode(v as 'mock' | 'real')}>
+                    <SelectTrigger className="w-36 h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="real">claude-opus-4-6</SelectItem>
+                      <SelectItem value="mock">Mock (testing)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    size="sm"
+                    disabled={launching}
+                    onClick={async () => {
+                      const hypothesis = state.hypothesis || threadMeta?.hypothesis;
+                      if (!hypothesis) return;
+                      setLaunching(true);
+                      await createAndStart(hypothesis, mode, 30, name, threadId);
+                      setLaunching(false);
+                    }}
+                  >
+                    <Play className="h-4 w-4" />
+                    {launching ? 'Launching...' : 'Launch Deliberation'}
+                  </Button>
+                </div>
               }
             />
           ) : (
@@ -170,6 +189,14 @@ function ThreadPage() {
         {/* Right panel */}
         <RightPanel>
           <div className="space-y-6">
+            {/* Aha moment feed — key emergent moments highlighted */}
+            <AhaMomentFeed
+              posts={state.posts}
+              energyHistory={state.energyHistory}
+              phaseHistory={state.phaseHistory}
+              members={members}
+            />
+
             {/* Phase timeline */}
             <div>
               <h4 className="text-xs font-medium text-text-muted uppercase tracking-wider mb-3">
