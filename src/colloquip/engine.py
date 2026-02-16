@@ -234,11 +234,17 @@ class EmergentDeliberationEngine:
         phase: Phase,
     ) -> Dict[str, List[str]]:
         """Evaluate triggers for all agents, return {agent_id: triggered_rules}."""
+        from colloquip.metrics import agent_triggers_total
+
         responding: Dict[str, List[str]] = {}
         for agent_id, agent in self.agents.items():
             should_respond, rules = agent.should_respond(posts, phase)
             if should_respond:
                 responding[agent_id] = rules
+                for rule in rules:
+                    agent_triggers_total.labels(
+                        agent_id=agent_id, trigger_type=rule
+                    ).inc()
         return responding
 
     async def _generate_posts(
@@ -284,6 +290,16 @@ class EmergentDeliberationEngine:
                 model = getattr(self.llm, "model", "unknown")
                 self._cost_tracker.record(self._session_id, input_t, output_t, model)
 
+        # Always record agent-level token metrics
+        from colloquip.metrics import agent_tokens_total
+
+        input_t = getattr(agent, "last_input_tokens", 0)
+        output_t = getattr(agent, "last_output_tokens", 0)
+        if input_t:
+            agent_tokens_total.labels(agent_id=agent.agent_id, direction="input").inc(input_t)
+        if output_t:
+            agent_tokens_total.labels(agent_id=agent.agent_id, direction="output").inc(output_t)
+
     async def _safe_generate(
         self,
         agent: BaseDeliberationAgent,
@@ -295,6 +311,22 @@ class EmergentDeliberationEngine:
             post = await agent.generate_post(deps)
             post.triggered_by = rules
             self._record_cost(agent)
+
+            from colloquip.metrics import (
+                agent_citations_total,
+                agent_novelty_score,
+                agent_posts_total,
+            )
+
+            agent_posts_total.labels(
+                agent_id=agent.agent_id,
+                stance=post.stance.value,
+                phase=post.phase.value,
+            ).inc()
+            agent_novelty_score.labels(agent_id=agent.agent_id).observe(post.novelty_score)
+            if post.citations:
+                agent_citations_total.labels(agent_id=agent.agent_id).inc(len(post.citations))
+
             return post
         except Exception as e:
             logger.error("Agent %s failed: %s", agent.agent_id, e)

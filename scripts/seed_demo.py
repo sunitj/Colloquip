@@ -390,6 +390,136 @@ async def launch_deliberation(
 
 
 # ---------------------------------------------------------------------------
+# Outcome seeding (calibration data)
+# ---------------------------------------------------------------------------
+
+OUTCOME_TYPES = ["confirmed", "partially_confirmed", "contradicted", "confirmed"]
+
+OUTCOME_TEMPLATES = {
+    "confirmed": {
+        "summary": "Subsequent experimental evidence strongly supports the original hypothesis.",
+        "evidence": (
+            "Published follow-up studies and independent replication"
+            " confirmed key predictions."
+        ),
+        "agent_correct": "correct",
+        "agent_partial": "partially_correct",
+    },
+    "partially_confirmed": {
+        "summary": (
+            "Some aspects of the hypothesis were validated,"
+            " but key mechanisms remain uncertain."
+        ),
+        "evidence": "Partial replication with caveats noted in peer review.",
+        "agent_correct": "partially_correct",
+        "agent_partial": "correct",
+    },
+    "contradicted": {
+        "summary": "New evidence contradicts the central claim of the hypothesis.",
+        "evidence": "Large-scale trial or meta-analysis found no significant effect.",
+        "agent_correct": "incorrect",
+        "agent_partial": "partially_correct",
+    },
+}
+
+
+async def get_thread_agents(client: httpx.AsyncClient, thread_id: str) -> list[str]:
+    """Get unique agent IDs from a thread's posts."""
+    resp = await client.get(f"{BASE_URL}/api/deliberations/{thread_id}/posts")
+    if resp.status_code != 200:
+        logger.warning("Could not fetch posts for thread %s: %s", thread_id, resp.status_code)
+        return []
+    posts = resp.json()
+    seen = set()
+    agent_ids = []
+    for post in posts:
+        aid = post.get("agent_id", "")
+        if aid and aid != "human" and aid not in seen:
+            seen.add(aid)
+            agent_ids.append(aid)
+    return agent_ids
+
+
+async def report_outcome(
+    client: httpx.AsyncClient,
+    thread_id: str,
+    community_name: str,
+    agent_ids: list[str],
+    outcome_idx: int,
+) -> bool:
+    """Report a single outcome for a thread."""
+    outcome_type = OUTCOME_TYPES[outcome_idx % len(OUTCOME_TYPES)]
+    template = OUTCOME_TEMPLATES[outcome_type]
+
+    # Build agent assessments: vary correctness based on outcome type
+    agent_assessments = {}
+    for i, aid in enumerate(agent_ids):
+        if i % 3 == 0:
+            agent_assessments[aid] = template["agent_correct"]
+        elif i % 3 == 1:
+            agent_assessments[aid] = template["agent_partial"]
+        else:
+            agent_assessments[aid] = "partially_correct"
+
+    payload = {
+        "outcome_type": outcome_type,
+        "summary": f"[{community_name}] {template['summary']}",
+        "evidence": template["evidence"],
+        "conclusions_evaluated": [f"Hypothesis evaluation for thread {thread_id[:8]}"],
+        "agent_assessments": agent_assessments,
+        "reported_by": "seed_demo",
+    }
+
+    resp = await client.post(
+        f"{BASE_URL}/api/threads/{thread_id}/outcome",
+        json=payload,
+    )
+    if resp.status_code == 200:
+        logger.info(
+            "Reported outcome '%s' for thread %s in c/%s (%d agents assessed)",
+            outcome_type,
+            thread_id[:8],
+            community_name,
+            len(agent_assessments),
+        )
+        return True
+    else:
+        logger.warning(
+            "Failed to report outcome for thread %s: %s %s",
+            thread_id[:8],
+            resp.status_code,
+            resp.text[:200],
+        )
+        return False
+
+
+async def seed_outcomes(manifest: dict):
+    """Seed outcome reports for all threads in the manifest."""
+    threads = manifest.get("threads", [])
+    if not threads:
+        logger.info("No threads in manifest, skipping outcome seeding.")
+        return
+
+    timeout = httpx.Timeout(10.0, read=30.0)
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        reported = 0
+        for idx, thread in enumerate(threads):
+            thread_id = thread["thread_id"]
+            community_name = thread["community_name"]
+
+            agent_ids = await get_thread_agents(client, thread_id)
+            if not agent_ids:
+                logger.warning("No agents found for thread %s, skipping outcome.", thread_id[:8])
+                continue
+
+            ok = await report_outcome(client, thread_id, community_name, agent_ids, idx)
+            if ok:
+                reported += 1
+
+    logger.info("Outcome seeding complete: %d/%d threads reported.", reported, len(threads))
+
+
+# ---------------------------------------------------------------------------
 # Core seeding
 # ---------------------------------------------------------------------------
 
@@ -478,6 +608,9 @@ async def run_seed(mode: str = "real", communities_only: bool = False, concurren
 
         await asyncio.gather(*[_launch_one(task) for task in launch_tasks])
 
+        # 5) Seed outcome reports for calibration data
+        await seed_outcomes(manifest)
+
     logger.info("Seeding complete!")
     return manifest
 
@@ -565,6 +698,9 @@ async def load_fixture(db_path: Path = DEFAULT_DB):
                 thread["thread_id"][:8],
                 thread["community_name"],
             )
+
+    # 6) Seed outcome reports for calibration data
+    await seed_outcomes(manifest)
 
     logger.info(
         "Fixture loaded! %d communities, %d threads restored.",
