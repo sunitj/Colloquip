@@ -22,3 +22,5 @@ web/.vite/
 *.log
 .DS_Store
 .playwright-mcp/
+demo/test-results/
+demo/package-lock.json
