@@ -3,7 +3,7 @@ import { PhaseBadge } from '@/components/shared/PhaseBadge';
 
 interface ThreadHeaderProps {
   title: string;
-  hypothesis: string;
+  hypothesis?: string;
   status: string;
   phase: string;
 }

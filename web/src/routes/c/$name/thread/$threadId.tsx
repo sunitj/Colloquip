@@ -140,7 +140,7 @@ function ThreadPage() {
                     const hypothesis = state.hypothesis || threadMeta?.hypothesis;
                     if (!hypothesis) return;
                     setLaunching(true);
-                    const mode = threadMeta?.status === 'pending' ? 'mock' : 'mock';
+                    const mode = 'mock';
                     await createAndStart(hypothesis, mode, 30);
                     setLaunching(false);
                   }}

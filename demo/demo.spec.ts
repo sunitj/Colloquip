@@ -113,7 +113,7 @@ async function createThread(
 ) {
   const newThreadBtn = page.locator("button", {
     hasText: /New Thread|Create First Thread/,
-  });
+  }).first();
   await newThreadBtn.click();
   await expect(page.locator('[role="dialog"]')).toBeVisible();
   await pause(page, 500);
