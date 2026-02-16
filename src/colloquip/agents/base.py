@@ -61,9 +61,7 @@ class BaseDeliberationAgent:
             self.last_input_tokens = getattr(result, "input_tokens", 0)
             self.last_output_tokens = getattr(result, "output_tokens", 0)
             # Convert raw citation dicts from LLMResult to Citation models
-            post_citations = [
-                Citation(**c) for c in getattr(result, "citations", [])
-            ]
+            post_citations = [Citation(**c) for c in getattr(result, "citations", [])]
             return Post(
                 id=uuid4(),
                 session_id=deps.session.id,

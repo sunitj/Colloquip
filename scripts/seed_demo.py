@@ -59,14 +59,14 @@ def _resolve_db_path() -> Path:
     # Formats: sqlite+aiosqlite:///relative.db  or  sqlite+aiosqlite:////absolute/path.db
     for prefix in ("sqlite+aiosqlite:///", "sqlite:///"):
         if db_url.startswith(prefix):
-            raw = db_url[len(prefix):]
+            raw = db_url[len(prefix) :]
             if raw.startswith("/"):
                 # Absolute path (4 slashes total: sqlite+aiosqlite:////abs/path)
                 return Path(raw)
             # Relative path — check multiple locations
             candidates = [
-                Path.cwd() / raw,           # where the user is running from
-                PROJECT_ROOT / raw,          # project root
+                Path.cwd() / raw,  # where the user is running from
+                PROJECT_ROOT / raw,  # project root
             ]
             for candidate in candidates:
                 if candidate.exists():
@@ -435,16 +435,14 @@ OUTCOME_TEMPLATES = {
     "confirmed": {
         "summary": "Subsequent experimental evidence strongly supports the original hypothesis.",
         "evidence": (
-            "Published follow-up studies and independent replication"
-            " confirmed key predictions."
+            "Published follow-up studies and independent replication confirmed key predictions."
         ),
         "agent_correct": "correct",
         "agent_partial": "partially_correct",
     },
     "partially_confirmed": {
         "summary": (
-            "Some aspects of the hypothesis were validated,"
-            " but key mechanisms remain uncertain."
+            "Some aspects of the hypothesis were validated, but key mechanisms remain uncertain."
         ),
         "evidence": "Partial replication with caveats noted in peer review.",
         "agent_correct": "partially_correct",
@@ -572,15 +570,17 @@ async def run_seed(mode: str = "real", communities_only: bool = False, concurren
         # 2) Create all communities
         for community_config in COMMUNITIES:
             await create_community(client, community_config)
-            manifest["communities"].append({
-                "name": community_config["name"],
-                "display_name": community_config["display_name"],
-                "description": community_config["description"],
-                "primary_domain": community_config["primary_domain"],
-                "thinking_type": community_config["thinking_type"],
-                "required_expertise": community_config["required_expertise"],
-                "max_agents": community_config["max_agents"],
-            })
+            manifest["communities"].append(
+                {
+                    "name": community_config["name"],
+                    "display_name": community_config["display_name"],
+                    "description": community_config["description"],
+                    "primary_domain": community_config["primary_domain"],
+                    "thinking_type": community_config["thinking_type"],
+                    "required_expertise": community_config["required_expertise"],
+                    "max_agents": community_config["max_agents"],
+                }
+            )
 
         if communities_only:
             logger.info("Communities created. Skipping deliberations (--communities-only).")
@@ -593,20 +593,24 @@ async def run_seed(mode: str = "real", communities_only: bool = False, concurren
                 thread_data = await create_thread(client, community_name, thread_config, mode)
                 thread_id = thread_data["id"]
 
-                manifest["threads"].append({
-                    "thread_id": thread_id,
-                    "community_name": community_name,
-                    "title": thread_config["title"],
-                    "hypothesis": thread_config["hypothesis"],
-                    "max_turns": thread_config.get("max_turns", 15),
-                })
+                manifest["threads"].append(
+                    {
+                        "thread_id": thread_id,
+                        "community_name": community_name,
+                        "title": thread_config["title"],
+                        "hypothesis": thread_config["hypothesis"],
+                        "max_turns": thread_config.get("max_turns", 15),
+                    }
+                )
 
-                launch_tasks.append({
-                    "session_id": thread_id,
-                    "community_name": community_name,
-                    "hypothesis": thread_config["hypothesis"],
-                    "max_turns": thread_config.get("max_turns", 15),
-                })
+                launch_tasks.append(
+                    {
+                        "session_id": thread_id,
+                        "community_name": community_name,
+                        "hypothesis": thread_config["hypothesis"],
+                        "max_turns": thread_config.get("max_turns", 15),
+                    }
+                )
 
         logger.info(
             "Created %d threads across %d communities. Launching deliberations...",
@@ -672,8 +676,17 @@ def _pg_dump_fixture():
     logger.info("Running pg_dump via docker compose...")
     result = subprocess.run(
         [
-            "docker", "compose", "exec", "-T", "postgres",
-            "pg_dump", "-U", "colloquip", "--clean", "--if-exists", "colloquip",
+            "docker",
+            "compose",
+            "exec",
+            "-T",
+            "postgres",
+            "pg_dump",
+            "-U",
+            "colloquip",
+            "--clean",
+            "--if-exists",
+            "colloquip",
         ],
         capture_output=True,
         cwd=PROJECT_ROOT,
@@ -698,8 +711,16 @@ def _pg_restore_fixture():
     logger.info("Restoring PostgreSQL from %s...", dump_file)
     result = subprocess.run(
         [
-            "docker", "compose", "exec", "-T", "postgres",
-            "psql", "-U", "colloquip", "-d", "colloquip",
+            "docker",
+            "compose",
+            "exec",
+            "-T",
+            "postgres",
+            "psql",
+            "-U",
+            "colloquip",
+            "-d",
+            "colloquip",
         ],
         input=dump_file.read_bytes(),
         capture_output=True,
@@ -744,15 +765,11 @@ def export_fixture(manifest: dict, db_path: Path = DEFAULT_DB):
                 )
                 sys.exit(1)
         shutil.copy2(db_path, FIXTURE_DB)
-        logger.info(
-            "Exported DB -> %s (%.1f MB)", FIXTURE_DB, FIXTURE_DB.stat().st_size / 1e6
-        )
+        logger.info("Exported DB -> %s (%.1f MB)", FIXTURE_DB, FIXTURE_DB.stat().st_size / 1e6)
 
     with open(FIXTURE_MANIFEST, "w") as f:
         json.dump(manifest, f, indent=2)
-    logger.info(
-        "Exported manifest -> %s (%d threads)", FIXTURE_MANIFEST, len(manifest["threads"])
-    )
+    logger.info("Exported manifest -> %s (%d threads)", FIXTURE_MANIFEST, len(manifest["threads"]))
 
 
 async def load_fixture(db_path: Path = DEFAULT_DB):
@@ -770,14 +787,10 @@ async def load_fixture(db_path: Path = DEFAULT_DB):
         _pg_restore_fixture()
     else:
         if not FIXTURE_DB.exists():
-            logger.error(
-                "Fixture DB not found at %s. Run seed first to auto-export.", FIXTURE_DB
-            )
+            logger.error("Fixture DB not found at %s. Run seed first to auto-export.", FIXTURE_DB)
             sys.exit(1)
         shutil.copy2(FIXTURE_DB, db_path)
-        logger.info(
-            "Restored DB <- %s (%.1f MB)", FIXTURE_DB, FIXTURE_DB.stat().st_size / 1e6
-        )
+        logger.info("Restored DB <- %s (%.1f MB)", FIXTURE_DB, FIXTURE_DB.stat().st_size / 1e6)
 
     # 2) Wait for server to be ready
     timeout = httpx.Timeout(10.0, read=30.0)
@@ -900,9 +913,7 @@ Examples:
                 manifest = json.load(f)
             export_fixture(manifest, db_path=args.db_path)
         else:
-            logger.error(
-                "No manifest found. Run seed first (without --export), then --export."
-            )
+            logger.error("No manifest found. Run seed first (without --export), then --export.")
             sys.exit(1)
         return
 
@@ -923,9 +934,7 @@ Examples:
     # Auto-export DB + manifest right after seeding
     if not args.communities_only:
         export_fixture(manifest, db_path=args.db_path)
-        logger.info(
-            "To reload later: uv run python scripts/seed_demo.py --load-fixture"
-        )
+        logger.info("To reload later: uv run python scripts/seed_demo.py --load-fixture")
 
 
 if __name__ == "__main__":

@@ -220,9 +220,7 @@ class SessionManager:
                             session_id, status="active", post_count=post_count
                         )
                     else:
-                        self._update_platform_thread(
-                            session_id, post_count=post_count
-                        )
+                        self._update_platform_thread(session_id, post_count=post_count)
                     await self._broadcast(
                         session_id,
                         {
@@ -232,9 +230,7 @@ class SessionManager:
                     )
                     await self._persist_post(event)
                 elif isinstance(event, PhaseSignal):
-                    self._update_platform_thread(
-                        session_id, phase=event.current_phase.value
-                    )
+                    self._update_platform_thread(session_id, phase=event.current_phase.value)
                     await self._broadcast(
                         session_id,
                         {
@@ -254,9 +250,7 @@ class SessionManager:
                     )
                     await self._persist_energy(session_id, event)
                 elif isinstance(event, ConsensusMap):
-                    self._update_platform_thread(
-                        session_id, status="completed", phase="synthesis"
-                    )
+                    self._update_platform_thread(session_id, status="completed", phase="synthesis")
                     await self._broadcast(
                         session_id,
                         {
@@ -461,9 +455,7 @@ class SessionManager:
                             evaluation_criteria=identity.evaluation_criteria,
                             is_red_team=identity.is_red_team,
                         )
-                        agents[config.agent_id] = BaseDeliberationAgent(
-                            config=config, llm=llm
-                        )
+                        agents[config.agent_id] = BaseDeliberationAgent(config=config, llm=llm)
                     if agents:
                         logger.info(
                             "Created %d agents from community '%s'",
@@ -505,9 +497,7 @@ class SessionManager:
                 "executive_summary": consensus.summary,
                 "key_findings": "\n".join(f"- {a}" for a in consensus.agreements),
                 "disagreements": "\n".join(f"- {d}" for d in consensus.disagreements),
-                "minority_positions": "\n".join(
-                    f"- {m}" for m in consensus.minority_positions
-                ),
+                "minority_positions": "\n".join(f"- {m}" for m in consensus.minority_positions),
             }
             synthesis = Synthesis(
                 thread_id=session_id,
@@ -525,9 +515,7 @@ class SessionManager:
                 agents_involved=agent_ids,
             )
             await memory_store.save(memory)
-            logger.info(
-                "Extracted and stored memory %s for session %s", memory.id, session_id
-            )
+            logger.info("Extracted and stored memory %s for session %s", memory.id, session_id)
         except Exception as e:
             logger.error("Failed to extract memory for session %s: %s", session_id, e)
 

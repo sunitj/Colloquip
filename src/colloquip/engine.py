@@ -242,9 +242,7 @@ class EmergentDeliberationEngine:
             if should_respond:
                 responding[agent_id] = rules
                 for rule in rules:
-                    agent_triggers_total.labels(
-                        agent_id=agent_id, trigger_type=rule
-                    ).inc()
+                    agent_triggers_total.labels(agent_id=agent_id, trigger_type=rule).inc()
         return responding
 
     async def _generate_posts(
