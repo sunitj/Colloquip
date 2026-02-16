@@ -1,7 +1,7 @@
 """Base deliberation agent."""
 
 import logging
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 from uuid import uuid4
 
 from colloquip.agents.prompts import build_system_prompt, build_user_prompt
@@ -21,10 +21,12 @@ class BaseDeliberationAgent:
         llm: LLMInterface,
         trigger_evaluator: Optional[TriggerEvaluator] = None,
         prompt_version: str = "v1",
+        phase_max_tokens: Optional[Dict[str, int]] = None,
     ):
         self.config = config
         self.llm = llm
         self.prompt_version = prompt_version
+        self.phase_max_tokens = phase_max_tokens
         # Token counts from the last LLM call (used by engine for cost tracking)
         self.last_input_tokens = 0
         self.last_output_tokens = 0
@@ -57,7 +59,10 @@ class BaseDeliberationAgent:
         )
 
         try:
-            result = await self.llm.generate(system_prompt, user_prompt)
+            phase_tokens = (
+                self.phase_max_tokens.get(deps.phase.value) if self.phase_max_tokens else None
+            )
+            result = await self.llm.generate(system_prompt, user_prompt, max_tokens=phase_tokens)
             self.last_input_tokens = getattr(result, "input_tokens", 0)
             self.last_output_tokens = getattr(result, "output_tokens", 0)
             # Convert raw citation dicts from LLMResult to Citation models

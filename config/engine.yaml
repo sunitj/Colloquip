@@ -5,6 +5,12 @@ engine:
   low_energy_rounds: 3
   refractory_period: 2
   hysteresis_threshold: 3
+  phase_max_tokens:
+    explore: 512
+    debate: 640
+    deepen: 512
+    converge: 384
+    synthesis: 1024
 
 observer:
   hysteresis_threshold: 3

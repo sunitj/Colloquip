@@ -51,6 +51,7 @@ class LLMInterface(Protocol):
         self,
         system_prompt: str,
         user_prompt: str,
+        max_tokens: Optional[int] = None,
     ) -> LLMResult:
         """Generate a structured response from the LLM."""
         ...
@@ -59,6 +60,7 @@ class LLMInterface(Protocol):
         self,
         system_prompt: str,
         user_prompt: str,
+        max_tokens: Optional[int] = None,
     ) -> str:
         """Generate a free-form synthesis response."""
         ...

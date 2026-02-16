@@ -8,6 +8,15 @@ from typing import Dict, List, Optional, Union
 
 from colloquip.models import AgentConfig, Phase, Post
 
+# Word limits per phase (prompt-level instruction)
+PHASE_WORD_LIMITS: Dict[Phase, int] = {
+    Phase.EXPLORE: 250,
+    Phase.DEBATE: 300,
+    Phase.DEEPEN: 250,
+    Phase.CONVERGE: 150,
+    Phase.SYNTHESIS: 500,
+}
+
 # Phase mandates appended to each agent's system prompt
 PHASE_MANDATES: Dict[Phase, str] = {
     Phase.EXPLORE: (
@@ -17,7 +26,8 @@ PHASE_MANDATES: Dict[Phase, str] = {
         "- Ask 'what if' questions. Explore adjacent domains.\n"
         "- LOWER your evidence threshold. Entertain possibilities.\n"
         "- Don't dismiss ideas prematurely.\n\n"
-        "Your goal is to expand the hypothesis space, not constrain it."
+        "Your goal is to expand the hypothesis space, not constrain it.\n\n"
+        f"**WORD LIMIT**: Keep your analysis under {PHASE_WORD_LIMITS[Phase.EXPLORE]} words."
     ),
     Phase.DEBATE: (
         "## Current Phase: DEBATE\n\n"
@@ -26,7 +36,8 @@ PHASE_MANDATES: Dict[Phase, str] = {
         "- CHALLENGE claims that lack evidence.\n"
         "- Demand evidence when others make strong claims.\n"
         "- Be willing to UPDATE your position if shown contradicting data.\n\n"
-        "Your goal is to stress-test claims through rigorous challenge."
+        "Your goal is to stress-test claims through rigorous challenge.\n\n"
+        f"**WORD LIMIT**: Keep your analysis under {PHASE_WORD_LIMITS[Phase.DEBATE]} words."
     ),
     Phase.DEEPEN: (
         "## Current Phase: DEEPENING\n\n"
@@ -35,7 +46,8 @@ PHASE_MANDATES: Dict[Phase, str] = {
         "- Ignore tangents. Go deep on the core issue.\n"
         "- Propose SPECIFIC next steps that would resolve key uncertainties.\n"
         "- Identify the critical assumptions that must be true.\n\n"
-        "Your goal is to drill into the highest-signal question."
+        "Your goal is to drill into the highest-signal question.\n\n"
+        f"**WORD LIMIT**: Keep your analysis under {PHASE_WORD_LIMITS[Phase.DEEPEN]} words."
     ),
     Phase.CONVERGE: (
         "## Current Phase: CONVERGENCE\n\n"
@@ -44,7 +56,8 @@ PHASE_MANDATES: Dict[Phase, str] = {
         "- Acknowledge remaining uncertainties.\n"
         "- Identify what evidence would change your mind.\n"
         "- Be CONCISE. No new explorations.\n\n"
-        "Your goal is to crystallize your assessment for synthesis."
+        "Your goal is to crystallize your assessment for synthesis.\n\n"
+        f"**WORD LIMIT**: Keep your analysis under {PHASE_WORD_LIMITS[Phase.CONVERGE]} words."
     ),
     Phase.SYNTHESIS: (
         "## Current Phase: SYNTHESIS\n\nThe deliberation is concluding. Provide your final summary."
@@ -57,7 +70,7 @@ RESPONSE_GUIDELINES = """
 
 Your response must include:
 
-1. **Content**: Your substantive analysis (2-4 paragraphs)
+1. **Content**: Your substantive analysis. Respect the word limit for the current phase.
 
 2. **Stance**: Explicitly state one of:
    - SUPPORTIVE: You believe the hypothesis is strengthened
@@ -199,7 +212,8 @@ _V2_PHASE_MANDATES: Dict[Phase, str] = {
         "and other agents' expertise.\n"
         "- Reference specific biological pathways, chemical scaffolds, "
         "or clinical endpoints by name.\n\n"
-        "Your goal is to expand the hypothesis space, not constrain it."
+        "Your goal is to expand the hypothesis space, not constrain it.\n\n"
+        f"**WORD LIMIT**: Keep your analysis under {PHASE_WORD_LIMITS[Phase.EXPLORE]} words."
     ),
     Phase.DEBATE: (
         "## Current Phase: DEBATE\n\n"
@@ -211,7 +225,8 @@ _V2_PHASE_MANDATES: Dict[Phase, str] = {
         "- Be willing to UPDATE your position if shown contradicting data.\n"
         "- Use domain-specific vocabulary (IC50, Ki, AUC, p-values, "
         "hazard ratios, etc.).\n\n"
-        "Your goal is to stress-test claims through rigorous challenge."
+        "Your goal is to stress-test claims through rigorous challenge.\n\n"
+        f"**WORD LIMIT**: Keep your analysis under {PHASE_WORD_LIMITS[Phase.DEBATE]} words."
     ),
     Phase.DEEPEN: (
         "## Current Phase: DEEPENING\n\n"
@@ -221,7 +236,8 @@ _V2_PHASE_MANDATES: Dict[Phase, str] = {
         "- Propose SPECIFIC experiments or analyses that would resolve "
         "the key uncertainty.\n"
         "- Identify the 2-3 critical assumptions that must hold true.\n\n"
-        "Your goal is to drill into the highest-signal question."
+        "Your goal is to drill into the highest-signal question.\n\n"
+        f"**WORD LIMIT**: Keep your analysis under {PHASE_WORD_LIMITS[Phase.DEEPEN]} words."
     ),
     Phase.CONVERGE: (
         "## Current Phase: CONVERGENCE\n\n"
@@ -230,7 +246,8 @@ _V2_PHASE_MANDATES: Dict[Phase, str] = {
         "- Acknowledge remaining uncertainties explicitly.\n"
         "- Identify what evidence would change your mind.\n"
         "- Be CONCISE. No new explorations. No hedging without substance.\n\n"
-        "Your goal is to crystallize your assessment for synthesis."
+        "Your goal is to crystallize your assessment for synthesis.\n\n"
+        f"**WORD LIMIT**: Keep your analysis under {PHASE_WORD_LIMITS[Phase.CONVERGE]} words."
     ),
     Phase.SYNTHESIS: (
         "## Current Phase: SYNTHESIS\n\n"
@@ -245,7 +262,8 @@ _V2_RESPONSE_GUIDELINES = """
 Structure your response EXACTLY as follows:
 
 ### Analysis
-Your substantive analysis (2-4 paragraphs). Use domain-specific terminology.
+Your substantive analysis. Respect the word limit for the current phase.
+Use domain-specific terminology.
 Reference other agents' posts by number when building on or challenging them.
 
 ### Stance

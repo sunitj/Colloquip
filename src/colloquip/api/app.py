@@ -51,6 +51,17 @@ class SessionManager:
         self._session_context: Dict[UUID, Dict[str, Any]] = {}
         # Optional database factory
         self._db_factory = db_session_factory
+        # Load phase_max_tokens from config
+        self._phase_max_tokens = self._load_phase_max_tokens()
+
+    @staticmethod
+    def _load_phase_max_tokens() -> Dict[str, int]:
+        from pathlib import Path
+
+        from colloquip.config import load_config
+
+        config = load_config(engine_path=Path("config/engine.yaml"))
+        return config.engine.phase_max_tokens
 
     def create_session(
         self,
@@ -455,7 +466,9 @@ class SessionManager:
                             evaluation_criteria=identity.evaluation_criteria,
                             is_red_team=identity.is_red_team,
                         )
-                        agents[config.agent_id] = BaseDeliberationAgent(config=config, llm=llm)
+                        agents[config.agent_id] = BaseDeliberationAgent(
+                            config=config, llm=llm, phase_max_tokens=self._phase_max_tokens
+                        )
                     if agents:
                         logger.info(
                             "Created %d agents from community '%s'",
@@ -469,7 +482,7 @@ class SessionManager:
     def _create_default_agents(self, llm) -> Dict[str, BaseDeliberationAgent]:
         from colloquip.cli import create_default_agents
 
-        return create_default_agents(llm)
+        return create_default_agents(llm, phase_max_tokens=self._phase_max_tokens)
 
     async def _extract_memory(self, session_id: UUID, consensus: ConsensusMap) -> None:
         """Extract and store a synthesis memory after deliberation completes."""

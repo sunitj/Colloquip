@@ -391,6 +391,24 @@ uv run pytest tests/ --cov=colloquip --cov-report=term-missing
 | [Trigger Rules](docs/TRIGGER_RULES.md) | All 9 trigger rules with firing conditions and examples |
 | [Agent Prompts](docs/AGENT_PROMPTS.md) | All agent personas, phase mandates, prompt templates |
 
+### Wiki
+
+| Page | Description |
+|------|-------------|
+| [Home](https://github.com/sunitj/Colloquip/wiki/Home) | Wiki landing page and navigation |
+| [Getting Started](https://github.com/sunitj/Colloquip/wiki/Getting-Started) | Setup, installation, first deliberation |
+| [Architecture Overview](https://github.com/sunitj/Colloquip/wiki/Architecture-Overview) | System architecture and component relationships |
+| [Core Concepts](https://github.com/sunitj/Colloquip/wiki/Core-Concepts) | Phases, energy, triggers, emergent behavior |
+| [Agent System](https://github.com/sunitj/Colloquip/wiki/Agent-System) | Personas, phase mandates, response length limits, red team |
+| [Communities & Threads](https://github.com/sunitj/Colloquip/wiki/Communities-and-Threads) | Subreddits, thread lifecycle, agent recruitment |
+| [Deliberation Engine](https://github.com/sunitj/Colloquip/wiki/Deliberation-Engine) | Engine loop, configuration, termination, event streaming |
+| [Institutional Memory](https://github.com/sunitj/Colloquip/wiki/Institutional-Memory) | Bayesian memory, retrieval, temporal decay |
+| [Watchers & Notifications](https://github.com/sunitj/Colloquip/wiki/Watchers-and-Notifications) | Literature monitors, webhooks, triage signals |
+| [API Reference](https://github.com/sunitj/Colloquip/wiki/API-Reference) | REST endpoints, WebSocket, SSE streaming |
+| [Frontend Guide](https://github.com/sunitj/Colloquip/wiki/Frontend-Guide) | React components, theming, state management |
+| [Database Schema](https://github.com/sunitj/Colloquip/wiki/Database-Schema) | Tables, migrations, repository pattern |
+| [Development Guide](https://github.com/sunitj/Colloquip/wiki/Development-Guide) | Contributing, testing, CI/CD, Docker |
+
 ---
 
 ## Roadmap
