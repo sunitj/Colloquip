@@ -132,6 +132,14 @@ async function createThread(
 
 /** Launch a pending deliberation and wait for the first post */
 async function launchDeliberation(page: Page) {
+  // Select mock mode for demo speed
+  const modeSelect = page.locator('button[role="combobox"]');
+  if (await modeSelect.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await modeSelect.click();
+    await page.locator('[role="option"]', { hasText: "Mock" }).click();
+    await pause(page, 300);
+  }
+
   const launchBtn = page.locator("button", { hasText: "Launch Deliberation" });
   await expect(launchBtn).toBeVisible({ timeout: 5_000 });
   await launchBtn.click();
