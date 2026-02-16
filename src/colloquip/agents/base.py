@@ -25,6 +25,9 @@ class BaseDeliberationAgent:
         self.config = config
         self.llm = llm
         self.prompt_version = prompt_version
+        # Token counts from the last LLM call (used by engine for cost tracking)
+        self.last_input_tokens = 0
+        self.last_output_tokens = 0
         self.trigger_evaluator = trigger_evaluator or TriggerEvaluator(
             agent_id=config.agent_id,
             domain_keywords=config.domain_keywords,
@@ -55,6 +58,8 @@ class BaseDeliberationAgent:
 
         try:
             result = await self.llm.generate(system_prompt, user_prompt)
+            self.last_input_tokens = getattr(result, "input_tokens", 0)
+            self.last_output_tokens = getattr(result, "output_tokens", 0)
             return Post(
                 id=uuid4(),
                 session_id=deps.session.id,

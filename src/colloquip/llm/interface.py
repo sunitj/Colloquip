@@ -28,6 +28,8 @@ class LLMResult:
         questions_raised: Optional[List[str]] = None,
         connections_identified: Optional[List[str]] = None,
         novelty_score: float = 0.5,
+        input_tokens: int = 0,
+        output_tokens: int = 0,
     ):
         self.content = content
         self.stance = stance
@@ -35,6 +37,8 @@ class LLMResult:
         self.questions_raised = questions_raised or []
         self.connections_identified = connections_identified or []
         self.novelty_score = novelty_score
+        self.input_tokens = input_tokens
+        self.output_tokens = output_tokens
 
 
 @runtime_checkable

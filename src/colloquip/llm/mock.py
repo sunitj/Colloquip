@@ -47,6 +47,10 @@ class MockLLM:
         questions = self._generate_questions(agent_name)
         connections = self._generate_connections(agent_name, novelty)
 
+        # Estimate token counts for mock cost tracking
+        input_tokens = len(system_prompt.split()) + len(user_prompt.split())
+        output_tokens = len(content.split()) + sum(len(c.split()) for c in claims)
+
         return LLMResult(
             content=content,
             stance=stance,
@@ -54,6 +58,8 @@ class MockLLM:
             questions_raised=questions,
             connections_identified=connections,
             novelty_score=novelty,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
         )
 
     async def generate_synthesis(

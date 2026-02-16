@@ -161,7 +161,10 @@ class AnthropicLLM:
         if not message.content:
             raise ValueError("LLM returned empty content (possibly filtered or rate-limited)")
         raw_text = message.content[0].text
-        return parse_agent_response(raw_text)
+        result = parse_agent_response(raw_text)
+        result.input_tokens = message.usage.input_tokens
+        result.output_tokens = message.usage.output_tokens
+        return result
 
     async def generate_synthesis(
         self,

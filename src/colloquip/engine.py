@@ -45,6 +45,8 @@ class EmergentDeliberationEngine:
         llm: LLMInterface,
         max_turns: int = 30,
         min_posts: int = 12,
+        cost_tracker=None,
+        session_id=None,
     ):
         self.agents = agents
         self.observer = observer
@@ -52,6 +54,8 @@ class EmergentDeliberationEngine:
         self.llm = llm
         self.max_turns = max_turns
         self.min_posts = min_posts
+        self._cost_tracker = cost_tracker
+        self._session_id = session_id
 
     async def run_deliberation(
         self,
@@ -271,6 +275,15 @@ class EmergentDeliberationEngine:
 
         return new_posts
 
+    def _record_cost(self, agent: BaseDeliberationAgent):
+        """Record the last LLM call's cost from the agent."""
+        if self._cost_tracker and self._session_id:
+            input_t = getattr(agent, "last_input_tokens", 0)
+            output_t = getattr(agent, "last_output_tokens", 0)
+            if input_t or output_t:
+                model = getattr(self.llm, "model", "unknown")
+                self._cost_tracker.record(self._session_id, input_t, output_t, model)
+
     async def _safe_generate(
         self,
         agent: BaseDeliberationAgent,
@@ -281,6 +294,7 @@ class EmergentDeliberationEngine:
         try:
             post = await agent.generate_post(deps)
             post.triggered_by = rules
+            self._record_cost(agent)
             return post
         except Exception as e:
             logger.error("Agent %s failed: %s", agent.agent_id, e)
@@ -314,6 +328,10 @@ class EmergentDeliberationEngine:
         prompt = build_synthesis_prompt(hypothesis, posts)
 
         try:
+            # Snapshot token counts before synthesis call
+            pre_input = getattr(self.llm, "_total_input_tokens", 0)
+            pre_output = getattr(self.llm, "_total_output_tokens", 0)
+
             summary = await self.llm.generate_synthesis(
                 system_prompt=(
                     "You are a deliberation synthesizer. "
@@ -321,6 +339,18 @@ class EmergentDeliberationEngine:
                 ),
                 user_prompt=prompt,
             )
+
+            # Record synthesis cost
+            if self._cost_tracker and self._session_id:
+                post_input = getattr(self.llm, "_total_input_tokens", 0)
+                post_output = getattr(self.llm, "_total_output_tokens", 0)
+                model = getattr(self.llm, "model", "unknown")
+                self._cost_tracker.record(
+                    self._session_id,
+                    post_input - pre_input,
+                    post_output - pre_output,
+                    model,
+                )
         except Exception as e:
             logger.error("Synthesis generation failed: %s", e)
             summary = "Synthesis generation failed. Please review the deliberation posts."

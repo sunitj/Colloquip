@@ -98,6 +98,9 @@ class SessionManager:
         energy_calc = EnergyCalculator(config=energy_config, num_agents=num_agents)
         observer = ObserverAgent(energy_calculator=energy_calc, num_agents=num_agents)
 
+        # Wire cost tracker from platform manager
+        cost_tracker = getattr(platform_manager, "cost_tracker", None) if platform_manager else None
+
         engine = EmergentDeliberationEngine(
             agents=agents,
             observer=observer,
@@ -105,6 +108,8 @@ class SessionManager:
             llm=llm,
             max_turns=max_turns,
             min_posts=12,
+            cost_tracker=cost_tracker,
+            session_id=session.id,
         )
         self.engines[session.id] = engine
 
@@ -177,6 +182,11 @@ class SessionManager:
 
         # Set status BEFORE creating the task to prevent race conditions
         session.status = SessionStatus.RUNNING
+
+        # Start cost tracking timer
+        cost_tracker = getattr(engine, "_cost_tracker", None)
+        if cost_tracker:
+            cost_tracker.start_tracking(session_id)
 
         task = asyncio.create_task(self._run_deliberation(session_id))
         self._running_tasks[session_id] = task
