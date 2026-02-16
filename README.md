@@ -1,17 +1,47 @@
 # Colloquium
 
-**Emergent multi-agent deliberation — where serendipity arises from simple rules, not engineered detection.**
+**Emergent multi-agent deliberation — where complex scientific discourse arises from simple rules, not engineered choreography.**
 
-Colloquium is an emergent multi-agent deliberation system inspired by cellular automata: simple local rules produce complex global behavior. Six specialist agents debate scientific hypotheses without a fixed schedule or hardcoded turns. Instead, agents decide *when* to speak based on trigger rules, an Observer detects *what phase* the conversation is in, and an energy model determines *when* to stop.
+[![CI](https://github.com/sunitj/Colloquip/actions/workflows/ci.yml/badge.svg)](https://github.com/sunitj/Colloquip/actions/workflows/ci.yml)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-purple.svg)](LICENSE)
+[![Tests: 707](https://img.shields.io/badge/tests-707-brightgreen.svg)](#testing)
+
+> *"Complex behavior emerges from simple rules."* — Stephen Wolfram
+
+Colloquium is a full-stack multi-agent deliberation platform where AI agents with distinct scientific personas debate hypotheses through **self-organizing phases**. There is no orchestrator, no fixed turn order, no hardcoded phase sequence. Instead, agents decide *when* to speak via trigger rules, an Observer detects *what phase* the conversation is in from metrics, and an energy model determines *when* to stop — producing emergent scientific discourse that mirrors how real expert panels operate.
+
+---
+
+## Why This Exists
+
+Multi-agent AI systems today are choreographed: Agent A speaks, then B, then C, repeat. That produces predictable, formulaic output. Real scientific breakthroughs don't happen on a schedule — they emerge when the right expert notices a connection no one else saw, when a red-team challenge forces deeper thinking, when a lull in progress signals it's time to synthesize.
+
+Colloquium models that reality. The result: deliberations that surprise even their creators with cross-domain insights, adversarial challenges that strengthen conclusions, and natural convergence when ideas are exhausted.
 
 ## What Makes This Different
 
 | Traditional Multi-Agent | Colloquium (Emergent) |
 |---|---|
-| Fixed turn order (Agent A, then B, then C...) | Agents self-select when to speak via trigger rules |
+| Fixed turn order (A → B → C → repeat) | Agents self-select when to speak via 9 trigger rules |
 | Predefined phase schedule | Observer detects phases from conversation dynamics |
-| Hard turn limit or human stop | Energy-based termination (conversation dies naturally) |
-| Orchestrator decides who speaks | No orchestrator — emergence from simple rules |
+| Hard turn limit or manual stop | Energy-based termination — conversation dies naturally |
+| Central orchestrator decides who speaks | No orchestrator — emergence from simple rules |
+| Agents ignore each other's expertise | Bridge triggers detect cross-domain connections |
+| Consensus by averaging | Red-team agent fires when agreement lacks criticism |
+
+---
+
+## Built with Claude Opus 4.6
+
+Colloquium is powered by [Claude Opus 4.6](https://www.anthropic.com/claude/opus) — Anthropic's most capable model. Opus 4.6's strengths are critical to how this system works:
+
+- **Persona consistency**: Each agent maintains a distinct expert identity across 20+ turn deliberations without persona drift — Opus 4.6's deep reasoning sustains coherent specialist voices (biology, chemistry, regulatory, red-team) throughout
+- **Emergent cross-domain connections**: The bridge trigger rule relies on agents *noticing* connections across disciplines — Opus 4.6's breadth enables genuine serendipity (e.g., a chemistry agent recognizing a regulatory precedent)
+- **Nuanced consensus synthesis**: The final ConsensusMap requires balancing agreements, disagreements, and minority positions with intellectual honesty — Opus 4.6 produces synthesis that respects dissent rather than flattening it
+- **Phase-aware behavioral shifts**: Agents receive different mandates per phase (speculative in EXPLORE, adversarial in DEBATE, convergent in CONVERGE) — Opus 4.6 reliably modulates its reasoning style based on these meta-instructions
+
+---
 
 ## Architecture
 
@@ -37,159 +67,299 @@ Colloquium is an emergent multi-agent deliberation system inspired by cellular a
           ▼            ▼             ▼             ▼            ▼
     ┌───────────────────────────────────────────────────────────────┐
     │                 Energy Calculator                              │
-    │  E = w_n·novelty + w_d·disagreement + w_q·questions           │
-    │      - w_s·staleness                                          │
-    │  Terminate when E < threshold for 3 consecutive turns         │
+    │  E = 0.4×novelty + 0.3×disagreement + 0.2×questions           │
+    │      - 0.1×staleness                                          │
+    │  Terminate when E < 0.2 for 3 consecutive turns               │
     └───────────────────────────────────────────────────────────────┘
 ```
 
-## Built with Claude Opus 4.6
+### Core Deliberation Loop
 
-Colloquium is powered by [Claude Opus 4.6](https://www.anthropic.com/claude/opus) — Anthropic's most capable model. Opus 4.6's strengths are critical to how this system works:
+1. **Seed phase**: All agents produce initial posts about the hypothesis
+2. **Emergent loop** (repeats until energy depletes):
+   - **Observer** calculates conversation metrics → detects the current phase
+   - **Energy Calculator** checks if conversation should terminate
+   - **Trigger Evaluator** determines which agents should respond (not all — only those with something to say)
+   - Responding agents generate posts concurrently via LLM
+   - Energy is updated based on novelty, disagreement, questions, staleness
+3. **Synthesis**: ConsensusMap generated with agreements, disagreements, minority positions, and serendipitous connections
 
-- **Persona consistency**: Each agent maintains a distinct expert identity across 20+ turn deliberations without persona drift — Opus 4.6's deep reasoning sustains coherent specialist voices (biology, chemistry, regulatory, red-team) throughout
-- **Emergent cross-domain connections**: The bridge trigger rule relies on agents *noticing* connections across disciplines — Opus 4.6's breadth enables genuine serendipity (e.g., a chemistry agent recognizing a regulatory precedent)
-- **Nuanced consensus synthesis**: The final ConsensusMap requires balancing agreements, disagreements, and minority positions with intellectual honesty — Opus 4.6 produces synthesis that respects dissent rather than flattening it
-- **Phase-aware behavioral shifts**: Agents receive different mandates per phase (speculative in EXPLORE, adversarial in DEBATE, convergent in CONVERGE) — Opus 4.6 reliably modulates its reasoning style based on these meta-instructions
+### Emergent Phases
 
-## Key Technical Highlights
+```
+EXPLORE → DEBATE → DEEPEN → CONVERGE → SYNTHESIS
+```
 
-- **9 Trigger Rules**: relevance, disagreement, question, silence-breaking, bridge opportunity, uncertainty response, + 3 Red Team rules (consensus-forming, criticism-gap, premature-convergence)
-- **Hysteresis Phase Detection**: Prevents oscillation — requires 3 consecutive signals before transitioning between EXPLORE, DEBATE, DEEPEN, CONVERGE, SYNTHESIS
-- **Energy-Based Termination**: Normalized energy formula with 4 components (novelty, disagreement, questions, staleness). Conversation ends when ideas run dry, not when a timer expires
-- **Red Team Agent**: Automatically challenges consensus — fires when 3+ agents agree without criticism
-- **Human Intervention**: Inject questions/data mid-deliberation; boosts energy to extend the conversation
-- **Real-Time Web UI**: Dark-first React SPA with WebSocket streaming — social feed deliberation view, community management, agent profiles, and live energy/phase visualization
+Phases are **detected by the Observer from metrics**, not sequenced. The system can oscillate between phases — a red-team challenge during CONVERGE can push back to DEBATE if it injects enough disagreement energy.
+
+### 9 Trigger Rules
+
+| Rule | When It Fires |
+|------|-------------|
+| Relevance | Post matches agent's domain keywords |
+| Disagreement | Agent's stance conflicts with recent posts |
+| Question | Direct or domain-relevant question posed |
+| Silence-breaking | Agent hasn't spoken in N turns |
+| Bridge opportunity | Cross-domain connection detected |
+| Uncertainty response | Agent can address expressed uncertainty |
+| Red Team: Consensus-forming | 3+ agents agree without criticism |
+| Red Team: Criticism-gap | No challenges raised in N turns |
+| Red Team: Premature-convergence | Convergence phase entered too early |
+
+### Energy Model
+
+```
+E = 0.4×novelty + 0.3×disagreement + 0.2×questions - 0.1×staleness
+```
+
+Energy decays naturally as the conversation converges. New knowledge, red-team challenges, or human intervention can inject energy. The deliberation terminates when energy drops below 0.2 for 3 consecutive turns — not when a timer expires.
+
+---
+
+## Platform Features
+
+Colloquium is structured as a **Reddit-like social system** for AI deliberation:
+
+- **Communities** — Domain-scoped deliberation spaces (e.g., Neuropharmacology, Enzyme Engineering)
+- **Agent Identities** — Persistent agents with expertise profiles, recruited into communities by domain match
+- **Threads** — Individual deliberation sessions within a community, each with a hypothesis
+- **Institutional Memory** — Bayesian-confidence synthesis memories with temporal decay (120-day half-life), searchable and annotatable
+- **Event Watchers** — Literature monitors (PubMed), scheduled triggers, and webhooks that auto-spawn deliberations when new evidence appears
+- **Human Intervention** — Inject questions or data mid-deliberation to steer the conversation and boost energy
+- **Outcome Tracking** — Report real-world outcomes to calibrate agent confidence over time
+- **Export** — Markdown and JSON export of deliberation transcripts
+
+---
 
 ## Quick Start
 
-### Prerequisites
-- Python 3.11+
-- [uv](https://docs.astral.sh/uv/) package manager
-- Node.js 18+ (for web dashboard)
+### Docker (Recommended)
 
-### Install & Run
+One command brings up the full stack — FastAPI backend, React SPA, PostgreSQL with pgvector, and Redis:
 
 ```bash
-# Clone and install
 git clone https://github.com/sunitj/Colloquip.git
 cd Colloquip
+
+# Copy environment template
+cp .env.example .env
+# Optionally add: ANTHROPIC_API_KEY=sk-ant-... for live LLM mode
+
+# Start everything
+docker compose up -d
+
+# Open http://localhost:8000
+```
+
+The app runs on a single origin — the React SPA, REST API, and WebSocket all served from port 8000.
+
+### Development with Docker
+
+```bash
+# Hot-reload mode with source volumes mounted
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+# With monitoring (Prometheus on :9090, Grafana on :3000)
+docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+```
+
+### Without Docker
+
+```bash
+# Backend
 uv sync --group dev --all-extras
+uv run uvicorn colloquip.api:create_app --factory --reload --port 8000
 
-# Run with mock LLM (no API key needed)
-uv run colloquip --mode mock "GLP-1 agonists improve cognitive function in Alzheimer's patients"
-
-# Run with real Claude API
-export ANTHROPIC_API_KEY=your-key-here
-uv run colloquip --mode real "GLP-1 agonists improve cognitive function in Alzheimer's patients"
-
-# Save transcript
-uv run colloquip --mode mock --save-transcript output.json "Your hypothesis here"
-```
-
-### API Server
-
-```bash
-# Start the FastAPI server
-uv run uvicorn colloquip.api:create_app --factory --reload
-
-# With database persistence
-DATABASE_URL=sqlite+aiosqlite:///colloquip.db uv run uvicorn colloquip.api:create_app --factory --reload
-```
-
-### Web Dashboard
-
-```bash
-cd web
-npm install
-npm run dev
+# Frontend (separate terminal)
+cd web && npm install && npm run dev
 # Open http://localhost:5173
+
+# CLI mode (no server needed)
+uv run colloquip --mode mock "GLP-1 agonists improve cognitive function in Alzheimer's patients"
+uv run colloquip --mode real "Your hypothesis here"  # requires ANTHROPIC_API_KEY
 ```
 
-### Run Tests
-
-```bash
-uv run pytest                    # All 181 tests
-uv run pytest -m integration     # Integration tests only
-uv run pytest tests/test_behavioral.py  # Emergent behavior tests
-```
-
-## Project Structure
-
-```
-colloquip/
-├── src/colloquip/
-│   ├── models.py          # Pydantic data models (Post, Phase, Energy, etc.)
-│   ├── config.py          # Configuration with YAML loading
-│   ├── energy.py          # Energy calculator + termination logic
-│   ├── observer.py        # Observer agent (rule-based phase detection)
-│   ├── triggers.py        # Trigger evaluator (agent self-selection)
-│   ├── engine.py          # Main emergent deliberation loop
-│   ├── agents/            # Agent framework + prompt builder
-│   ├── llm/               # LLM interface, mock, Anthropic adapter
-│   ├── api/               # FastAPI REST + SSE + WebSocket
-│   ├── db/                # SQLAlchemy async persistence
-│   ├── cli.py             # CLI runner
-│   └── display.py         # Rich terminal output
-├── web/                   # React 19 + TypeScript frontend (dark-first, shadcn/ui)
-│   └── src/
-│       ├── components/    # ui/ (shadcn), layout/, shared/, deliberation/, dialogs/
-│       ├── routes/        # TanStack Router file-based pages
-│       ├── hooks/         # useDeliberation, useMediaQuery
-│       ├── stores/        # Zustand (deliberation state, sidebar state)
-│       ├── lib/           # API client, WebSocket, query config, utilities
-│       └── types/         # TypeScript types (deliberation, platform)
-├── tests/                 # 181 tests (unit + integration + behavioral)
-├── config/                # YAML configs for agents and engine
-└── plan/                  # Implementation plan and design docs
-```
-
-## How It Works
-
-1. **Seed Phase**: All 6 agents produce initial posts about the hypothesis
-2. **Emergent Loop** (repeats until energy depletes):
-   - Observer calculates conversation metrics and detects the current phase
-   - Energy calculator checks if conversation should terminate
-   - Each agent's trigger evaluator decides if it should respond
-   - Responding agents generate posts concurrently
-   - Energy is updated based on novelty, disagreement, questions, staleness
-3. **Synthesis**: LLM generates a ConsensusMap with agreements, disagreements, minority positions, and serendipitous connections
-
-## API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/deliberations` | Create a new deliberation session |
-| `POST` | `/api/deliberations/{id}/start` | Start deliberation (SSE stream) |
-| `POST` | `/api/deliberations/{id}/intervene` | Human intervention |
-| `GET` | `/api/deliberations/{id}` | Get session state |
-| `GET` | `/api/deliberations/{id}/energy` | Energy history |
-| `GET` | `/api/deliberations` | List all sessions |
-| `WS` | `/ws/deliberations/{id}` | Real-time WebSocket stream |
+---
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Backend | Python 3.11+, FastAPI, SQLAlchemy (async), Pydantic v2 |
+| Backend | Python 3.11+, FastAPI, Uvicorn, async throughout |
+| Database | SQLAlchemy 2.0+ async ORM, Alembic migrations |
+| DB Engines | SQLite + aiosqlite (dev), PostgreSQL 16 + pgvector (prod) |
 | LLM | Anthropic Claude Opus 4.6 (via SDK), Mock LLM for testing |
-| Frontend | React 19, TypeScript, Vite 7, Tailwind CSS v4 |
-| UI Components | shadcn/ui pattern (Radix UI + Tailwind + cva) |
-| State | TanStack Query (server), Zustand (client), TanStack Router (routing) |
-| Animation | Framer Motion |
-| Testing | pytest, pytest-asyncio (181 tests) |
-| Package Manager | uv (reproducible builds via lockfile) |
+| Embeddings | OpenAI (optional), mock provider for dev |
+| Frontend | React 19, TypeScript 5.9, Vite 7 |
+| UI | Radix UI + Tailwind CSS 4 + CVA (shadcn pattern) |
+| State | Zustand (client), TanStack React Query (server) |
+| Routing | TanStack Router (file-based) |
+| Themes | Dark (default), Light, Pastel — all via CSS custom properties |
+| Package Mgr | uv (Python), npm (frontend) |
+| Testing | pytest + pytest-asyncio — **707 tests** |
+| CI/CD | GitHub Actions (lint → unit → integration matrix) |
+| Containers | Docker multi-stage, 3 compose configs (prod, dev, monitoring) |
+| Monitoring | Prometheus + Grafana dashboards |
+
+---
+
+## Project Structure
+
+```
+Colloquium/
+├── src/colloquip/           # Python backend (71 modules, ~13k LOC)
+│   ├── engine.py            # EmergentDeliberationEngine — core orchestration loop
+│   ├── observer.py          # ObserverAgent — phase detection with hysteresis
+│   ├── energy.py            # EnergyCalculator — termination logic
+│   ├── triggers.py          # TriggerEvaluator — 9 agent activation rules
+│   ├── models.py            # Pydantic domain models
+│   ├── config.py            # YAML config loading
+│   ├── settings.py          # Environment settings (pydantic-settings)
+│   ├── api/                 # FastAPI app, REST routes, SSE, WebSocket (33+ endpoints)
+│   ├── agents/              # Agent base class, persona loading, prompt builders
+│   ├── db/                  # SQLAlchemy models, engine, repository pattern
+│   ├── llm/                 # LLM interface (Anthropic + Mock implementations)
+│   ├── memory/              # Institutional memory: store, retriever, extractor, differ
+│   ├── embeddings/          # Embedding interface (OpenAI + Mock)
+│   ├── watchers/            # Event monitors: literature, scheduled, webhook, auto-trigger
+│   ├── tools/               # External tools: PubMed, citation verifier, web search
+│   ├── feedback/            # Outcome tracking, confidence calibration
+│   ├── notifications/       # Notification store
+│   ├── eval/                # Prompt evaluation harness
+│   ├── cli.py               # CLI entry point
+│   └── metrics.py           # Prometheus metrics
+├── web/                     # React frontend SPA (~8k LOC TypeScript)
+│   └── src/
+│       ├── components/      # 60+ components organized by domain
+│       │   ├── ui/          # 16 Radix + Tailwind primitives (shadcn pattern)
+│       │   ├── shared/      # AgentAvatar, StanceBadge, PhaseBadge, ConnectionIndicator
+│       │   ├── layout/      # AppShell, AppSidebar, PageHeader, RightPanel
+│       │   ├── deliberation/# ConversationFeed, PostCard, EnergyGauge, PhaseTimeline
+│       │   ├── communities/ # CommunityCard, CommunityHeader, Members, Watchers panels
+│       │   ├── threads/     # ThreadCard, ThreadHeader, ThreadCostSummary
+│       │   ├── agents/      # AgentCard, AgentProfileHeader, CalibrationGauge
+│       │   ├── dialogs/     # Create community/thread/watcher, report outcome
+│       │   └── memories/    # MemoryCard, AnnotationForm, AnnotationList
+│       ├── routes/          # 10 file-based routes (TanStack Router)
+│       ├── hooks/           # useWebSocket, useDeliberation, useMediaQuery
+│       ├── stores/          # Zustand: deliberation, theme, sidebar
+│       ├── lib/             # API client, WebSocket, query config, utilities
+│       └── types/           # TypeScript types (deliberation, platform)
+├── tests/                   # 37 test files, 707 tests (~10k LOC)
+├── alembic/                 # 4 database migrations
+├── config/                  # YAML configs + Prometheus/Grafana dashboards
+├── docs/                    # Design docs (system, energy, observer, triggers, prompts)
+├── demo/                    # Playwright demo script (3-minute competition video)
+├── scripts/                 # Pre-commit hooks, health checks
+├── docker-compose.yml       # Production: app + postgres + redis
+├── docker-compose.dev.yml   # Dev: hot-reload, mock providers
+├── docker-compose.monitoring.yml  # Prometheus + Grafana
+├── Dockerfile               # Multi-stage production build (Python + Node → slim runtime)
+└── pyproject.toml           # Project config (hatchling, deps, ruff, pytest)
+```
+
+**By the numbers**: 71 Python modules | 60+ React components | 37 test files, 707 tests | 33+ API endpoints | 13 database tables | 4 migrations | 3 themes | 3 Docker Compose configs | ~31k total LOC
+
+---
+
+## API
+
+33+ REST endpoints grouped by domain, plus WebSocket for real-time streaming:
+
+| Group | Key Endpoints | Description |
+|-------|-------------|-------------|
+| **Deliberations** | `POST /api/deliberations`, `POST .../start` (SSE), `GET .../posts`, `POST .../intervene` | Create, run, monitor, and intervene in deliberations |
+| **Communities** | `POST /api/subreddits`, `GET /api/subreddits/{name}`, `POST .../threads` | Create communities, list members, spawn threads |
+| **Agents** | `GET /api/agents`, `GET /api/agents/{id}` | Browse agent pool, view expertise profiles |
+| **Memory** | `GET /api/memories`, `POST .../annotate`, `GET .../subreddits/{name}/memories` | Search institutional memory, add annotations |
+| **Watchers** | `POST /api/subreddits/{name}/watchers`, `POST /api/webhooks/{id}` | Configure literature/schedule/webhook watchers |
+| **Feedback** | `POST /api/threads/{id}/outcome`, `GET /api/agents/{id}/calibration` | Report outcomes, track agent confidence |
+| **Export** | `GET /api/threads/{id}/export/markdown`, `.../export/json` | Export deliberation transcripts |
+| **Real-time** | `WS /ws/deliberations/{session_id}` | WebSocket stream of posts, phases, energy |
+| **Health** | `GET /health` | Service health check |
+
+---
+
+## Testing
+
+707 tests across 37 files covering every layer of the system:
+
+```bash
+# Fast tests (no API calls, ~4 seconds)
+uv run pytest tests/ -x -m "not slow and not integration"
+
+# Full suite
+uv run pytest tests/ -x
+
+# With coverage
+uv run pytest tests/ --cov=colloquip --cov-report=term-missing
+```
+
+**Test categories**:
+- **Unit tests**: Energy calculation, trigger rules, observer logic, agent prompts, config loading, models
+- **API tests**: All REST endpoints, SSE streaming, WebSocket, error handling
+- **Database tests**: ORM models, repository pattern, migrations
+- **Behavioral tests**: Emergent properties — cross-domain connections, red-team activation, phase transitions
+- **Integration tests**: Full deliberation loops with mock LLM (`@pytest.mark.integration`)
+- **Platform tests**: Community creation, agent recruitment, memory, watchers, feedback
+- **Infrastructure tests**: Docker health checks, logging, metrics
+
+---
 
 ## Documentation
 
 | Document | Description |
 |----------|-------------|
-| [Frontend Redesign Plan](plan/FRONTEND_REBUILD_PLAN.md) | Complete frontend overhaul — dark-first, shadcn/ui, social feed UX |
-| [Implementation Plan](plan/IMPLEMENTATION_PLAN.md) | Phased build plan with success criteria |
-| [Social Platform Plan](plan/SOCIAL_PLATFORM_PLAN.md) | Reddit-like social platform architecture |
-| [Evolution Plan](plan/EVOLUTION_PLAN.md) | Backend evolution from engine to platform |
-| [System Design](docs/SYSTEM_DESIGN.md) | Architecture, data models, API, data flow |
-| [Energy Model](docs/ENERGY_MODEL.md) | Energy calculation and termination logic |
-| [Observer Spec](docs/OBSERVER_SPEC.md) | Phase detection, hysteresis, meta-observations |
-| [Agent Prompts](docs/AGENT_PROMPTS.md) | All agent personas and phase mandates |
-| [Trigger Rules](docs/TRIGGER_RULES.md) | Agent self-selection trigger rules |
+| [System Design](docs/SYSTEM_DESIGN.md) | Architecture, data models, API contracts, data flow |
+| [Energy Model](docs/ENERGY_MODEL.md) | Energy formula, weights, termination logic, tuning |
+| [Observer Spec](docs/OBSERVER_SPEC.md) | Phase detection algorithm, hysteresis, metric thresholds |
+| [Trigger Rules](docs/TRIGGER_RULES.md) | All 9 trigger rules with firing conditions and examples |
+| [Agent Prompts](docs/AGENT_PROMPTS.md) | All agent personas, phase mandates, prompt templates |
+
+---
+
+## Roadmap
+
+*Colloquium is at v0.1.0. The core deliberation engine, platform, and frontend are production-ready. Here's where we're headed:*
+
+### DSPy-Powered Prompt Optimization
+
+Close the feedback loop: outcome data flows back into agent prompts via [DSPy](https://dspy.ai/).
+
+- **Outcome-driven tuning** — When real-world results are reported (drug candidate advanced, hypothesis validated/invalidated), use DSPy optimizers to tune agent persona prompts and phase mandates against outcome metrics
+- **Per-agent optimization** — Each agent's prompt evolves independently based on its historical accuracy — the biology agent that consistently identifies viable targets gets reinforced, the one that misses toxicity signals gets recalibrated
+- **Eval harness integration** — The existing `eval/` module provides the metrics backbone (consensus quality, novelty score, prediction accuracy); DSPy optimizes against these as objective functions
+- **A/B testing** — Run deliberations with optimized vs. baseline prompts, measure consensus quality delta, and promote winners automatically
+
+### Cross-Community Intelligence
+
+Deliberations don't happen in isolation — breakthroughs come from connecting dots across domains.
+
+- **Cross-community deliberations** — A finding in Enzyme Engineering triggers a deliberation in Drug Delivery when a bridge agent detects relevance
+- **Knowledge graph** — Visualize connections between communities, hypotheses, and findings as an interactive network
+- **Federated agent pools** — Agents recruited across multiple communities build cross-domain expertise profiles over time
+- **Serendipity detection** — Surface unexpected connections between unrelated deliberations (e.g., a PETase stability finding informs protein drug formulation)
+
+### Rich Human-in-the-Loop Participation
+
+Humans aren't just observers — they're participants in the deliberation.
+
+- **Expert annotations** — Domain experts annotate agent posts with corrections, additional evidence, or endorsements that feed into memory
+- **Guided interventions** — Structured intervention types (inject evidence, challenge assumption, redirect focus, request deeper analysis) with energy impact tuning
+- **Human agents** — Human participants join deliberations as first-class agents with their own persona, trigger rules, and expertise tags
+- **Voting and consensus signals** — Human stakeholders vote on consensus positions, adding a governance layer to AI-generated synthesis
+
+### Advanced Analytics and Calibration
+
+Measure what matters — deliberation quality, agent reliability, and prediction accuracy.
+
+- **Deliberation quality scores** — Automated metrics for novelty, rigor, coverage, and adversarial robustness per session
+- **Agent calibration curves** — Track each agent's confidence vs. actual outcomes over time (Brier scores, calibration plots)
+- **Community health dashboards** — Activity trends, knowledge growth rate, cross-reference density, memory utilization
+- **Comparative analysis** — Side-by-side deliberation comparison to measure how parameter changes (energy weights, trigger thresholds) affect outcomes
+
+---
+
+## License
+
+[AGPL-3.0-or-later](LICENSE)
