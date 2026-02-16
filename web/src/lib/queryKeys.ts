@@ -23,6 +23,7 @@ export const queryKeys = {
   memories: {
     all: (subreddit?: string) => subreddit ? ['memories', subreddit] : ['memories'] as const,
     detail: (id: string) => ['memories', id] as const,
+    graph: ['memories', 'graph'] as const,
   },
   notifications: {
     all: (params?: { subreddit?: string; status?: string }) => ['notifications', params] as const,
