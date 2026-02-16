@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from colloquip.agents.prompts import build_system_prompt, build_user_prompt
 from colloquip.llm.interface import LLMInterface
-from colloquip.models import AgentConfig, AgentDependencies, Phase, Post
+from colloquip.models import AgentConfig, AgentDependencies, Citation, Phase, Post
 from colloquip.triggers import TriggerEvaluator
 
 logger = logging.getLogger(__name__)
@@ -60,12 +60,17 @@ class BaseDeliberationAgent:
             result = await self.llm.generate(system_prompt, user_prompt)
             self.last_input_tokens = getattr(result, "input_tokens", 0)
             self.last_output_tokens = getattr(result, "output_tokens", 0)
+            # Convert raw citation dicts from LLMResult to Citation models
+            post_citations = [
+                Citation(**c) for c in getattr(result, "citations", [])
+            ]
             return Post(
                 id=uuid4(),
                 session_id=deps.session.id,
                 agent_id=self.agent_id,
                 content=result.content,
                 stance=result.stance,
+                citations=post_citations,
                 key_claims=result.key_claims,
                 questions_raised=result.questions_raised,
                 connections_identified=result.connections_identified,

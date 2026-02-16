@@ -191,14 +191,54 @@ async def get_subreddit_members(name: str, request: Request):
 
 @router.get("/subreddits/{name}/threads")
 async def list_subreddit_threads(name: str, request: Request):
-    """List threads in a subreddit."""
+    """List threads in a subreddit, enriched with live session data."""
     pm = _get_platform(request)
     subreddit = pm.get_subreddit_by_name(name)
     if not subreddit:
         raise HTTPException(status_code=404, detail=f"Subreddit '{name}' not found")
 
     threads = pm.get_subreddit_threads(subreddit["id"])
-    return {"threads": threads}
+    sm = getattr(request.app.state, "session_manager", None)
+
+    enriched = []
+    for thread in threads:
+        t = dict(thread)
+        t.setdefault("subreddit_name", name)
+        t.setdefault("post_count", 0)
+        t.setdefault("estimated_cost_usd", 0.0)
+
+        if sm:
+            thread_id = t["id"]
+            try:
+                sid = UUID(thread_id)
+            except ValueError:
+                enriched.append(t)
+                continue
+
+            # 1. Check in-memory session for live data
+            session = sm.get_session(sid)
+            if session:
+                t["status"] = session.status.value
+                t["phase"] = session.phase.value
+                t["post_count"] = len(sm.get_posts(sid))
+            else:
+                # 2. DB fallback for fixture-loaded threads
+                try:
+                    data = await sm.load_session_data(sid)
+                    if data and data.get("session"):
+                        db_session = data["session"]
+                        t["status"] = db_session.status.value
+                        t["phase"] = db_session.phase.value
+                        t["post_count"] = len(data.get("posts", []))
+                except Exception:
+                    pass  # Keep PlatformManager defaults
+
+            # Costs from CostTracker
+            costs = pm.get_thread_costs(thread_id)
+            t["estimated_cost_usd"] = costs.get("estimated_cost_usd", 0.0)
+
+        enriched.append(t)
+    return {"threads": enriched}
 
 
 @router.post("/subreddits/{name}/threads", response_model=ThreadResponse)

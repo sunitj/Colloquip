@@ -30,6 +30,7 @@ class LLMResult:
         novelty_score: float = 0.5,
         input_tokens: int = 0,
         output_tokens: int = 0,
+        citations: Optional[List[dict]] = None,
     ):
         self.content = content
         self.stance = stance
@@ -39,6 +40,7 @@ class LLMResult:
         self.novelty_score = novelty_score
         self.input_tokens = input_tokens
         self.output_tokens = output_tokens
+        self.citations = citations or []
 
 
 @runtime_checkable

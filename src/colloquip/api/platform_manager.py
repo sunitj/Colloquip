@@ -247,6 +247,25 @@ class PlatformManager:
 
         return thread
 
+    def update_thread_status(
+        self,
+        thread_id: str,
+        status: Optional[str] = None,
+        phase: Optional[str] = None,
+        post_count: Optional[int] = None,
+    ) -> None:
+        """Update an existing thread's status/phase/post_count in-place."""
+        for threads in self._threads.values():
+            for thread in threads:
+                if thread["id"] == thread_id:
+                    if status is not None:
+                        thread["status"] = status
+                    if phase is not None:
+                        thread["phase"] = phase
+                    if post_count is not None:
+                        thread["post_count"] = post_count
+                    return
+
     # ---- Costs ----
 
     def get_thread_costs(self, thread_id: str) -> dict:

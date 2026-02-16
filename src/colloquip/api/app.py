@@ -87,6 +87,8 @@ class SessionManager:
             "subreddit_id": subreddit_id,
             "subreddit_name": subreddit_name,
             "memory_store": memory_store,
+            "platform_manager": platform_manager,
+            "thread_id": session_id or str(session.id),
         }
 
         # Create engine components
@@ -191,6 +193,14 @@ class SessionManager:
         task = asyncio.create_task(self._run_deliberation(session_id))
         self._running_tasks[session_id] = task
 
+    def _update_platform_thread(self, session_id: UUID, **kwargs) -> None:
+        """Push status/phase/post_count changes to PlatformManager."""
+        ctx = self._session_context.get(session_id, {})
+        pm = ctx.get("platform_manager")
+        thread_id = ctx.get("thread_id")
+        if pm and thread_id and hasattr(pm, "update_thread_status"):
+            pm.update_thread_status(thread_id, **kwargs)
+
     async def _run_deliberation(self, session_id: UUID):
         """Internal deliberation runner that broadcasts events."""
         session = self.sessions.get(session_id)
@@ -203,6 +213,16 @@ class SessionManager:
                 if isinstance(event, Post):
                     async with lock:
                         posts.append(event)
+                    post_count = len(posts)
+                    # First post: mark thread as active
+                    if post_count == 1:
+                        self._update_platform_thread(
+                            session_id, status="active", post_count=post_count
+                        )
+                    else:
+                        self._update_platform_thread(
+                            session_id, post_count=post_count
+                        )
                     await self._broadcast(
                         session_id,
                         {
@@ -212,6 +232,9 @@ class SessionManager:
                     )
                     await self._persist_post(event)
                 elif isinstance(event, PhaseSignal):
+                    self._update_platform_thread(
+                        session_id, phase=event.current_phase.value
+                    )
                     await self._broadcast(
                         session_id,
                         {
@@ -231,6 +254,9 @@ class SessionManager:
                     )
                     await self._persist_energy(session_id, event)
                 elif isinstance(event, ConsensusMap):
+                    self._update_platform_thread(
+                        session_id, status="completed", phase="synthesis"
+                    )
                     await self._broadcast(
                         session_id,
                         {
@@ -245,13 +271,18 @@ class SessionManager:
             await self._persist_session_status(session_id)
         except asyncio.CancelledError:
             logger.info("Deliberation cancelled for session %s", session_id)
-            if session:
+            if session and session.status != SessionStatus.COMPLETED:
                 session.status = SessionStatus.PAUSED
+                self._update_platform_thread(session_id, status="paused")
+            elif session:
+                # Already completed; keep the correct status
+                self._update_platform_thread(session_id, status="completed")
             await self._persist_session_status(session_id)
         except Exception as e:
             logger.error("Deliberation error for session %s: %s", session_id, e)
             if session:
                 session.status = SessionStatus.FAILED
+            self._update_platform_thread(session_id, status="failed")
             await self._broadcast(
                 session_id,
                 {
