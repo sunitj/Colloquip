@@ -1,5 +1,7 @@
 # Observer Agent Specification
 
+> **Wiki**: See [Core Concepts](https://github.com/sunitj/Colloquip/wiki/Core-Concepts) for a concise overview of the observer and phase detection. This document contains the complete metric calculation implementations, phase detection algorithm, hysteresis logic, and edge cases.
+
 The Observer is a meta-cognitive agent that watches conversation dynamics and broadcasts phase signals. It does not participate in scientific discussion — it only recognizes emergent patterns and names them.
 
 ---
@@ -78,7 +80,7 @@ def topic_diversity(posts: List[Post], window: int = 10) -> float:
     if not recent:
         return 0.0
     unique_agents = len(set(p.agent_id for p in recent))
-    return unique_agents / 6  # 6 scientist agents
+    return unique_agents / num_agents  # Typically 6-10 agents
 ```
 
 **Interpretation:**

@@ -1,5 +1,7 @@
 # Trigger Rules Specification
 
+> **Wiki**: See [Core Concepts](https://github.com/sunitj/Colloquip/wiki/Core-Concepts) for a summary of all 9 trigger rules. This document contains the complete rule implementations, phase modulation tables, and design philosophy.
+
 Each agent independently evaluates trigger rules to decide whether to respond. This enables emergent conversation patterns — agents speak when they have something to contribute, not when scheduled.
 
 ---

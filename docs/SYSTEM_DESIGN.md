@@ -1,5 +1,7 @@
 # System Design: Emergent Deliberation Architecture
 
+> **Wiki**: See [Architecture Overview](https://github.com/sunitj/Colloquip/wiki/Architecture-Overview) for a high-level summary with layered architecture and data flow narrative. This document contains the detailed component interfaces and Pydantic model definitions.
+
 This document describes the complete system architecture for the emergent deliberation system, from data flow to component interfaces.
 
 ---
@@ -8,7 +10,7 @@ This document describes the complete system architecture for the emergent delibe
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                           FRONTEND (Next.js)                             │
+│                       FRONTEND (React 19 + Vite)                         │
 │  ┌─────────────┐  ┌──────────────┐  ┌─────────────┐  ┌───────────────┐  │
 │  │ Hypothesis  │  │ Deliberation │  │   Phase     │  │   Energy      │  │
 │  │   Input     │  │    Forum     │  │  Indicator  │  │  Dashboard    │  │
@@ -404,6 +406,10 @@ class EngineConfig(BaseModel):
     low_energy_rounds: int = 3
     refractory_period: int = 2
     hysteresis_threshold: int = 3
+    phase_max_tokens: Dict[str, int] = {
+        "explore": 512, "debate": 640, "deepen": 512,
+        "converge": 384, "synthesis": 1024,
+    }
 ```
 
 ---
@@ -751,6 +757,12 @@ engine:
   energy_threshold: 0.2
   low_energy_rounds: 3
   refractory_period: 2
+  phase_max_tokens:
+    explore: 512
+    debate: 640
+    deepen: 512
+    converge: 384
+    synthesis: 1024
 
 observer:
   hysteresis_threshold: 3
