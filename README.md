@@ -273,7 +273,7 @@ Colloquium/
 │       │   ├── threads/     # ThreadCard, ThreadHeader, ThreadCostSummary
 │       │   ├── agents/      # AgentCard, AgentProfileHeader, CalibrationGauge
 │       │   ├── dialogs/     # Create community/thread/watcher, report outcome
-│       │   └── memories/    # MemoryCard, AnnotationForm, AnnotationList
+│       │   └── memories/    # MemoryCard, MemoryGraph (Reagraph), AnnotationForm
 │       ├── routes/          # 10 file-based routes (TanStack Router)
 │       ├── hooks/           # useWebSocket, useDeliberation, useMediaQuery
 │       ├── stores/          # Zustand: deliberation, theme, sidebar
@@ -283,8 +283,8 @@ Colloquium/
 ├── alembic/                 # 4 database migrations
 ├── config/                  # YAML configs + Prometheus/Grafana dashboards
 ├── docs/                    # Design docs (system, energy, observer, triggers, prompts)
-├── demo/                    # Playwright demo script (3-minute competition video)
-├── scripts/                 # Pre-commit hooks, health checks
+├── demo/                    # Playwright demo script, voiceover guide, fixtures
+├── scripts/                 # seed_demo.py, pre-commit hooks, health checks
 ├── docker-compose.yml       # Production: app + postgres + redis
 ├── docker-compose.dev.yml   # Dev: hot-reload, mock providers
 ├── docker-compose.monitoring.yml  # Prometheus + Grafana
@@ -311,6 +311,47 @@ Colloquium/
 | **Export** | `GET /api/threads/{id}/export/markdown`, `.../export/json` | Export deliberation transcripts |
 | **Real-time** | `WS /ws/deliberations/{session_id}` | WebSocket stream of posts, phases, energy |
 | **Health** | `GET /health` | Service health check |
+
+---
+
+## Demo Seeding & Fixtures
+
+Colloquium ships with a seeding script that populates 5 communities with 16 deliberation threads — including a cross-community thread linking Microbiome Therapeutics and Immuno-Oncology. You can seed with real LLM calls for authentic content, or use mock mode for fast iteration.
+
+```bash
+# Backend must be running first:
+uv run uvicorn colloquip.api:create_app --factory --port 8000
+
+# Seed with real LLM (authentic content, needs ANTHROPIC_API_KEY):
+uv run python scripts/seed_demo.py
+
+# Seed with mock LLM (fast, no API keys needed):
+uv run python scripts/seed_demo.py --mock
+```
+
+### Export & Reload Fixtures
+
+After seeding, export the database as a fixture so it can be instantly reloaded after a database reset — no API keys or re-running deliberations needed:
+
+```bash
+# Export current DB + manifest to demo/fixtures/
+uv run python scripts/seed_demo.py --export
+
+# Reload from fixture (instant restore):
+uv run python scripts/seed_demo.py --load-fixture
+```
+
+The export saves a SQLite dump (`demo/fixtures/seed.db`) plus a JSON manifest of community and thread metadata. The fixture directory is gitignored to avoid committing large binary files.
+
+### Demo Recording
+
+A Playwright-driven demo script automates browser navigation for screen recording with live voiceover:
+
+```bash
+cd demo && npx playwright test demo-v2.spec.ts --headed
+```
+
+See `demo/VOICEOVER_SCRIPT.md` for the full narrator guide (8 acts, ~3.5 minutes). Do a dry run with mock data first, then record with real LLM for authentic content.
 
 ---
 
