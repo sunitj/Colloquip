@@ -856,9 +856,11 @@ Examples:
         json.dump(manifest, f, indent=2)
     logger.info("Manifest saved to %s", FIXTURE_MANIFEST)
 
+    # Auto-export DB + manifest right after seeding
     if not args.communities_only:
+        export_fixture(manifest, db_path=args.db_path)
         logger.info(
-            "To export for reload later: uv run python scripts/seed_demo.py --export"
+            "To reload later: uv run python scripts/seed_demo.py --load-fixture"
         )
 
 
