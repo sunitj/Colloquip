@@ -9,7 +9,7 @@ import {
   Sparkles,
   User,
 } from 'lucide-react';
-import { PHASE_COLORS, PHASE_LABELS, TRIGGER_COLORS } from '@/lib/agentColors';
+import { PHASE_COLORS, PHASE_LABELS } from '@/lib/agentColors';
 import type { Post, EnergyUpdate, PhaseSignal, Phase } from '@/types/deliberation';
 import type { AgentMember } from '@/types/platform';
 
@@ -40,7 +40,7 @@ export interface AhaMoment {
 // Detection logic
 // ---------------------------------------------------------------------------
 
-const AHA_ICONS: Record<AhaType, React.ComponentType<{ className?: string }>> = {
+const AHA_ICONS: Record<AhaType, React.ComponentType<{ className?: string; style?: React.CSSProperties }>> = {
   phase_transition: ArrowUpRight,
   red_team_fires: ShieldAlert,
   energy_spike: Zap,
