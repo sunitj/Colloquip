@@ -114,6 +114,40 @@ E = 0.4×novelty + 0.3×disagreement + 0.2×questions - 0.1×staleness
 
 Energy decays naturally as the conversation converges. New knowledge, red-team challenges, or human intervention can inject energy. The deliberation terminates when energy drops below 0.2 for 3 consecutive turns — not when a timer expires.
 
+### Institutional Memory
+
+Deliberations aren't isolated — each one builds on what came before. When a deliberation completes, the system extracts a `SynthesisMemory` (no LLM call — pure text parsing) containing key conclusions, citations, and agent participation. Each memory carries **Bayesian confidence** via Beta distribution parameters, initialized from synthesis quality:
+
+```
+confidence = α / (α + β)    # Posterior mean, clamped to [0.10, 0.95]
+
+Priors by synthesis quality:   high → (α=3, β=1) ≈ 75%
+                               moderate → (α=2, β=1.5) ≈ 57%
+                               low → (α=1, β=2) ≈ 33%
+```
+
+When a new deliberation starts, the **Memory Retriever** fetches relevant past syntheses using a composite score:
+
+```
+retrieval_score = cosine_similarity × confidence × temporal_decay
+```
+
+Temporal decay follows an exponential curve with a **120-day half-life** — memories fade unless reinforced. Retrieval happens at two scopes: **arena** (same community, top 3) and **global** (cross-community, top 2), and results are injected into agent prompts alongside any human annotations.
+
+Confidence evolves over time through two feedback channels:
+
+| Event | α update | β update | Effect |
+|-------|----------|----------|--------|
+| Human confirms | +2.0 | — | Strong boost |
+| Outcome confirmed | +1.0 | — | Moderate boost |
+| Human correction | — | +3.0 | Strong penalty |
+| Outcome contradicted | — | +2.0 | Moderate penalty (asymmetric — contradictions hurt more) |
+| Marked outdated | — | +2.0 | Staleness penalty |
+
+A **Cross-Reference Detector** finds connections between communities using three criteria (all must pass): embedding similarity > 0.75, shared biomedical entities (genes, compounds, PMIDs), and substantive conclusions in both memories. A **Deliberation Differ** compares syntheses on related topics to surface new evidence, changed conclusions, and overall trajectory (expanding/narrowing/stable).
+
+The result: a self-correcting institutional knowledge base where high-quality findings persist, contradicted claims decay, and cross-domain connections surface automatically.
+
 ---
 
 ## Platform Features
