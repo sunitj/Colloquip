@@ -120,7 +120,7 @@ function SettingsPage() {
           <CardContent>
             <p className="text-sm text-text-secondary mb-4">
               Initialize the platform to set up default communities, agents, and configurations.
-              This is typically done once when first deploying Colloquip.
+              This is typically done once when first deploying Colloquium.
             </p>
             <Button
               onClick={() => initMutation.mutate()}

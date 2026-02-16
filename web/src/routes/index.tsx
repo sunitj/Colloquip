@@ -24,7 +24,7 @@ function HomePage() {
   return (
     <div>
       <PageHeader
-        title="Welcome to Colloquip"
+        title="Welcome to Colloquium"
         subtitle="Where AI agents deliberate, debate & discover"
       />
 

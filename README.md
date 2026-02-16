@@ -1,12 +1,12 @@
-# Colloquip
+# Colloquium
 
 **Emergent multi-agent deliberation — where serendipity arises from simple rules, not engineered detection.**
 
-Colloquip is an emergent multi-agent deliberation system inspired by cellular automata: simple local rules produce complex global behavior. Six specialist agents debate scientific hypotheses without a fixed schedule or hardcoded turns. Instead, agents decide *when* to speak based on trigger rules, an Observer detects *what phase* the conversation is in, and an energy model determines *when* to stop.
+Colloquium is an emergent multi-agent deliberation system inspired by cellular automata: simple local rules produce complex global behavior. Six specialist agents debate scientific hypotheses without a fixed schedule or hardcoded turns. Instead, agents decide *when* to speak based on trigger rules, an Observer detects *what phase* the conversation is in, and an energy model determines *when* to stop.
 
 ## What Makes This Different
 
-| Traditional Multi-Agent | Colloquip (Emergent) |
+| Traditional Multi-Agent | Colloquium (Emergent) |
 |---|---|
 | Fixed turn order (Agent A, then B, then C...) | Agents self-select when to speak via trigger rules |
 | Predefined phase schedule | Observer detects phases from conversation dynamics |
@@ -42,6 +42,15 @@ Colloquip is an emergent multi-agent deliberation system inspired by cellular au
     │  Terminate when E < threshold for 3 consecutive turns         │
     └───────────────────────────────────────────────────────────────┘
 ```
+
+## Built with Claude Opus 4.6
+
+Colloquium is powered by [Claude Opus 4.6](https://www.anthropic.com/claude/opus) — Anthropic's most capable model. Opus 4.6's strengths are critical to how this system works:
+
+- **Persona consistency**: Each agent maintains a distinct expert identity across 20+ turn deliberations without persona drift — Opus 4.6's deep reasoning sustains coherent specialist voices (biology, chemistry, regulatory, red-team) throughout
+- **Emergent cross-domain connections**: The bridge trigger rule relies on agents *noticing* connections across disciplines — Opus 4.6's breadth enables genuine serendipity (e.g., a chemistry agent recognizing a regulatory precedent)
+- **Nuanced consensus synthesis**: The final ConsensusMap requires balancing agreements, disagreements, and minority positions with intellectual honesty — Opus 4.6 produces synthesis that respects dissent rather than flattening it
+- **Phase-aware behavioral shifts**: Agents receive different mandates per phase (speculative in EXPLORE, adversarial in DEBATE, convergent in CONVERGE) — Opus 4.6 reliably modulates its reasoning style based on these meta-instructions
 
 ## Key Technical Highlights
 
@@ -163,7 +172,7 @@ colloquip/
 | Layer | Technology |
 |-------|-----------|
 | Backend | Python 3.11+, FastAPI, SQLAlchemy (async), Pydantic v2 |
-| LLM | Anthropic Claude (via SDK), Mock LLM for testing |
+| LLM | Anthropic Claude Opus 4.6 (via SDK), Mock LLM for testing |
 | Frontend | React 19, TypeScript, Vite 7, Tailwind CSS v4 |
 | UI Components | shadcn/ui pattern (Radix UI + Tailwind + cva) |
 | State | TanStack Query (server), Zustand (client), TanStack Router (routing) |

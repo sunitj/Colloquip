@@ -383,7 +383,7 @@ class SessionManager:
             return MockLLM(behavior=MockBehavior.MIXED, seed=seed)
         from colloquip.llm.anthropic import AnthropicLLM
 
-        return AnthropicLLM(model=model or "claude-sonnet-4-5-20250929")
+        return AnthropicLLM(model=model or "claude-opus-4-6")
 
     def _create_agents(self, llm) -> Dict[str, BaseDeliberationAgent]:
         from colloquip.cli import create_default_agents

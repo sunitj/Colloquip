@@ -300,10 +300,10 @@ class SubredditMembership(BaseModel):
 class ModelPricing(BaseModel):
     """Configurable model pricing."""
 
-    model_name: str = "claude-sonnet-4-5-20250929"
-    cost_per_input_token: float = 0.000003
-    cost_per_output_token: float = 0.000015
-    cost_per_token: float = 0.000006
+    model_name: str = "claude-opus-4-6"
+    cost_per_input_token: float = 0.000005
+    cost_per_output_token: float = 0.000025
+    cost_per_token: float = 0.00001
 
 
 class CostRecord(BaseModel):

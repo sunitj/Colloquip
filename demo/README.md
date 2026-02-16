@@ -1,6 +1,6 @@
-# Colloquip Demo — 3-Minute Competition Video
+# Colloquium Demo — 3-Minute Competition Video
 
-Automated Playwright script that showcases two simultaneous deliberations running concurrently on the Colloquip platform.
+Automated Playwright script that showcases two simultaneous deliberations running concurrently on the Colloquium platform.
 
 ## Story Arc — Dual Deliberation
 

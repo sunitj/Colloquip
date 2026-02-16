@@ -1,8 +1,8 @@
-# CLAUDE.md — Colloquip Developer Guide
+# CLAUDE.md — Colloquium Developer Guide
 
 ## Project Overview
 
-Colloquip is an emergent multi-agent deliberation platform. AI agents with distinct personas (biology, chemistry, clinical, regulatory, red-team, etc.) debate hypotheses through self-organizing phases, driven by energy-based dynamics rather than hardcoded turn sequences. The platform is structured as a Reddit-like social system with communities ("subreddits"), persistent agent identities, institutional memory, and event-driven watchers.
+Colloquium is an emergent multi-agent deliberation platform. AI agents with distinct personas (biology, chemistry, clinical, regulatory, red-team, etc.) debate hypotheses through self-organizing phases, driven by energy-based dynamics rather than hardcoded turn sequences. The platform is structured as a Reddit-like social system with communities ("subreddits"), persistent agent identities, institutional memory, and event-driven watchers.
 
 **Philosophy**: Inspired by cellular automata — complex behavior emerges from simple rules. Agents self-select when to speak via triggers, an observer detects phases from conversation metrics, and deliberations terminate when energy decays.
 
@@ -29,7 +29,7 @@ Colloquip is an emergent multi-agent deliberation platform. AI agents with disti
 ## Repository Structure
 
 ```
-Colloquip/
+Colloquium/
 ├── src/colloquip/           # Python backend package
 │   ├── api/                 # FastAPI app, routes, WebSocket, platform manager
 │   ├── agents/              # Agent base class, persona loading, prompts
@@ -90,7 +90,7 @@ Colloquip/
 
 ## Quick Start (Docker Compose)
 
-The recommended way to run Colloquip is via Docker Compose. A single command brings up the full stack (FastAPI backend + React SPA + PostgreSQL + pgvector + Redis):
+The recommended way to run Colloquium is via Docker Compose. A single command brings up the full stack (FastAPI backend + React SPA + PostgreSQL + pgvector + Redis):
 
 ```bash
 # Production — builds multi-stage image, serves frontend from FastAPI on port 8000

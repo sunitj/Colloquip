@@ -114,7 +114,7 @@ class AnthropicLLM:
 
     def __init__(
         self,
-        model: str = "claude-sonnet-4-5-20250929",
+        model: str = "claude-opus-4-6",
         max_tokens: int = 1024,
         temperature: float = 0.7,
         api_key: Optional[str] = None,

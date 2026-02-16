@@ -1,5 +1,5 @@
 /**
- * Colloquip Demo Script — 3-minute competition video
+ * Colloquium Demo Script — 3-minute competition video
  *
  * Two simultaneous deliberations showcase the platform's concurrency:
  *   1. Drug repurposing: GLP-1 agonists for Alzheimer's
@@ -122,7 +122,7 @@ const THREAD_2 = {
 
 // ─── The Demo ───────────────────────────────────────────────────────────────
 
-test("Colloquip Competition Demo — Dual Deliberation", async ({
+test("Colloquium Competition Demo — Dual Deliberation", async ({
   page,
   context,
 }) => {
@@ -133,7 +133,7 @@ test("Colloquip Competition Demo — Dual Deliberation", async ({
   // ═══════════════════════════════════════════════════════════════════════════
 
   await page.goto("/");
-  await expect(page.locator("text=Welcome to Colloquip")).toBeVisible();
+  await expect(page.locator("text=Welcome to Colloquium")).toBeVisible();
   await pause(page, 1500);
 
   // Initialize platform
