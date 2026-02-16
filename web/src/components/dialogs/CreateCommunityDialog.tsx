@@ -1,143 +1,220 @@
-import { useState } from 'react';
-import { useNavigate } from '@tanstack/react-router';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createSubreddit } from '@/lib/api';
-import { queryKeys } from '@/lib/queryKeys';
-import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/Dialog';
-import { Button } from '@/components/ui/Button';
+import { useState, useCallback } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import { createSubreddit } from "@/lib/api";
+import { queryKeys } from "@/lib/queryKeys";
 
 interface CreateCommunityDialogProps {
   open: boolean;
-  onClose: () => void;
+  onOpenChange: (open: boolean) => void;
 }
 
-export function CreateCommunityDialog({ open, onClose }: CreateCommunityDialogProps) {
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
+const THINKING_TYPES = [
+  { value: "assessment", label: "Assessment" },
+  { value: "analysis", label: "Analysis" },
+  { value: "review", label: "Review" },
+  { value: "ideation", label: "Ideation" },
+] as const;
 
-  const [name, setName] = useState('');
-  const [displayName, setDisplayName] = useState('');
-  const [description, setDescription] = useState('');
-  const [thinkingType, setThinkingType] = useState('assessment');
-  const [primaryDomain, setPrimaryDomain] = useState('');
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/\s+/g, "_")
+    .replace(/[^a-z0-9_]/g, "");
+}
+
+const initialFormState = {
+  name: "",
+  displayName: "",
+  description: "",
+  thinkingType: "",
+  primaryDomain: "",
+};
+
+export function CreateCommunityDialog({
+  open,
+  onOpenChange,
+}: CreateCommunityDialogProps) {
+  const [form, setForm] = useState(initialFormState);
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
+  const resetForm = useCallback(() => {
+    setForm(initialFormState);
+  }, []);
+
+  const handleOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (!nextOpen) {
+        resetForm();
+      }
+      onOpenChange(nextOpen);
+    },
+    [onOpenChange, resetForm]
+  );
 
   const mutation = useMutation({
     mutationFn: () =>
       createSubreddit({
-        name: name.trim().toLowerCase().replace(/\s+/g, '_'),
-        display_name: displayName.trim() || name.trim(),
-        description: description.trim(),
-        thinking_type: thinkingType,
-        primary_domain: primaryDomain.trim() || undefined,
+        name: form.name,
+        display_name: form.displayName,
+        description: form.description,
+        thinking_type: form.thinkingType || undefined,
+        primary_domain: form.primaryDomain || undefined,
       }),
-    onSuccess: (data) => {
+    onSuccess: (_data) => {
+      toast.success(`Community "${form.displayName || form.name}" created`);
       queryClient.invalidateQueries({ queryKey: queryKeys.subreddits.all });
-      onClose();
-      resetForm();
-      navigate({ to: '/c/$name', params: { name: data.name } });
+      navigate({ to: `/c/${form.name}` });
+      handleOpenChange(false);
+    },
+    onError: (error: Error) => {
+      const msg = error.message || "";
+      if (msg.includes("already exists")) {
+        toast.error(`Community "${form.name}" already exists`);
+      } else {
+        toast.error(msg || "Failed to create community");
+      }
     },
   });
 
-  const resetForm = () => {
-    setName('');
-    setDisplayName('');
-    setDescription('');
-    setThinkingType('assessment');
-    setPrimaryDomain('');
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !description.trim()) return;
     mutation.mutate();
   };
 
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm((prev) => ({ ...prev, name: slugify(e.target.value) }));
+  };
+
+  const isValid = form.name.trim() !== "" && form.displayName.trim() !== "";
+
   return (
-    <Dialog open={open} onClose={onClose}>
-      <form onSubmit={handleSubmit}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Create Community</DialogTitle>
-          <DialogDescription>Set up a new deliberation community with specialized agents.</DialogDescription>
+          <DialogDescription>
+            Set up a new deliberation community with specialized agents.
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-text-primary mb-2">Name (slug)</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+            <label className="text-sm font-medium text-text-secondary mb-1.5 block">
+              Name (slug)
+            </label>
+            <Input
               placeholder="e.g. drug_discovery"
-              className="w-full bg-white text-text-primary text-sm rounded-xl border border-border-default px-3 py-2 h-11 placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent focus:bg-bg-secondary transition-all duration-200"
-              required
+              value={form.name}
+              onChange={handleNameChange}
+              disabled={mutation.isPending}
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-text-primary mb-2">Display Name</label>
-            <input
-              type="text"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="e.g. Drug Discovery"
-              className="w-full bg-white text-text-primary text-sm rounded-xl border border-border-default px-3 py-2 h-11 placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent focus:bg-bg-secondary transition-all duration-200"
+            <label className="text-sm font-medium text-text-secondary mb-1.5 block">
+              Display Name
+            </label>
+            <Input
+              placeholder="e.g. Drug Discovery & Development"
+              value={form.displayName}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, displayName: e.target.value }))
+              }
+              disabled={mutation.isPending}
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-text-primary mb-2">Description</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="What will this community deliberate about?"
-              rows={3}
-              className="w-full bg-white text-text-primary text-sm rounded-xl border border-border-default px-3 py-2 placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent focus:bg-bg-secondary resize-none transition-all duration-200"
-              required
+            <label className="text-sm font-medium text-text-secondary mb-1.5 block">
+              Description
+            </label>
+            <Textarea
+              placeholder="Describe the community's purpose and focus area..."
+              value={form.description}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, description: e.target.value }))
+              }
+              disabled={mutation.isPending}
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <label className="block text-xs font-semibold text-text-primary mb-2">Thinking Type</label>
-              <select
-                value={thinkingType}
-                onChange={(e) => setThinkingType(e.target.value)}
-                className="w-full bg-white text-text-secondary text-sm rounded-xl border border-border-default px-3 py-2 h-11 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent focus:bg-bg-secondary transition-all duration-200"
-              >
-                <option value="assessment">Assessment</option>
-                <option value="analysis">Analysis</option>
-                <option value="review">Review</option>
-                <option value="ideation">Ideation</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-text-primary mb-2">Primary Domain</label>
-              <input
-                type="text"
-                value={primaryDomain}
-                onChange={(e) => setPrimaryDomain(e.target.value)}
-                placeholder="e.g. pharmacology"
-                className="w-full bg-white text-text-primary text-sm rounded-xl border border-border-default px-3 py-2 h-11 placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent focus:bg-bg-secondary transition-all duration-200"
-              />
-            </div>
+          <div>
+            <label className="text-sm font-medium text-text-secondary mb-1.5 block">
+              Thinking Type
+            </label>
+            <Select
+              value={form.thinkingType}
+              onValueChange={(value) =>
+                setForm((prev) => ({ ...prev, thinkingType: value }))
+              }
+              disabled={mutation.isPending}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select thinking type" />
+              </SelectTrigger>
+              <SelectContent>
+                {THINKING_TYPES.map((type) => (
+                  <SelectItem key={type.value} value={type.value}>
+                    {type.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          {mutation.error && (
-            <div className="text-xs text-[#C95A6B] bg-pastel-rose-bg border border-pastel-rose/30 rounded-xl p-2">
-              {mutation.error instanceof Error ? mutation.error.message : 'Failed to create community'}
-            </div>
-          )}
-        </div>
+          <div>
+            <label className="text-sm font-medium text-text-secondary mb-1.5 block">
+              Primary Domain
+            </label>
+            <Input
+              placeholder="e.g. pharmaceutical research"
+              value={form.primaryDomain}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, primaryDomain: e.target.value }))
+              }
+              disabled={mutation.isPending}
+            />
+          </div>
 
-        <DialogFooter>
-          <Button type="button" variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={!name.trim() || !description.trim() || mutation.isPending}>
-            {mutation.isPending ? 'Creating...' : 'Create Community'}
-          </Button>
-        </DialogFooter>
-      </form>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => handleOpenChange(false)}
+              disabled={mutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={!isValid || mutation.isPending}
+            >
+              {mutation.isPending ? "Creating..." : "Create"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
     </Dialog>
   );
 }

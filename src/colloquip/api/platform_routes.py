@@ -274,8 +274,12 @@ async def get_agent(agent_id: str, request: Request):
         "expertise_tags": agent.expertise_tags,
         "domain_keywords": agent.domain_keywords,
         "knowledge_scope": agent.knowledge_scope,
+        "persona_prompt": agent.persona_prompt,
+        "phase_mandates": {
+            k.value if hasattr(k, "value") else k: v for k, v in agent.phase_mandates.items()
+        },
+        "evaluation_criteria": list(agent.evaluation_criteria.keys()),
         "is_red_team": agent.is_red_team,
-        "evaluation_criteria": agent.evaluation_criteria,
         "status": agent.status.value,
         "version": agent.version,
     }

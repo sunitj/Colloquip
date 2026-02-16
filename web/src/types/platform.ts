@@ -59,7 +59,7 @@ export interface AgentDetail extends Agent {
   persona_prompt: string;
   phase_mandates: Record<string, string>;
   domain_keywords: string[];
-  knowledge_scope: string;
+  knowledge_scope: string[];
   evaluation_criteria: string[];
   status: string;
   version: number;

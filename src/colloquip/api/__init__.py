@@ -75,10 +75,11 @@ def create_app(
     app.include_router(external_router)
     app.include_router(feedback_router)
 
-    # Platform manager (lazy init — call POST /api/platform/init to activate)
+    # Platform manager (auto-initialize on startup)
     from colloquip.api.platform_manager import PlatformManager
 
     app.state.platform_manager = PlatformManager()
+    app.state.platform_manager.initialize()
 
     @app.get("/health")
     async def health():

@@ -684,7 +684,10 @@ class TestNotifications:
 
     async def test_notifications_no_store(self, client):
         resp = await client.get("/api/notifications")
-        assert resp.status_code == 503
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["notifications"] == []
+        assert data["total"] == 0
 
 
 class TestWebhookEndpoint:

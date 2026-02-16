@@ -1,22 +1,50 @@
-import { Badge } from '@/components/ui/Badge';
+import { cn } from '@/lib/utils';
 
-const statusConfig: Record<string, { color: string; bg: string; label: string }> = {
-  active: { color: '#7CB9E8', bg: '#EDF6FA', label: 'Active' },
-  running: { color: '#7CB9E8', bg: '#EDF6FA', label: 'Running' },
-  pending: { color: '#A0ADB4', bg: '#F8F9FA', label: 'Pending' },
-  paused: { color: '#F0C060', bg: '#FFFBEC', label: 'Paused' },
-  completed: { color: '#5EBD8A', bg: '#EDFAF4', label: 'Completed' },
-  failed: { color: '#E8788A', bg: '#FFF0F3', label: 'Failed' },
-  cancelled: { color: '#A0ADB4', bg: '#F8F9FA', label: 'Cancelled' },
+interface StatusBadgeProps {
+  status: string;
+  className?: string;
+}
+
+const STATUS_CONFIG: Record<string, { color: string; label: string; pulse?: boolean }> = {
+  active: { color: '#22C55E', label: 'Active' },
+  running: { color: '#22C55E', label: 'Running', pulse: true },
+  pending: { color: '#F59E0B', label: 'Pending' },
+  completed: { color: 'var(--color-text-muted)', label: 'Completed' },
+  failed: { color: '#EF4444', label: 'Failed' },
+  cancelled: { color: '#EF4444', label: 'Cancelled' },
+  paused: { color: 'var(--color-text-secondary)', label: 'Paused' },
 };
 
-export function StatusBadge({ status }: { status: string }) {
-  const config = statusConfig[status] || { color: '#A0ADB4', bg: '#F8F9FA', label: status };
+export function StatusBadge({ status, className }: StatusBadgeProps) {
+  const config = STATUS_CONFIG[status] ?? {
+    color: 'var(--color-text-muted)',
+    label: status,
+  };
+
   return (
-    <Badge
-      style={{ color: config.color, backgroundColor: config.bg }}
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium',
+        className,
+      )}
+      style={{
+        backgroundColor: `${config.color}26`,
+        color: config.color,
+      }}
     >
+      {config.pulse && (
+        <span className="relative flex h-2 w-2">
+          <span
+            className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75"
+            style={{ backgroundColor: config.color }}
+          />
+          <span
+            className="relative inline-flex h-2 w-2 rounded-full"
+            style={{ backgroundColor: config.color }}
+          />
+        </span>
+      )}
       {config.label}
-    </Badge>
+    </span>
   );
 }

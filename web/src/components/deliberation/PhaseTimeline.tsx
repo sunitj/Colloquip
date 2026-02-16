@@ -1,4 +1,4 @@
-import { cn } from '@/lib/utils';
+import { Check } from 'lucide-react';
 import { PHASE_COLORS, PHASE_LABELS } from '@/lib/agentColors';
 import type { Phase, PhaseSignal } from '@/types/deliberation';
 
@@ -10,70 +10,85 @@ interface PhaseTimelineProps {
 const PHASES: Phase[] = ['explore', 'debate', 'deepen', 'converge', 'synthesis'];
 
 export function PhaseTimeline({ currentPhase, phaseHistory }: PhaseTimelineProps) {
-  const latestSignal = phaseHistory[phaseHistory.length - 1];
-  const confidence = latestSignal?.confidence ?? 1.0;
+  const visitedPhases = new Set(phaseHistory.map((p) => p.current_phase));
+  const currentIndex = PHASES.indexOf(currentPhase);
 
-  const visitedPhases = new Set<Phase>();
+  // Find the confidence for each visited phase
+  const phaseConfidence = new Map<Phase, number>();
   for (const signal of phaseHistory) {
-    visitedPhases.add(signal.current_phase);
+    phaseConfidence.set(signal.current_phase, signal.confidence);
   }
-  visitedPhases.add(currentPhase);
 
   return (
-    <div className="space-y-2">
-      {PHASES.map((phase, idx) => {
+    <div className="space-y-0">
+      {PHASES.map((phase, index) => {
+        const color = PHASE_COLORS[phase] ?? '#6B7280';
+        const label = PHASE_LABELS[phase] ?? phase;
         const isCurrent = phase === currentPhase;
-        const isVisited = visitedPhases.has(phase) && !isCurrent;
-        const color = PHASE_COLORS[phase] || '#6B7280';
+        const isVisited = visitedPhases.has(phase) && index < currentIndex;
+        const isFuture = index > currentIndex && !visitedPhases.has(phase);
+        const confidence = phaseConfidence.get(phase);
 
         return (
-          <div key={phase} className="flex items-start gap-3">
-            {/* Dot + connector line */}
-            <div className="flex flex-col items-center">
+          <div key={phase} className="relative flex items-start gap-3 pb-6 last:pb-0">
+            {/* Connecting line */}
+            {index < PHASES.length - 1 && (
               <div
-                className={cn(
-                  'w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-all',
-                  isCurrent && 'ring-2 ring-offset-2 ring-offset-bg-primary',
-                  !isCurrent && !isVisited && 'opacity-40',
-                )}
+                className="absolute left-[11px] top-[24px] w-0.5 h-[calc(100%-12px)]"
                 style={{
-                  backgroundColor: isCurrent || isVisited ? color : 'transparent',
-                  borderColor: color,
-                  border: !isCurrent && !isVisited ? `1px solid ${color}` : 'none',
-                  ...(isCurrent ? { ringColor: color } : {}),
+                  backgroundColor: isVisited || isCurrent
+                    ? `${color}66`
+                    : 'var(--color-border-subtle)',
                 }}
-              >
-                {isVisited ? (
-                  <span className="text-white text-xs">&#10003;</span>
-                ) : isCurrent ? (
-                  <span className="text-white text-xs">&#9679;</span>
-                ) : null}
-              </div>
-              {idx < PHASES.length - 1 && (
+              />
+            )}
+
+            {/* Dot */}
+            <div className="relative z-10 shrink-0">
+              {isVisited ? (
                 <div
-                  className="w-px h-4"
-                  style={{ backgroundColor: isVisited || isCurrent ? color : 'var(--color-border-default)' }}
+                  className="flex h-6 w-6 items-center justify-center rounded-full"
+                  style={{ backgroundColor: `${color}33` }}
+                >
+                  <Check className="h-3.5 w-3.5" style={{ color }} />
+                </div>
+              ) : isCurrent ? (
+                <div className="relative flex h-6 w-6 items-center justify-center">
+                  <span
+                    className="absolute inset-0 rounded-full animate-ping opacity-30"
+                    style={{ backgroundColor: color }}
+                  />
+                  <span
+                    className="relative h-3 w-3 rounded-full"
+                    style={{ backgroundColor: color }}
+                  />
+                </div>
+              ) : (
+                <div
+                  className="h-6 w-6 rounded-full border-2"
+                  style={{
+                    borderColor: isFuture
+                      ? 'var(--color-border-subtle)'
+                      : `${color}66`,
+                  }}
                 />
               )}
             </div>
 
             {/* Label */}
-            <div className="flex-1 pb-1">
-              <div className={cn(
-                'text-sm font-semibold tracking-wider',
-                isCurrent ? 'text-text-primary' : isVisited ? 'text-text-secondary' : 'text-text-muted',
-              )}>
-                {PHASE_LABELS[phase]}
-                {isCurrent && (
-                  <span className="ml-2 text-xs font-normal text-text-muted">
-                    {(confidence * 100).toFixed(0)}%
-                  </span>
-                )}
-              </div>
-              {isCurrent && latestSignal?.observation && (
-                <div className="text-xs text-text-muted mt-0.5 leading-snug">
-                  {latestSignal.observation}
-                </div>
+            <div className="min-w-0 pt-0.5">
+              <p
+                className="text-sm font-medium"
+                style={{
+                  color: isCurrent ? color : isVisited ? `${color}99` : 'var(--color-text-muted)',
+                }}
+              >
+                {label}
+              </p>
+              {isCurrent && confidence != null && (
+                <p className="text-xs text-text-secondary mt-0.5">
+                  {Math.round(confidence * 100)}% confidence
+                </p>
               )}
             </div>
           </div>

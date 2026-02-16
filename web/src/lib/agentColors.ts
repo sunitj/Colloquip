@@ -1,31 +1,18 @@
+// Vibrant palette optimized for dark backgrounds
 const PALETTE = [
-  '#7CB9E8', // pastel sky blue
-  '#B5EAD7', // pastel mint
-  '#FFD4A8', // pastel peach
-  '#C7B8EA', // pastel lavender
-  '#A8D8EA', // pastel cyan
-  '#FFB5C2', // pastel rose
-  '#FFEAA0', // pastel lemon
-  '#B5D8B5', // pastel sage
-  '#DDB8F0', // pastel lilac
-  '#B8D4E3', // pastel steel blue
+  '#34D399', // emerald
+  '#60A5FA', // sky
+  '#FBBF24', // amber
+  '#A78BFA', // violet
+  '#F472B6', // pink
+  '#2DD4BF', // teal
+  '#FB923C', // orange
+  '#C084FC', // purple
+  '#818CF8', // indigo
+  '#22D3EE', // cyan
 ];
 
-const PALETTE_TEXT = [
-  '#3B7AB5', // sky text
-  '#3D9B6E', // mint text
-  '#C87E3A', // peach text
-  '#7B5EAF', // lavender text
-  '#3B8BA5', // cyan text
-  '#C95A6B', // rose text
-  '#B5960A', // lemon text
-  '#4A8A4A', // sage text
-  '#9B5EBF', // lilac text
-  '#3B6E8A', // steel text
-];
-
-const RED_TEAM_COLOR = '#E8788A';
-const RED_TEAM_TEXT = '#C95A6B';
+export const RED_TEAM_COLOR = '#F87171';
 
 function hashString(str: string): number {
   let hash = 0;
@@ -45,14 +32,16 @@ export function getAgentColor(agentType: string, isRedTeam = false): string {
 }
 
 export function getAgentTextColor(agentType: string, isRedTeam = false): string {
+  // On dark backgrounds, the vibrant palette colors are legible as-is
   if (isRedTeam || agentType === 'redteam' || agentType.includes('red_team')) {
-    return RED_TEAM_TEXT;
+    return RED_TEAM_COLOR;
   }
-  return PALETTE_TEXT[hashString(agentType) % PALETTE_TEXT.length];
+  return PALETTE[hashString(agentType) % PALETTE.length];
 }
 
 export function getAgentBgColor(color: string): string {
-  return `${color}18`;
+  // 15% opacity hex suffix = 26
+  return `${color}26`;
 }
 
 export function getAgentInitials(displayName: string): string {
@@ -62,21 +51,21 @@ export function getAgentInitials(displayName: string): string {
   return (words[0][0] + words[1][0]).toUpperCase();
 }
 
-// Stance colors -- pastelized
+// Stance colors -- vibrant for dark theme
 export const STANCE_COLORS: Record<string, string> = {
-  supportive: '#5EBD8A',
-  critical: '#E8788A',
-  neutral: '#A0ADB4',
-  novel_connection: '#A78BDE',
+  supportive: '#22C55E',
+  critical: '#EF4444',
+  neutral: '#6B7280',
+  novel_connection: '#A855F7',
 };
 
-// Phase colors -- pastelized
+// Phase colors -- vibrant for dark theme
 export const PHASE_COLORS: Record<string, string> = {
-  explore: '#7CB9E8',
-  debate: '#E8788A',
-  deepen: '#F0C060',
-  converge: '#5EBD8A',
-  synthesis: '#B49ADE',
+  explore: '#3B82F6',
+  debate: '#EF4444',
+  deepen: '#F59E0B',
+  converge: '#22C55E',
+  synthesis: '#A855F7',
 };
 
 export const PHASE_LABELS: Record<string, string> = {
@@ -88,15 +77,15 @@ export const PHASE_LABELS: Record<string, string> = {
 };
 
 export const TRIGGER_COLORS: Record<string, string> = {
-  relevance: '#7CB9E8',
-  disagreement: '#E8788A',
-  question: '#F0C060',
-  silence_breaking: '#A0ADB4',
-  bridge_opportunity: '#A78BDE',
-  uncertainty_response: '#A8D8EA',
-  consensus_forming: '#5EBD8A',
-  criticism_gap: '#FFD4A8',
-  premature_convergence: '#FFD4A8',
-  seed_phase: '#A0ADB4',
-  human_intervention: '#C7B8EA',
+  relevance: '#3B82F6',
+  disagreement: '#EF4444',
+  question: '#F59E0B',
+  silence_breaking: '#6B7280',
+  bridge_opportunity: '#A855F7',
+  uncertainty_response: '#22D3EE',
+  consensus_forming: '#22C55E',
+  criticism_gap: '#FB923C',
+  premature_convergence: '#FBBF24',
+  seed_phase: '#94A3B8',
+  human_intervention: '#818CF8',
 };

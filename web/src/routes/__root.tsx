@@ -1,70 +1,61 @@
 import { useEffect } from 'react';
 import { createRootRoute, Outlet } from '@tanstack/react-router';
-import { AppSidebar } from '@/components/layout/AppSidebar';
+import { Menu } from 'lucide-react';
+import { AppShell } from '@/components/layout/AppShell';
 import { useSidebarStore } from '@/stores/sidebarStore';
-import { cn } from '@/lib/utils';
+import { useThemeStore } from '@/stores/themeStore';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 
 export const Route = createRootRoute({
   component: RootLayout,
 });
 
 function RootLayout() {
-  const { isOpen, setOpen } = useSidebarStore();
+  const isMobile = useIsMobile();
+  const { setOpen } = useSidebarStore();
+  const { theme } = useThemeStore();
 
-  // Auto-close sidebar on mobile navigation
+  // Apply theme class to <html> element
   useEffect(() => {
-    const mql = window.matchMedia('(max-width: 768px)');
-    const handler = (e: MediaQueryListEvent) => {
-      if (e.matches) setOpen(false);
-    };
-    mql.addEventListener('change', handler);
-    return () => mql.removeEventListener('change', handler);
-  }, [setOpen]);
+    const html = document.documentElement;
+    html.classList.remove('dark', 'light', 'pastel');
+    if (theme !== 'dark') {
+      html.classList.add(theme);
+    }
+    html.style.colorScheme = theme === 'dark' ? 'dark' : 'light';
+  }, [theme]);
 
   return (
     <>
+      {/* Skip to content - accessibility */}
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:bg-accent focus:text-white focus:px-4 focus:py-2 focus:rounded-xl focus:text-sm"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-accent focus:text-white focus:rounded-md"
       >
-        Skip to main content
+        Skip to content
       </a>
 
-      <div className="flex h-screen overflow-hidden bg-bg-primary">
-        {/* Mobile backdrop */}
-        {isOpen && (
-          <div
-            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm md:hidden"
-            onClick={() => setOpen(false)}
-            aria-hidden="true"
-          />
+      <AppShell>
+        {/* Mobile hamburger */}
+        {isMobile && (
+          <div className="sticky top-0 z-30 flex items-center h-14 px-4 bg-bg-root/80 backdrop-blur-md border-b border-border-subtle">
+            <button
+              onClick={() => setOpen(true)}
+              className="flex items-center justify-center h-9 w-9 rounded-md text-text-secondary hover:text-text-primary hover:bg-bg-elevated/30 transition-colors"
+              aria-label="Open sidebar"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <span className="ml-3 font-semibold tracking-tight text-text-primary">
+              COLLOQUIP
+            </span>
+          </div>
         )}
 
-        {/* Sidebar */}
-        <div
-          className={cn(
-            'fixed inset-y-0 left-0 z-50 md:relative md:z-auto transition-transform duration-200',
-            isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
-          )}
-        >
-          <AppSidebar />
-        </div>
-
-        {/* Main */}
-        <main id="main-content" role="main" className="flex-1 overflow-y-auto relative">
-          {/* Mobile menu button */}
-          <button
-            onClick={() => setOpen(!isOpen)}
-            className="md:hidden fixed top-3 left-3 z-30 p-2 rounded-xl bg-bg-secondary shadow-md text-text-secondary hover:text-text-primary transition-colors"
-            aria-label={isOpen ? 'Close menu' : 'Open menu'}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M3 12h18M3 6h18M3 18h18" />
-            </svg>
-          </button>
+        <div id="main-content" className="p-6">
           <Outlet />
-        </main>
-      </div>
+        </div>
+      </AppShell>
     </>
   );
 }

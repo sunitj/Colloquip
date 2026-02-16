@@ -7,7 +7,12 @@ interface RightPanelProps {
 
 export function RightPanel({ children, className }: RightPanelProps) {
   return (
-    <aside className={cn('w-[var(--right-panel-width)] shrink-0 border-l border-border-default overflow-y-auto p-6 space-y-6 bg-bg-secondary', className)}>
+    <aside
+      className={cn(
+        'hidden lg:block w-[var(--right-panel-width)] shrink-0 bg-bg-surface border-l border-border-default overflow-y-auto p-5',
+        className
+      )}
+    >
       {children}
     </aside>
   );

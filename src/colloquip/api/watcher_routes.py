@@ -106,7 +106,7 @@ async def list_subreddit_watchers(
     """List all watchers for a subreddit."""
     registry = getattr(request.app.state, "watcher_registry", None)
     if registry is None:
-        raise HTTPException(status_code=503, detail="Watcher system not initialized")
+        return WatcherListResponse(watchers=[], total=0)
 
     all_watchers = registry.all()
     # Filter by subreddit name stored in watcher config
@@ -196,7 +196,7 @@ async def list_notifications(
     """List notifications, optionally filtered by subreddit and status."""
     store = getattr(request.app.state, "notification_store", None)
     if store is None:
-        raise HTTPException(status_code=503, detail="Notification system not initialized")
+        return NotificationListResponse(notifications=[], total=0)
 
     notif_status = None
     if status:

@@ -1,266 +1,254 @@
-import { useState } from 'react';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
+import { Home, BookOpen, Target, BarChart3, ChevronRight } from 'lucide-react';
 import { getAgent, getAgentCalibration } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
-import { getAgentColor, getAgentInitials, PHASE_LABELS } from '@/lib/agentColors';
-import { Badge } from '@/components/ui/Badge';
-import { Skeleton } from '@/components/ui/Skeleton';
-import { Breadcrumb } from '@/components/layout/Breadcrumb';
-import { cn } from '@/lib/utils';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { AgentProfileHeader } from '@/components/agents/AgentProfileHeader';
+import { ExpertiseTagGrid } from '@/components/agents/ExpertiseTagGrid';
+import { CalibrationGauge } from '@/components/agents/CalibrationGauge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { PHASE_LABELS } from '@/lib/agentColors';
 
 export const Route = createFileRoute('/agents/$agentId')({
   component: AgentProfilePage,
 });
 
-type Tab = 'overview' | 'expertise' | 'calibration';
+function ProfileSkeleton() {
+  return (
+    <div className="space-y-6">
+      {/* Header skeleton */}
+      <div className="flex items-start gap-5">
+        <Skeleton className="h-16 w-16 rounded-full shrink-0" />
+        <div className="flex-1 space-y-3">
+          <Skeleton className="h-7 w-48" />
+          <Skeleton className="h-4 w-32" />
+          <div className="flex gap-2">
+            <Skeleton className="h-5 w-16 rounded-full" />
+            <Skeleton className="h-5 w-20 rounded-full" />
+            <Skeleton className="h-5 w-14 rounded-full" />
+          </div>
+        </div>
+      </div>
+      {/* Tabs skeleton */}
+      <div className="space-y-4">
+        <Skeleton className="h-10 w-72" />
+        <Skeleton className="h-32 w-full rounded-lg" />
+        <Skeleton className="h-24 w-full rounded-lg" />
+      </div>
+    </div>
+  );
+}
+
+function CalibrationSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="rounded-lg border border-border-default bg-bg-surface p-5 space-y-4">
+        <Skeleton className="h-5 w-32" />
+        <Skeleton className="h-10 w-20" />
+        <Skeleton className="h-3 w-full" />
+        <div className="grid grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex flex-col items-center gap-1">
+              <Skeleton className="h-6 w-10" />
+              <Skeleton className="h-3 w-12" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function AgentProfilePage() {
   const { agentId } = Route.useParams();
-  const [activeTab, setActiveTab] = useState<Tab>('overview');
 
-  const { data: agent, isLoading } = useQuery({
+  const detailQuery = useQuery({
     queryKey: queryKeys.agents.detail(agentId),
     queryFn: () => getAgent(agentId),
   });
 
-  const { data: calibration } = useQuery({
+  const calibrationQuery = useQuery({
     queryKey: queryKeys.agents.calibration(agentId),
     queryFn: () => getAgentCalibration(agentId),
-    enabled: activeTab === 'calibration',
   });
 
-  if (isLoading) {
-    return (
-      <div className="p-4 sm:p-6 md:p-8 lg:p-10 max-w-4xl mx-auto space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-64 w-full" />
-      </div>
-    );
-  }
-
-  if (!agent) {
-    return (
-      <div className="p-4 sm:p-6 md:p-8 lg:p-10 max-w-4xl mx-auto">
-        <div className="text-text-muted text-sm">Agent not found.</div>
-      </div>
-    );
-  }
-
-  const color = getAgentColor(agent.agent_type, agent.is_red_team);
-  const initials = getAgentInitials(agent.display_name);
-
-  const tabs: { id: Tab; label: string }[] = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'expertise', label: 'Expertise' },
-    { id: 'calibration', label: 'Calibration' },
-  ];
+  const agent = detailQuery.data;
+  const calibration = calibrationQuery.data;
 
   return (
-    <div className="p-4 sm:p-6 md:p-8 lg:p-10 max-w-4xl mx-auto">
-      <Breadcrumb
-        items={[
-          { label: 'Agents', href: '/agents' },
-          { label: agent.display_name },
-        ]}
+    <div>
+      {/* Breadcrumb */}
+      <PageHeader
+        title={agent?.display_name ?? 'Agent Profile'}
+        breadcrumb={
+          <nav className="flex items-center gap-1.5 text-sm text-text-muted">
+            <Link
+              to="/"
+              className="inline-flex items-center gap-1 hover:text-text-primary transition-colors"
+            >
+              <Home className="h-3.5 w-3.5" />
+              Home
+            </Link>
+            <ChevronRight className="h-3 w-3" />
+            <Link
+              to="/agents"
+              className="hover:text-text-primary transition-colors"
+            >
+              Agents
+            </Link>
+            <ChevronRight className="h-3 w-3" />
+            <span className="text-text-secondary">
+              {agent?.display_name ?? agentId}
+            </span>
+          </nav>
+        }
       />
 
-      {/* Header */}
-      <div className="flex items-center gap-4 mt-4 mb-8">
-        <div
-          className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold shrink-0"
-          style={{ backgroundColor: `${color}30`, color: color }}
-        >
-          {initials}
+      {/* Main content */}
+      {detailQuery.isLoading ? (
+        <ProfileSkeleton />
+      ) : detailQuery.isError ? (
+        <div className="text-sm text-destructive">
+          Failed to load agent details.
         </div>
-        <div>
-          <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-text-primary font-[family-name:var(--font-heading)]">{agent.display_name}</h1>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="text-xs text-text-muted">{agent.agent_type}</span>
-            {agent.is_red_team && <Badge variant="critical">Red Team</Badge>}
-            <Badge variant="outline">v{agent.version}</Badge>
-            <span className="text-xs text-text-muted">{agent.status}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Tabs -- border-b style */}
-      <div className="flex items-center gap-4 border-b border-border-default mb-6">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={cn(
-              'px-1 pb-2 text-sm font-medium transition-all duration-200 cursor-pointer -mb-px',
-              activeTab === tab.id
-                ? 'text-text-primary border-b-2 border-accent'
-                : 'text-text-muted hover:text-text-secondary',
-            )}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Tab content */}
-      {activeTab === 'overview' && (
+      ) : agent ? (
         <div className="space-y-6">
-          {agent.persona_prompt && (
-            <div>
-              <h3 className="text-sm font-semibold text-text-primary mb-2">Persona</h3>
-              <p className="text-sm text-text-secondary leading-relaxed bg-bg-tertiary/50 rounded-xl p-4">
-                {agent.persona_prompt}
-              </p>
-            </div>
-          )}
+          {/* Profile header */}
+          <AgentProfileHeader agent={agent} />
 
-          {agent.knowledge_scope && (
-            <div>
-              <h3 className="text-sm font-semibold text-text-primary mb-2">Knowledge Scope</h3>
-              <p className="text-sm text-text-secondary">{agent.knowledge_scope}</p>
-            </div>
-          )}
+          <Separator />
 
-          {Object.keys(agent.phase_mandates).length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold text-text-primary mb-2">Phase Mandates</h3>
-              <div className="space-y-2">
-                {Object.entries(agent.phase_mandates).map(([phase, mandate]) => (
-                  <div key={phase} className="bg-bg-tertiary/50 rounded-xl p-3">
-                    <span className="text-xs font-semibold text-accent">
-                      {PHASE_LABELS[phase] || phase}
-                    </span>
-                    <p className="text-xs text-text-secondary mt-1">{mandate}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+          {/* Tabs */}
+          <Tabs defaultValue="overview">
+            <TabsList>
+              <TabsTrigger value="overview" className="gap-1.5">
+                <BookOpen className="h-4 w-4" />
+                Overview
+              </TabsTrigger>
+              <TabsTrigger value="expertise" className="gap-1.5">
+                <Target className="h-4 w-4" />
+                Expertise
+              </TabsTrigger>
+              <TabsTrigger value="calibration" className="gap-1.5">
+                <BarChart3 className="h-4 w-4" />
+                Calibration
+              </TabsTrigger>
+            </TabsList>
 
-      {activeTab === 'expertise' && (
-        <div className="space-y-6">
-          {agent.expertise_tags.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold text-text-primary mb-3">Expertise Tags</h3>
-              <div className="flex flex-wrap gap-2">
-                {agent.expertise_tags.map((tag) => (
-                  <span key={tag} className="text-xs px-2.5 py-1 rounded-full bg-bg-tertiary text-text-secondary border border-border-default">
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
+            {/* Overview tab */}
+            <TabsContent value="overview" className="space-y-6">
+              {/* Persona prompt */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Persona</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <blockquote className="rounded-md bg-bg-elevated border-l-2 border-accent p-4 text-sm text-text-secondary italic leading-relaxed whitespace-pre-wrap">
+                    {agent.persona_prompt}
+                  </blockquote>
+                </CardContent>
+              </Card>
 
-          {agent.domain_keywords.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold text-text-primary mb-3">Domain Keywords</h3>
-              <div className="flex flex-wrap gap-2">
-                {agent.domain_keywords.map((kw) => (
-                  <span key={kw} className="text-xs px-2.5 py-1 rounded-full bg-pastel-lavender-bg text-[#8B6DBF]">
-                    {kw}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {agent.evaluation_criteria.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold text-text-primary mb-2">Evaluation Criteria</h3>
-              <ul className="space-y-1.5">
-                {agent.evaluation_criteria.map((c, i) => (
-                  <li key={i} className="text-sm text-text-secondary flex gap-2">
-                    <span className="text-accent shrink-0">{i + 1}.</span>
-                    <span>{c}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
-
-      {activeTab === 'calibration' && (
-        <div className="space-y-6">
-          {!calibration ? (
-            <div className="space-y-3">
-              <Skeleton className="h-32 w-full" />
-              <Skeleton className="h-24 w-full" />
-            </div>
-          ) : !calibration.is_meaningful ? (
-            <div className="text-sm text-text-muted py-8 text-center">
-              Not enough data for meaningful calibration. Need more outcome reports.
-            </div>
-          ) : (
-            <>
-              {/* Accuracy gauge */}
-              <div className="bg-bg-tertiary/50 rounded-xl p-6 text-center">
-                <div className="text-3xl font-bold text-text-primary font-[family-name:var(--font-heading)]">
-                  {(calibration.accuracy * 100).toFixed(0)}%
-                </div>
-                <div className="text-xs text-text-muted mt-1">Overall Accuracy</div>
-                <div className="flex justify-center gap-6 mt-4 text-xs">
-                  <div>
-                    <div className="text-green-600 font-semibold">{calibration.correct}</div>
-                    <div className="text-text-muted">Correct</div>
-                  </div>
-                  <div>
-                    <div className="text-amber-600 font-semibold">{calibration.partial}</div>
-                    <div className="text-text-muted">Partial</div>
-                  </div>
-                  <div>
-                    <div className="text-red-600 font-semibold">{calibration.incorrect}</div>
-                    <div className="text-text-muted">Incorrect</div>
-                  </div>
-                </div>
-                <div className="text-xs text-text-muted mt-3">
-                  {calibration.total_evaluations} total evaluations
-                </div>
-              </div>
-
-              {/* Domain accuracy */}
-              {Object.keys(calibration.domain_accuracy).length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold text-text-primary mb-3">Domain Accuracy</h3>
-                  <div className="space-y-2">
-                    {Object.entries(calibration.domain_accuracy).map(([domain, acc]) => (
-                      <div key={domain} className="flex items-center gap-3">
-                        <span className="text-xs text-text-secondary w-32 truncate">{domain}</span>
-                        <div className="flex-1 h-2 bg-bg-tertiary rounded-full overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-pastel-lavender transition-all"
-                            style={{ width: `${acc * 100}%` }}
-                          />
-                        </div>
-                        <span className="text-xs text-text-muted w-10 text-right">{(acc * 100).toFixed(0)}%</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+              {/* Knowledge scope */}
+              {agent.knowledge_scope && agent.knowledge_scope.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Knowledge Scope</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-1.5">
+                      {(Array.isArray(agent.knowledge_scope)
+                        ? agent.knowledge_scope
+                        : [agent.knowledge_scope]
+                      ).map((scope: string) => (
+                        <li key={scope} className="flex items-start gap-2 text-sm text-text-secondary leading-relaxed">
+                          <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-accent shrink-0" />
+                          {scope.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
               )}
 
-              {/* Biases */}
-              {calibration.systematic_biases.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold text-text-primary mb-2">Systematic Biases</h3>
-                  <ul className="space-y-1">
-                    {calibration.systematic_biases.map((bias, i) => (
-                      <li key={i} className="text-sm text-amber-600 flex gap-2">
-                        <span className="shrink-0">!</span>
-                        <span>{bias}</span>
-                      </li>
-                    ))}
-                  </ul>
+              {/* Phase mandates */}
+              {agent.phase_mandates && Object.keys(agent.phase_mandates).length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Phase Mandates</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {Object.entries(agent.phase_mandates).map(
+                      ([phase, mandate]) => (
+                        <details
+                          key={phase}
+                          className="group rounded-sm border border-border-default"
+                        >
+                          <summary className="flex cursor-pointer items-center gap-2 px-4 py-3 text-sm font-medium text-text-primary hover:bg-bg-elevated transition-colors rounded-sm">
+                            <ChevronRight className="h-4 w-4 text-text-muted transition-transform group-open:rotate-90" />
+                            {PHASE_LABELS[phase] ?? phase}
+                          </summary>
+                          <div className="px-4 pb-3 pl-10 text-sm text-text-secondary leading-relaxed">
+                            {mandate}
+                          </div>
+                        </details>
+                      ),
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+
+            {/* Expertise tab */}
+            <TabsContent value="expertise" className="space-y-6">
+              <Card>
+                <CardContent className="pt-5 space-y-6">
+                  <ExpertiseTagGrid
+                    tags={agent.expertise_tags}
+                    label="Expertise Tags"
+                  />
+                  <ExpertiseTagGrid
+                    tags={agent.domain_keywords}
+                    label="Domain Keywords"
+                  />
+                  <ExpertiseTagGrid
+                    tags={agent.evaluation_criteria}
+                    label="Evaluation Criteria"
+                  />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Calibration tab */}
+            <TabsContent value="calibration">
+              {calibrationQuery.isLoading ? (
+                <CalibrationSkeleton />
+              ) : calibrationQuery.isError ? (
+                <div className="text-sm text-destructive">
+                  Failed to load calibration data.
+                </div>
+              ) : calibration ? (
+                <CalibrationGauge report={calibration} />
+              ) : (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <BarChart3 className="h-10 w-10 text-text-muted mb-4" />
+                  <p className="text-lg font-medium text-text-primary">
+                    No calibration data
+                  </p>
+                  <p className="mt-2 text-sm text-text-secondary max-w-md">
+                    Calibration data will appear here once outcome reports have
+                    been filed for threads this agent participated in.
+                  </p>
                 </div>
               )}
-            </>
-          )}
+            </TabsContent>
+          </Tabs>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

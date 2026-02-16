@@ -1,47 +1,85 @@
 import { useQuery } from '@tanstack/react-query';
+import { DollarSign, Zap, Hash, Clock } from 'lucide-react';
+import { formatCost, formatNumber } from '@/lib/utils';
 import { getThreadCosts } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface ThreadCostSummaryProps {
   threadId: string;
 }
 
+function formatDuration(seconds: number | null): string {
+  if (seconds == null) return '--';
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.round(seconds % 60);
+  return `${mins}m ${secs}s`;
+}
+
 export function ThreadCostSummary({ threadId }: ThreadCostSummaryProps) {
-  const { data: costs } = useQuery({
+  const { data: costs, isLoading } = useQuery({
     queryKey: queryKeys.threads.costs(threadId),
     queryFn: () => getThreadCosts(threadId),
   });
 
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">Cost Summary</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (!costs) return null;
 
+  const items = [
+    {
+      icon: DollarSign,
+      label: 'Total Cost',
+      value: formatCost(costs.estimated_cost_usd),
+    },
+    {
+      icon: Zap,
+      label: 'LLM Calls',
+      value: costs.num_llm_calls.toString(),
+    },
+    {
+      icon: Hash,
+      label: 'Tokens',
+      value: formatNumber(costs.total_tokens),
+    },
+    {
+      icon: Clock,
+      label: 'Duration',
+      value: formatDuration(costs.duration_seconds),
+    },
+  ];
+
   return (
-    <div className="space-y-2">
-      <div className="text-sm font-semibold text-text-primary">
-        Costs
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-        <div className="bg-bg-tertiary/50 rounded-xl p-3">
-          <div className="text-text-muted text-xs">Total Cost</div>
-          <div className="text-text-primary font-medium">${costs.estimated_cost_usd.toFixed(4)}</div>
-        </div>
-        <div className="bg-bg-tertiary/50 rounded-xl p-3">
-          <div className="text-text-muted text-xs">LLM Calls</div>
-          <div className="text-text-primary font-medium">{costs.num_llm_calls}</div>
-        </div>
-        <div className="bg-bg-tertiary/50 rounded-xl p-3">
-          <div className="text-text-muted text-xs">Input Tokens</div>
-          <div className="text-text-primary font-medium">{costs.total_input_tokens.toLocaleString()}</div>
-        </div>
-        <div className="bg-bg-tertiary/50 rounded-xl p-3">
-          <div className="text-text-muted text-xs">Output Tokens</div>
-          <div className="text-text-primary font-medium">{costs.total_output_tokens.toLocaleString()}</div>
-        </div>
-      </div>
-      {costs.duration_seconds && (
-        <div className="text-xs text-text-muted text-center">
-          Duration: {Math.round(costs.duration_seconds)}s
-        </div>
-      )}
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm">Cost Summary</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {items.map(({ icon: Icon, label, value }) => (
+          <div key={label} className="flex items-center justify-between">
+            <span className="flex items-center gap-2 text-xs text-text-muted">
+              <Icon className="h-3.5 w-3.5" />
+              {label}
+            </span>
+            <span className="text-sm font-medium text-text-primary">{value}</span>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
   );
 }

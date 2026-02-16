@@ -1,138 +1,143 @@
 @import "tailwindcss";
-@import "@heroui/styles";
-
-:root {
-  --accent: oklch(0.72 0.12 290);
-  --accent-foreground: oklch(1 0 0);
-  --success: oklch(0.72 0.14 160);
-  --success-foreground: oklch(1 0 0);
-  --warning: oklch(0.82 0.12 80);
-  --warning-foreground: oklch(0.2 0 0);
-  --danger: oklch(0.66 0.14 15);
-  --danger-foreground: oklch(1 0 0);
-}
 
 @theme {
-  /* ── Pastel Rainbow Palette ── */
-  --color-pastel-rose: #FFB5C2;
-  --color-pastel-peach: #FFD4A8;
-  --color-pastel-lemon: #FFEAA0;
-  --color-pastel-mint: #B5EAD7;
-  --color-pastel-sky: #A8D8EA;
-  --color-pastel-lavender: #C7B8EA;
-  --color-pastel-lilac: #DDB8F0;
-
-  /* Tinted backgrounds for each pastel */
-  --color-pastel-rose-bg: #FFF0F3;
-  --color-pastel-peach-bg: #FFF5EC;
-  --color-pastel-lemon-bg: #FFFBEC;
-  --color-pastel-mint-bg: #EDFAF4;
-  --color-pastel-sky-bg: #EDF6FA;
-  --color-pastel-lavender-bg: #F3EFFA;
-  --color-pastel-lilac-bg: #F8F0FC;
-
-  /* ── Backgrounds ── */
-  --color-bg-primary: #FAFBFC;
-  --color-bg-secondary: #FFFFFF;
-  --color-bg-tertiary: #F0F2F5;
-  --color-bg-elevated: #FFFFFF;
-  --color-bg-sidebar: #F5F3FA;
+  /* ── Backgrounds (dark-first) ── */
+  --color-bg-root: #09090B;
+  --color-bg-surface: #0F0F13;
+  --color-bg-elevated: #1A1A23;
+  --color-bg-overlay: #222233;
+  --color-bg-sidebar: #0C0C10;
+  --color-bg-input: #12121A;
 
   /* ── Borders ── */
-  --color-border-default: #E4E6EB;
-  --color-border-subtle: #ECEDF0;
-  --color-border-accent: #C7B8EA;
+  --color-border-default: rgba(255, 255, 255, 0.06);
+  --color-border-subtle: rgba(255, 255, 255, 0.03);
+  --color-border-accent: rgba(99, 102, 241, 0.4);
 
   /* ── Text ── */
-  --color-text-primary: #1A1D21;
-  --color-text-secondary: #4A5568;
-  --color-text-muted: #94A3B8;
+  --color-text-primary: #F1F5F9;
+  --color-text-secondary: #94A3B8;
+  --color-text-muted: #4B5563;
+  --color-text-accent: #818CF8;
 
-  /* ── Stances (pastelized) ── */
-  --color-stance-supportive: #5EBD8A;
-  --color-stance-critical: #E8788A;
-  --color-stance-neutral: #A0ADB4;
-  --color-stance-novel: #A78BDE;
+  /* ── Agent colors (vibrant on dark) ── */
+  --color-agent-biology: #34D399;
+  --color-agent-chemistry: #60A5FA;
+  --color-agent-admet: #FBBF24;
+  --color-agent-clinical: #A78BFA;
+  --color-agent-regulatory: #F472B6;
+  --color-agent-computational: #2DD4BF;
+  --color-agent-protein-eng: #FB923C;
+  --color-agent-synth-bio: #C084FC;
+  --color-agent-red-team: #F87171;
+  --color-agent-human: #E2E8F0;
 
-  /* ── Phases (pastelized) ── */
-  --color-phase-explore: #7CB9E8;
-  --color-phase-debate: #E8788A;
-  --color-phase-deepen: #F0C060;
-  --color-phase-converge: #5EBD8A;
-  --color-phase-synthesis: #B49ADE;
+  /* ── Stance colors ── */
+  --color-stance-supportive: #22C55E;
+  --color-stance-critical: #EF4444;
+  --color-stance-neutral: #6B7280;
+  --color-stance-novel: #A855F7;
 
-  /* ── Accent ── */
-  --color-accent: #B49ADE;
-  --color-accent-hover: #A07DD6;
+  /* ── Phase colors ── */
+  --color-phase-explore: #3B82F6;
+  --color-phase-debate: #EF4444;
+  --color-phase-deepen: #F59E0B;
+  --color-phase-converge: #22C55E;
+  --color-phase-synthesis: #A855F7;
 
   /* ── Semantic ── */
-  --color-success: #5EBD8A;
-  --color-warning: #F0C060;
-  --color-error: #E8788A;
+  --color-accent: #6366F1;
+  --color-accent-hover: #818CF8;
+  --color-destructive: #EF4444;
+  --color-success: #22C55E;
+  --color-warning: #F59E0B;
 
   /* ── Fonts ── */
-  --font-sans: 'DM Sans', system-ui, -apple-system, sans-serif;
-  --font-heading: 'Outfit', 'DM Sans', system-ui, sans-serif;
+  --font-sans: 'Inter', 'SF Pro Display', -apple-system, system-ui, sans-serif;
+  --font-heading: 'Inter', 'SF Pro Display', sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
 
   /* ── Radii ── */
   --radius-sm: 6px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
-  --radius-2xl: 24px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
 
-  /* ── Shadows (barely-there) ── */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.02);
-  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.02), 0 4px 12px rgba(0, 0, 0, 0.03);
-  --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.03), 0 8px 24px rgba(0, 0, 0, 0.04);
-  --shadow-xl: 0 8px 16px rgba(0, 0, 0, 0.03), 0 16px 48px rgba(0, 0, 0, 0.05);
+  /* ── Shadows (dark appropriate) ── */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
 
   /* ── Layout ── */
-  --sidebar-width: 280px;
-  --right-panel-width: 340px;
+  --sidebar-width: 260px;
+  --right-panel-width: 360px;
 }
 
 /* ── Base styles ── */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+
+/* Explicit dark-theme custom properties outside @layer theme for cascade priority */
+:root {
+  --color-bg-root: #09090B;
+  --color-bg-surface: #0F0F13;
+  --color-bg-elevated: #1A1A23;
+  --color-bg-overlay: #222233;
+  --color-bg-sidebar: #0C0C10;
+  --color-bg-input: #12121A;
+  --color-border-default: rgba(255, 255, 255, 0.06);
+  --color-border-subtle: rgba(255, 255, 255, 0.03);
+  --color-border-accent: rgba(99, 102, 241, 0.4);
+  --color-text-primary: #F1F5F9;
+  --color-text-secondary: #94A3B8;
+  --color-text-muted: #4B5563;
+  --color-text-accent: #818CF8;
+  --color-accent: #6366F1;
+  --color-accent-hover: #818CF8;
+  --color-destructive: #EF4444;
+  --color-success: #22C55E;
+  --color-warning: #F59E0B;
 }
 
 html {
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 body {
-  background: var(--color-bg-primary);
-  color: var(--color-text-primary);
-  font-family: var(--font-sans);
+  background: var(--color-bg-root, #09090B);
+  color: var(--color-text-primary, #F1F5F9);
+  font-family: var(--font-sans, 'Inter', -apple-system, system-ui, sans-serif);
   font-size: 15px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* ── Selection ── */
-::selection {
-  background: rgba(199, 184, 234, 0.2);
-  color: inherit;
-}
-
-/* ── Scrollbar ── */
+/* ── Scrollbar (thin, subtle for dark) ── */
 ::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #E0E0E0;
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #C8C8C8;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+}
+
+/* ── Selection ── */
+::selection {
+  background: rgba(99, 102, 241, 0.2);
+  color: inherit;
 }
 
 /* ── Focus visible ── */
@@ -141,7 +146,7 @@ body {
   outline-offset: 2px;
 }
 
-/* ── Animations ── */
+/* ── Keyframe animations ── */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
@@ -166,55 +171,126 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes slideIn {
-  from { opacity: 0; transform: translateX(-8px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-@keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-@keyframes gradientSweep {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
 
-@keyframes tooltipIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+/* ── Light mode overrides ── */
+.light {
+  --color-bg-root: #FAFAFA;
+  --color-bg-surface: #FFFFFF;
+  --color-bg-elevated: #F4F4F5;
+  --color-bg-overlay: #FFFFFF;
+  --color-bg-sidebar: #F5F5F7;
+  --color-bg-input: #FFFFFF;
+
+  --color-border-default: rgba(0, 0, 0, 0.08);
+  --color-border-subtle: rgba(0, 0, 0, 0.04);
+  --color-border-accent: rgba(99, 102, 241, 0.3);
+
+  --color-text-primary: #0F172A;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94A3B8;
+  --color-text-accent: #6366F1;
+
+  color-scheme: light;
 }
 
-/* ── Energy chart styles (Tailwind-ified with pastel accents) ── */
+.light ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+}
+.light ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.light ::selection {
+  background: rgba(99, 102, 241, 0.15);
+}
+
+/* ── Pastel mode overrides ── */
+.pastel {
+  --color-bg-root: #FDF6F0;
+  --color-bg-surface: #FFFBF7;
+  --color-bg-elevated: #F5EDE4;
+  --color-bg-overlay: #FFFBF7;
+  --color-bg-sidebar: #F8F0E8;
+  --color-bg-input: #FFFBF7;
+
+  --color-border-default: rgba(180, 160, 140, 0.18);
+  --color-border-subtle: rgba(180, 160, 140, 0.08);
+  --color-border-accent: rgba(162, 136, 227, 0.35);
+
+  --color-text-primary: #2D2A3E;
+  --color-text-secondary: #6B6580;
+  --color-text-muted: #A39DB3;
+  --color-text-accent: #8B7EC8;
+
+  --color-agent-biology: #7DD3A8;
+  --color-agent-chemistry: #8BBCE8;
+  --color-agent-admet: #F5CF70;
+  --color-agent-clinical: #B8A3E0;
+  --color-agent-regulatory: #F2A0C4;
+  --color-agent-computational: #72CEBD;
+  --color-agent-protein-eng: #F5B07C;
+  --color-agent-synth-bio: #CFA3E8;
+  --color-agent-red-team: #F5A0A0;
+  --color-agent-human: #D5D0E0;
+
+  --color-stance-supportive: #6DD4A0;
+  --color-stance-critical: #F0908E;
+  --color-stance-neutral: #A8A3B5;
+  --color-stance-novel: #C4A0ED;
+
+  --color-phase-explore: #7EB5F0;
+  --color-phase-debate: #F0908E;
+  --color-phase-deepen: #F0C870;
+  --color-phase-converge: #6DD4A0;
+  --color-phase-synthesis: #C4A0ED;
+
+  --color-accent: #8B7EC8;
+  --color-accent-hover: #A698D8;
+  --color-destructive: #E87C7A;
+  --color-success: #6DD4A0;
+  --color-warning: #F0C870;
+
+  color-scheme: light;
+}
+
+.pastel ::-webkit-scrollbar-thumb {
+  background: rgba(160, 140, 120, 0.15);
+}
+.pastel ::-webkit-scrollbar-thumb:hover {
+  background: rgba(160, 140, 120, 0.25);
+}
+
+.pastel ::selection {
+  background: rgba(139, 126, 200, 0.18);
+}
+
+/* ── Energy chart styles ── */
 .energy-chart { margin-bottom: 16px; }
 .energy-empty { color: var(--color-text-muted); font-size: 13px; text-align: center; padding: 24px 0; }
 .energy-bar-wrapper { margin-bottom: 10px; }
 .energy-bar-label { font-size: 22px; font-family: var(--font-mono); margin-bottom: 6px; }
-.energy-bar-track { position: relative; height: 8px; background: var(--color-bg-tertiary); border-radius: 4px; overflow: visible; }
+.energy-bar-track { position: relative; height: 8px; background: var(--color-bg-elevated); border-radius: 4px; overflow: visible; }
 .energy-bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease, background-color 0.6s ease; }
-.energy-threshold-marker { position: absolute; top: -2px; width: 1px; height: 12px; background: var(--color-pastel-rose); opacity: 0.6; }
+.energy-threshold-marker { position: absolute; top: -2px; width: 1px; height: 12px; background: var(--color-destructive); opacity: 0.6; }
 .energy-sparkline { width: 100%; height: 80px; margin: 8px 0; }
 .energy-components { display: flex; flex-direction: column; gap: 6px; }
 .energy-component { display: grid; grid-template-columns: 80px 1fr 36px; align-items: center; gap: 8px; font-size: 12px; }
 .component-label { color: var(--color-text-muted); text-transform: capitalize; }
-.component-bar-track { height: 4px; background: var(--color-bg-tertiary); border-radius: 2px; }
+.component-bar-track { height: 4px; background: var(--color-bg-elevated); border-radius: 2px; }
 .component-bar-fill { height: 100%; background: var(--color-accent); border-radius: 2px; transition: width 0.6s; }
 .component-value { color: var(--color-text-secondary); font-family: var(--font-mono); text-align: right; }
 .energy-chart-wrapper { position: relative; }
-.energy-tooltip { position: absolute; z-index: 50; background: var(--color-bg-secondary); border: 1px solid var(--color-border-default); border-radius: var(--radius-md); padding: 10px 12px; box-shadow: var(--shadow-lg); pointer-events: none; min-width: 150px; animation: tooltipIn 0.15s ease-out; }
+.energy-tooltip { position: absolute; z-index: 50; background: var(--color-bg-surface); border: 1px solid var(--color-border-default); border-radius: var(--radius-md); padding: 10px 12px; box-shadow: var(--shadow-lg); pointer-events: none; min-width: 150px; animation: fadeIn 0.15s ease-out; }
 .energy-tooltip-header { font-size: 11px; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
 .energy-tooltip-value { font-size: 18px; font-family: var(--font-mono); font-weight: 700; margin-bottom: 6px; }
 .energy-tooltip-components { display: flex; flex-direction: column; gap: 4px; }
 .energy-tooltip-row { display: grid; grid-template-columns: 70px 1fr 30px; align-items: center; gap: 6px; font-size: 11px; }
 .energy-tooltip-label { color: var(--color-text-muted); text-transform: capitalize; }
-.energy-tooltip-bar { height: 3px; background: var(--color-bg-tertiary); border-radius: 2px; }
+.energy-tooltip-bar { height: 3px; background: var(--color-bg-elevated); border-radius: 2px; }
 .energy-tooltip-bar-fill { height: 100%; background: var(--color-accent); border-radius: 2px; }
 .energy-tooltip-val { color: var(--color-text-secondary); font-family: var(--font-mono); text-align: right; }
-.energy-spike-marker { fill: var(--color-pastel-lavender); opacity: 0.8; }
+.energy-spike-marker { fill: var(--color-accent); opacity: 0.8; }
