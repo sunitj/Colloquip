@@ -1,40 +1,35 @@
 /**
- * Colloquium Competition Demo — "Emergent Scientific Discourse"
+ * Colloquium Competition Demo — 3-Minute Video
  *
- * A comprehensive 3.5-minute automated demo optimized for judging criteria:
+ * Optimized for judging criteria:
  *   - Impact (25%): Real-world potential for scientific deliberation
  *   - Opus 4.6 Use (25%): Emergent agent behavior, self-organizing phases, red-team
- *   - Depth & Execution (20%): Energy model, triggers, institutional memory, calibration
+ *   - Depth & Execution (20%): Energy model, triggers, institutional memory
  *
- * Story Arc:
- *   Act 1 (0:00–0:25)  — THE HOOK: Show a completed consensus reveal immediately
- *   Act 2 (0:25–0:55)  — THE PLATFORM: Tour communities, agent pool, agent deep-dive
- *   Act 3 (0:55–1:25)  — BUILD: Create community + thread from scratch
- *   Act 4 (1:25–2:15)  — THE LIVE EVENT: Launch deliberation, watch emergence unfold
- *   Act 5 (2:15–2:45)  — HUMAN IN THE LOOP: Intervene, watch energy spike + pivot
- *   Act 6 (2:45–3:10)  — INSTITUTIONAL MEMORY: Knowledge graph, cross-references
- *   Act 7 (3:10–3:30)  — THE CLOSE: Consensus + closing shot
+ * Story Arc (strict 3:00):
+ *   Act 1 (0:00–0:20)  — THE HOOK: Completed consensus reveal
+ *   Act 2 (0:20–0:40)  — THE PLATFORM: Communities, agent persona deep-dive
+ *   Act 3 (0:40–1:05)  — BUILD: Create community + thread
+ *   Act 4 (1:05–1:50)  — THE LIVE EVENT: Launch, watch emergence
+ *   Act 5 (1:50–2:15)  — HUMAN IN THE LOOP: Intervene, energy spike
+ *   Act 6 (2:15–2:35)  — INSTITUTIONAL MEMORY: Knowledge graph
+ *   Act 7 (2:35–3:00)  — THE CLOSE: Final narration + home page
  *
  * Prerequisites:
- *   1. Platform running: docker compose up -d (or local dev servers)
+ *   1. Platform running: docker compose up -d
  *   2. Seed data loaded: uv run python scripts/seed_demo.py [--mock]
- *   3. Run: cd demo && npx playwright test demo-competition.spec.ts --headed
- *
- * Narrator: Start OBS/Loom recording BEFORE running the script.
+ *   3. Run: cd demo && npm run demo:competition
  */
 
 import { test, expect, type Page } from "@playwright/test";
 
 // ─── Configuration ──────────────────────────────────────────────────────────
 
-/** Narrator pace multiplier: 1.0 = normal, 1.3 = breathing room, 0.8 = tight */
+/** Narrator pace multiplier: 1.0 = normal, 1.2 = breathing room, 0.8 = tight */
 const NARRATOR_PACE = 1.0;
 
 /** Use mock LLM for dry runs (set DEMO_MODE=mock env var) */
 const USE_MOCK = process.env.DEMO_MODE === "mock";
-
-/** Theme to switch to during the demo for visual flair */
-const DEMO_THEME: "dark" | "light" | "pastel" = "dark";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -44,17 +39,15 @@ async function pause(page: Page, ms: number) {
 
 async function typeSlowly(page: Page, selector: string, text: string) {
   await page.click(selector);
-  await page.type(selector, text, { delay: 28 });
+  await page.type(selector, text, { delay: 25 });
 }
 
-/** Count posts visible on a thread page */
 async function postCount(page: Page): Promise<number> {
   return page
     .locator('[style*="border-left-width: 3px"], [style*="border-left: 3px"]')
     .count();
 }
 
-/** Scroll to the most recent post */
 async function scrollToLatestPost(page: Page) {
   const post = page
     .locator('[style*="border-left-width: 3px"], [style*="border-left: 3px"]')
@@ -64,7 +57,6 @@ async function scrollToLatestPost(page: Page) {
   }
 }
 
-/** Wait for at least N posts to appear */
 async function waitForPosts(page: Page, n: number, timeout = 60_000) {
   const deadline = Date.now() + timeout;
   while (Date.now() < deadline) {
@@ -73,13 +65,8 @@ async function waitForPosts(page: Page, n: number, timeout = 60_000) {
   }
 }
 
-/** Smoothly scroll an element into view and pause for the camera */
-async function spotlight(page: Page, textOrSelector: string, duration = 1500) {
-  // Try text match first, then CSS selector
-  let el = page.locator(`text=${textOrSelector}`).first();
-  if (!(await el.isVisible().catch(() => false))) {
-    el = page.locator(textOrSelector).first();
-  }
+async function spotlight(page: Page, text: string, duration = 1200) {
+  const el = page.locator(`text=${text}`).first();
   if (await el.isVisible().catch(() => false)) {
     await el.scrollIntoViewIfNeeded();
     await pause(page, duration);
@@ -88,15 +75,14 @@ async function spotlight(page: Page, textOrSelector: string, duration = 1500) {
   return false;
 }
 
-/** Hover over cards in a grid to create a visual scanning effect */
-async function scanCards(page: Page, selector: string, maxCards = 5) {
+async function scanCards(page: Page, selector: string, maxCards = 4) {
   const cards = page.locator(selector);
   const count = await cards.count();
   for (let i = 0; i < Math.min(count, maxCards); i++) {
     const card = cards.nth(i);
     if (await card.isVisible().catch(() => false)) {
       await card.hover();
-      await pause(page, 500);
+      await pause(page, 400);
     }
   }
 }
@@ -128,184 +114,127 @@ const INTERVENTION =
   "oncogenic. How do we square the urgency of access with the precautionary " +
   "principle?";
 
-// ─── The Competition Demo ───────────────────────────────────────────────────
+// ─── The 3-Minute Demo ─────────────────────────────────────────────────────
 
-test("Colloquium Competition Demo — Emergent Scientific Discourse", async ({
-  page,
-}) => {
+test("Colloquium — 3-Minute Competition Demo", async ({ page }) => {
   test.setTimeout(USE_MOCK ? 300_000 : 600_000);
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // ACT 1 — THE HOOK: Show what the platform produces (0:00–0:25)
+  // ACT 1 — THE HOOK (0:00–0:20)
   //
   // NARRATOR: "What happens when you give six AI scientists a controversial
   // hypothesis and let them decide for themselves when to speak? No turns.
   // No choreography. Just rules of engagement — and emergence."
   // ═══════════════════════════════════════════════════════════════════════════
 
-  // Land on home page — pre-seeded communities visible
   await page.goto("/");
   await expect(page.locator("text=Welcome to Colloquium")).toBeVisible();
-  await pause(page, 2500);
+  await pause(page, 2000);
 
-  // Navigate to a completed thread to show the end product first
+  // Jump straight into a completed thread
   const neuroLink = page.locator("a", { hasText: "Neuropharmacology" }).first();
   if (await neuroLink.isVisible().catch(() => false)) {
     await neuroLink.click();
     await page.waitForURL(/\/c\/neuropharmacology/);
-    await pause(page, 1200);
+    await pause(page, 800);
 
-    // Click Threads tab and open the first completed thread
     const threadsTab = page.locator('[role="tab"]', { hasText: "Threads" });
     if (await threadsTab.isVisible().catch(() => false)) {
       await threadsTab.click();
-      await pause(page, 600);
+      await pause(page, 400);
     }
 
     const firstThread = page.locator("a[href*='/thread/']").first();
     if (await firstThread.isVisible().catch(() => false)) {
       await firstThread.click();
       await page.waitForURL(/\/thread\//);
-      await pause(page, 1500);
+      await pause(page, 1200);
 
-      // NARRATOR: "This is the output: six agents debated GLP-1 agonists for
-      // Alzheimer's. Let me show you what emerged."
+      // Show Key Moments — the hook
+      // NARRATOR: "Phase transitions, red-team challenges, bridge
+      // connections — none of this was scripted."
+      await spotlight(page, "Key Moments", 1800);
 
-      // Show the Key Moments panel first — the hook
-      await spotlight(page, "Key Moments", 2000);
-
-      // NARRATOR: "Phase transitions detected by an observer from conversation
-      // metrics. A red-team agent that fired automatically when consensus
-      // formed too quickly. Bridge connections across domains. None of this
-      // was scripted."
-
-      // Scroll to consensus
+      // Flash consensus sections
       const consensusEl = page.locator("text=Consensus Reached").first();
       if (await consensusEl.isVisible().catch(() => false)) {
         await consensusEl.scrollIntoViewIfNeeded();
-        await pause(page, 1500);
-
-        // Walk through consensus sections
-        for (const section of ["Agreements", "Disagreements", "Minority Positions"]) {
-          await spotlight(page, section, 1200);
-        }
-
-        // NARRATOR: "Agreements, disagreements, and critically — minority
-        // positions that survived. The system preserves dissent."
+        await pause(page, 1000);
+        await spotlight(page, "Agreements", 800);
+        await spotlight(page, "Minority Positions", 1000);
+        // NARRATOR: "The system preserves dissent, not just consensus."
       }
     }
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // ACT 2 — THE PLATFORM: Tour the ecosystem (0:25–0:55)
+  // ACT 2 — THE PLATFORM (0:20–0:40)
   //
-  // NARRATOR: "Colloquium is structured like a scientific Reddit. Communities
-  // scoped by domain. Persistent agent identities with real expertise profiles.
-  // Institutional memory that grows with every deliberation."
+  // NARRATOR: "Colloquium is like a scientific Reddit. Communities by domain.
+  // Persistent agents with real expertise profiles."
   // ═══════════════════════════════════════════════════════════════════════════
 
-  // Home page — show all communities
   await page.goto("/");
-  await pause(page, 1500);
+  await pause(page, 1000);
+  await scanCards(page, "a[href*='/c/']", 4);
+  await pause(page, 500);
 
-  // Scan across community cards
-  await scanCards(page, "a[href*='/c/']", 5);
-  await pause(page, 800);
-
-  // NARRATOR: "Five communities — from neuropharmacology to enzyme
-  // engineering. Each recruits its own specialist agents."
-
-  // Agent pool — the cast of characters
+  // Agent pool — quick scan then deep-dive one agent
   await page.goto("/agents");
   await page
-    .waitForSelector(
-      '[class*="grid"] a, [class*="grid"] [class*="AgentCard"]',
-      { timeout: 10_000 },
-    )
+    .waitForSelector('[class*="grid"] a', { timeout: 10_000 })
     .catch(() => {});
-  await pause(page, 2000);
+  await pause(page, 1500);
 
-  // NARRATOR: "The agent pool. Each agent has a distinct persona, phase
-  // mandates, and evaluation criteria — all authored by Opus 4.6."
+  // NARRATOR: "Each agent has a distinct scientific identity."
 
-  // Deep-dive into an agent profile to show the persona
+  // Deep-dive: show a persona prompt
   const firstAgent = page.locator("a[href*='/agents/']").first();
   if (await firstAgent.isVisible().catch(() => false)) {
     await firstAgent.click();
     await page.waitForURL(/\/agents\//);
-    await pause(page, 2000);
+    await pause(page, 1200);
 
-    // Show persona prompt
-    await spotlight(page, "Persona", 2500);
-
-    // NARRATOR: "Look at this persona prompt. It's not 'you are a biology
-    // expert.' It's a nuanced scientific identity with publication biases,
-    // intellectual commitments, and blind spots. Opus 4.6 doesn't just
-    // follow instructions — it inhabits a character."
-
-    // Show expertise tab
-    const expertiseTab = page.locator('[role="tab"]', { hasText: "Expertise" });
-    if (await expertiseTab.isVisible().catch(() => false)) {
-      await expertiseTab.click();
-      await pause(page, 1800);
-      // NARRATOR: "Domain keywords, evaluation criteria — the trigger system
-      // uses these to determine when this agent should speak."
-    }
-  }
-
-  // Show a community members panel — different agents for different domains
-  await page.goto("/c/neuropharmacology");
-  await pause(page, 800);
-
-  const membersTab = page.locator('[role="tab"]', { hasText: "Members" });
-  if (await membersTab.isVisible().catch(() => false)) {
-    await membersTab.click();
-    await pause(page, 2000);
-    // NARRATOR: "Biology, chemistry, clinical, regulatory, and a red-team
-    // adversary. The red team exists to challenge premature consensus —
-    // and it activates automatically via inverted trigger rules."
+    // NARRATOR: "Not 'you are a biology expert.' A nuanced identity —
+    // publication biases, blind spots. Opus 4.6 inhabits a character."
+    await spotlight(page, "Persona", 2000);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // ACT 3 — BUILD: Create a new community + thread from scratch (0:55–1:25)
+  // ACT 3 — BUILD (0:40–1:05)
   //
   // NARRATOR: "Let me build something new. A CRISPR therapeutics community
-  // with a provocative hypothesis: can in-vivo base editing cure sickle cell
-  // disease without myeloablative conditioning — in three years?"
+  // with a provocative hypothesis."
   // ═══════════════════════════════════════════════════════════════════════════
 
   await page.goto("/");
-  await pause(page, 600);
+  await pause(page, 400);
 
   // Create community
   const createBtn = page.locator("button", { hasText: "Create Community" });
   await createBtn.click();
   await expect(page.locator('[role="dialog"]')).toBeVisible();
-  await pause(page, 400);
+  await pause(page, 300);
 
   await typeSlowly(page, 'input[placeholder*="drug_discovery"]', NEW_COMMUNITY.slug);
   await typeSlowly(page, 'input[placeholder*="Drug Discovery"]', NEW_COMMUNITY.displayName);
   await typeSlowly(page, 'textarea[placeholder*="purpose"]', NEW_COMMUNITY.description);
   await typeSlowly(page, 'input[placeholder*="pharmaceutical"]', NEW_COMMUNITY.primaryDomain);
-  await pause(page, 500);
+  await pause(page, 300);
 
   await page.locator('[role="dialog"] button[type="submit"]').click();
   await page.waitForURL(/\/c\//, { timeout: 10_000 });
-  await pause(page, 1200);
+  await pause(page, 800);
 
-  // NARRATOR: "Community created. The platform auto-recruited agents based
-  // on expertise matching — biology, chemistry, clinical specialists, and
+  // Flash members tab — show auto-recruitment
+  // NARRATOR: "Auto-recruited by expertise. Every community must have
   // a red-team adversary."
-
-  // Show auto-recruited members
-  const newMembersTab = page.locator('[role="tab"]', { hasText: "Members" });
-  if (await newMembersTab.isVisible().catch(() => false)) {
-    await newMembersTab.click();
-    await pause(page, 2000);
-
-    // Switch back to threads
+  const membersTab = page.locator('[role="tab"]', { hasText: "Members" });
+  if (await membersTab.isVisible().catch(() => false)) {
+    await membersTab.click();
+    await pause(page, 1500);
     await page.locator('[role="tab"]', { hasText: "Threads" }).click();
-    await pause(page, 500);
+    await pause(page, 300);
   }
 
   // Create thread
@@ -314,34 +243,24 @@ test("Colloquium Competition Demo — Emergent Scientific Discourse", async ({
     .first();
   await newThreadBtn.click();
   await expect(page.locator('[role="dialog"]')).toBeVisible();
+  await pause(page, 300);
+
+  await typeSlowly(page, 'input[placeholder="Deliberation title"]', NEW_THREAD.title);
+  await typeSlowly(page, 'textarea[placeholder*="hypothesis"]', NEW_THREAD.hypothesis);
   await pause(page, 400);
 
-  await typeSlowly(
-    page,
-    'input[placeholder="Deliberation title"]',
-    NEW_THREAD.title,
-  );
-  await typeSlowly(
-    page,
-    'textarea[placeholder*="hypothesis"]',
-    NEW_THREAD.hypothesis,
-  );
-  await pause(page, 600);
-
-  // NARRATOR: "The hypothesis is deliberately provocative. That '3 years'
-  // claim is designed to trigger the red-team agent. And the clinical
-  // specialist will have concerns about off-target editing. Let's see
-  // what Opus 4.6 does with this."
+  // NARRATOR: "Can in-vivo base editing cure sickle cell — in three years?
+  // That timeline will trigger the red-team agent."
 
   await page.locator('[role="dialog"] button[type="submit"]').click();
   await page.waitForURL(/\/thread\//, { timeout: 10_000 });
-  await pause(page, 1000);
+  await pause(page, 600);
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // ACT 4 — THE LIVE EVENT: Watch emergence unfold (1:25–2:15)
+  // ACT 4 — THE LIVE EVENT (1:05–1:50)
   //
-  // NARRATOR: "I'm launching the deliberation now. Watch the right panel —
-  // Key Moments will light up when something emergent happens."
+  // NARRATOR: "Launching. Watch the right panel — Key Moments lights up
+  // when something emergent happens."
   // ═══════════════════════════════════════════════════════════════════════════
 
   // Select LLM mode
@@ -350,7 +269,7 @@ test("Colloquium Competition Demo — Emergent Scientific Discourse", async ({
     await modeSelect.click();
     const modeLabel = USE_MOCK ? "Mock" : "claude-opus-4-6";
     await page.locator('[role="option"]', { hasText: modeLabel }).click();
-    await pause(page, 300);
+    await pause(page, 200);
   }
 
   // Launch
@@ -358,268 +277,157 @@ test("Colloquium Competition Demo — Emergent Scientific Discourse", async ({
   await expect(launchBtn).toBeVisible({ timeout: 5_000 });
   await launchBtn.click();
 
-  // Wait for the first post
-  const firstPostTimeout = USE_MOCK ? 30_000 : 120_000;
+  // Wait for first post
   await page.waitForSelector(
     '[style*="border-left-width: 3px"], [style*="border-left: 3px"]',
-    { timeout: firstPostTimeout },
+    { timeout: USE_MOCK ? 30_000 : 120_000 },
   );
-  await pause(page, 1500);
+  await pause(page, 1200);
 
-  // NARRATOR: "The biology agent spoke first — highest relevance score
-  // on the trigger evaluator. No one told it to go first."
+  // NARRATOR: "Biology agent speaks first — highest relevance score.
+  // No one told it to go first."
 
-  // Watch seed phase posts arrive
+  // Wait for seed posts
   await waitForPosts(page, 3, USE_MOCK ? 30_000 : 120_000);
   await scrollToLatestPost(page);
-  await pause(page, 2000);
+  await pause(page, 1500);
 
-  // NARRATOR: "Three seed posts from three different specialists.
-  // Now the observer will analyze these metrics and detect which
-  // phase the conversation is in."
-
-  // Main deliberation loop — scroll and spotlight emergent events
-  for (let i = 0; i < 8; i++) {
-    await page.waitForTimeout(4000 * NARRATOR_PACE);
+  // Main deliberation loop — 5 iterations, spotlight key panels
+  for (let i = 0; i < 5; i++) {
+    await page.waitForTimeout(3500 * NARRATOR_PACE);
     await scrollToLatestPost(page);
 
-    // Spotlight Key Moments panel when it populates
+    // Spotlight Key Moments
     const keyMoments = page.locator("text=Key Moments").first();
     if (await keyMoments.isVisible().catch(() => false)) {
       await keyMoments.scrollIntoViewIfNeeded().catch(() => {});
-      await pause(page, 1200);
+      await pause(page, 1000);
     }
 
-    // At iteration 3, spotlight the energy gauge
-    if (i === 3) {
+    // At iteration 2, spotlight energy gauge
+    if (i === 2) {
       const energyLabel = page.locator("text=Energy").first();
       if (await energyLabel.isVisible().catch(() => false)) {
         await energyLabel.scrollIntoViewIfNeeded().catch(() => {});
-        await pause(page, 1500);
-        // NARRATOR: "The energy bar. It has a metabolism:
-        // E = 0.4*novelty + 0.3*disagreement + 0.2*questions - 0.1*staleness.
-        // When energy decays below 0.2 for three consecutive turns,
-        // the deliberation terminates itself."
+        await pause(page, 1200);
+        // NARRATOR: "The energy bar has a metabolism:
+        // 0.4*novelty + 0.3*disagreement + 0.2*questions - 0.1*staleness.
+        // Below 0.2 for three turns, the conversation terminates itself."
       }
     }
 
-    // At iteration 5, spotlight the phase timeline
-    if (i === 5) {
+    // At iteration 4, spotlight phase progress
+    if (i === 4) {
       const phaseLabel = page.locator("text=Phase Progress").first();
       if (await phaseLabel.isVisible().catch(() => false)) {
         await phaseLabel.scrollIntoViewIfNeeded().catch(() => {});
-        await pause(page, 1500);
-        // NARRATOR: "Phase transitions. Explore to Debate — disagreement
-        // crossed the threshold. The observer detected this from metrics,
-        // not from a scripted sequence. The system can oscillate back."
+        await pause(page, 1000);
+        // NARRATOR: "Phase transitions — detected from metrics, not
+        // scripted. The system can oscillate back."
       }
     }
 
-    // At iteration 6, spotlight the agent stage
-    if (i === 6) {
-      const agentsLabel = page.locator("text=Agents").first();
-      if (await agentsLabel.isVisible().catch(() => false)) {
-        await agentsLabel.scrollIntoViewIfNeeded().catch(() => {});
-        await pause(page, 1200);
-        // NARRATOR: "Agent participation. Some agents are more active than
-        // others — not because we told them to be, but because the trigger
-        // evaluator found their expertise more relevant."
-      }
-    }
-
-    // Scroll back to feed for next post
     await scrollToLatestPost(page);
   }
 
-  // Ensure we have enough posts for a meaningful deliberation
-  await waitForPosts(page, 6, USE_MOCK ? 20_000 : 120_000);
+  await waitForPosts(page, 5, USE_MOCK ? 20_000 : 120_000);
   await scrollToLatestPost(page);
-  await pause(page, 1500);
+  await pause(page, 1000);
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // ACT 5 — HUMAN IN THE LOOP: Intervene and watch the pivot (2:15–2:45)
+  // ACT 5 — HUMAN IN THE LOOP (1:50–2:15)
   //
-  // NARRATOR: "Now I'm going to do something the agents haven't addressed:
-  // challenge them on off-target editing. This is a real concern that could
-  // sink the entire thesis. Watch the energy gauge when I inject this."
+  // NARRATOR: "Now I'll challenge them on off-target editing — something
+  // none of them raised. Watch the energy gauge."
   // ═══════════════════════════════════════════════════════════════════════════
 
-  const interventionBar = page.locator(
-    'textarea[placeholder*="Intervene"]',
-  );
+  const interventionBar = page.locator('textarea[placeholder*="Intervene"]');
   if (await interventionBar.isVisible().catch(() => false)) {
-    await typeSlowly(
-      page,
-      'textarea[placeholder*="Intervene"]',
-      INTERVENTION,
-    );
-    await pause(page, 1500);
+    await typeSlowly(page, 'textarea[placeholder*="Intervene"]', INTERVENTION);
+    await pause(page, 800);
 
-    // NARRATOR: "Submitting a human intervention — a question about
-    // off-target editing risks. The backend injects this as a post
-    // and boosts energy via the HUMAN_INTERVENTION source."
-
-    // Submit
     await page.locator("button", { hasText: "Send" }).click();
-    await pause(page, 1000);
+    await pause(page, 800);
 
-    // Wait for agent responses to the intervention
+    // Wait for agent responses
     const preCount = await postCount(page);
     await waitForPosts(page, preCount + 2, USE_MOCK ? 30_000 : 120_000);
     await scrollToLatestPost(page);
-    await pause(page, 2500);
+    await pause(page, 2000);
 
-    // NARRATOR: "The agents are pivoting. The clinical specialist is
-    // responding with data. The red-team agent is amplifying the concern.
-    // The biology agent is defending with recent literature. This is
-    // emergent behavior — each agent decided independently to respond."
+    // NARRATOR: "Agents pivoting independently — clinical specialist
+    // with safety data, red team amplifying, biology defending.
+    // Each decided to respond via trigger matching."
 
-    // Spotlight the energy spike in Key Moments
+    // Show energy spike if visible
     const spikeLabel = page.locator("text=Energy Spike").first();
     if (await spikeLabel.isVisible().catch(() => false)) {
       await spikeLabel.scrollIntoViewIfNeeded().catch(() => {});
-      await pause(page, 2000);
-      // NARRATOR: "Energy spiked! My question injected novelty into a
-      // converging discussion. The deliberation just got a second wind."
-    }
-
-    // Show cost tracking is live
-    const costLabel = page.locator("text=Cost Summary").first();
-    if (await costLabel.isVisible().catch(() => false)) {
-      await costLabel.scrollIntoViewIfNeeded().catch(() => {});
       await pause(page, 1500);
-      // NARRATOR: "Every LLM call is metered in real time. Token counts,
-      // dollar costs, call counts — full transparency."
+      // NARRATOR: "Energy spiked. The deliberation got a second wind."
     }
   }
 
-  // Let the deliberation continue
-  for (let i = 0; i < 3; i++) {
-    await page.waitForTimeout(3000 * NARRATOR_PACE);
-    await scrollToLatestPost(page);
-  }
-
   // ═══════════════════════════════════════════════════════════════════════════
-  // ACT 6 — INSTITUTIONAL MEMORY: The knowledge graph (2:45–3:10)
+  // ACT 6 — INSTITUTIONAL MEMORY (2:15–2:35)
   //
-  // NARRATOR: "Every completed deliberation produces a synthesis memory
-  // with Bayesian confidence. Confidence decays over time — a 120-day
-  // half-life — and updates when new evidence arrives."
+  // NARRATOR: "Every deliberation produces a memory with Bayesian
+  // confidence — 120-day half-life, updated by annotations and outcomes."
   // ═══════════════════════════════════════════════════════════════════════════
 
-  // Navigate to memories page
   await page.goto("/memories");
-  await pause(page, 2000);
+  await pause(page, 1500);
 
-  // Show grid view
-  const memoriesTitle = page.locator("text=Institutional Knowledge").first();
-  if (await memoriesTitle.isVisible().catch(() => false)) {
-    await pause(page, 1500);
-    // NARRATOR: "Each card is a memory distilled from a deliberation.
-    // Confidence is a Beta distribution — updated by annotations and
-    // outcome reports."
-  }
+  // Quick grid scan
+  await scanCards(page, '[class*="grid"] > *', 3);
 
-  // Scan memory cards
-  await scanCards(page, '[class*="grid"] > *', 4);
-
-  // Switch to Graph view
+  // Switch to Graph view — the visual payoff
   const graphTab = page.locator('[role="tab"]', { hasText: "Graph" });
   if (await graphTab.isVisible().catch(() => false)) {
     await graphTab.click();
-    await pause(page, 3000);
+    await pause(page, 2500);
 
-    // NARRATOR: "The knowledge graph. Nodes sized by confidence, colored
-    // by community. Edges are cross-references — detected by shared
-    // entities and embedding similarity. Knowledge doesn't stay siloed."
+    // NARRATOR: "The knowledge graph. Nodes sized by confidence,
+    // colored by community. Cross-references detected automatically."
 
-    // Interact with the graph canvas
+    // Quick sweep across graph
     const graphCanvas = page.locator("canvas").first();
     if (await graphCanvas.isVisible().catch(() => false)) {
       const box = await graphCanvas.boundingBox();
       if (box) {
-        // Sweep across the graph
-        for (let x = 0.2; x <= 0.8; x += 0.12) {
+        for (let x = 0.25; x <= 0.75; x += 0.15) {
           await page.mouse.move(
             box.x + box.width * x,
             box.y + box.height * 0.5,
           );
-          await pause(page, 600);
+          await pause(page, 500);
         }
-        // Click center to select a node
         await page.mouse.click(
           box.x + box.width * 0.5,
           box.y + box.height * 0.45,
         );
-        await pause(page, 2000);
-        // NARRATOR: "Click a node to see its conclusions and the agents
-        // who contributed. This is institutional memory — it persists
-        // across deliberations and informs future discussions."
+        await pause(page, 1500);
       }
     }
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // ACT 7 — THE CLOSE: Show depth + closing shot (3:10–3:30)
+  // ACT 7 — THE CLOSE (2:35–3:00)
   //
-  // NARRATOR: "Let me show you one more thing — a completed deliberation
-  // in enzyme engineering. Different community, different agents, same
-  // emergent dynamics."
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  // Show a completed thread from a different community for contrast
-  await page.goto("/c/enzyme_engineering");
-  await pause(page, 1200);
-
-  const threadsTabFinal = page.locator('[role="tab"]', { hasText: "Threads" });
-  if (await threadsTabFinal.isVisible().catch(() => false)) {
-    await threadsTabFinal.click();
-    await pause(page, 600);
-  }
-
-  const completedThread = page.locator("a[href*='/thread/']").first();
-  if (await completedThread.isVisible().catch(() => false)) {
-    await completedThread.click();
-    await page.waitForURL(/\/thread\//);
-    await pause(page, 1500);
-
-    // Scroll through the conversation quickly
-    await scrollToLatestPost(page);
-    await pause(page, 1500);
-
-    // Show consensus if available
-    const consensus = page.locator("text=Consensus Reached").first();
-    if (await consensus.isVisible().catch(() => false)) {
-      await consensus.scrollIntoViewIfNeeded();
-      await pause(page, 1500);
-
-      await spotlight(page, "Minority Positions", 1500);
-      // NARRATOR: "The minority position survived intact — a dissenting
-      // view on the 5-year timeline for industrial PETases. That's a
-      // feature, not a bug. The system preserves intellectual diversity."
-    }
-
-    // Show Key Moments for this completed thread
-    await spotlight(page, "Key Moments", 1500);
-  }
-
-  // ─── CLOSING SHOT ─────────────────────────────────────────────────────────
-
-  // NARRATOR: "Complex behavior from simple rules. Agents that decide when
-  // to speak. A conversation that terminates when it runs out of ideas.
-  // A red team that fires when consensus forms too quickly. Institutional
-  // memory that grows with every deliberation. And a human who can intervene
-  // at any moment to challenge assumptions.
+  // NARRATOR: "Complex behavior from simple rules. Agents that decide
+  // when to speak. A conversation that terminates when it runs out of
+  // ideas. A red team that fires when consensus forms too quickly.
+  // Institutional memory that grows with every deliberation.
   //
   // This is Colloquium — emergent scientific discourse, powered by
   // Claude Opus 4.6. Not a chatbot. A deliberation engine."
+  // ═══════════════════════════════════════════════════════════════════════════
 
-  // Return to home page for the closing shot
   await page.goto("/");
-  await pause(page, 2000);
+  await pause(page, 1500);
 
-  // Slow pan over all communities
-  await scanCards(page, "a[href*='/c/']", 6);
+  // Slow pan over communities — the closing shot
+  await scanCards(page, "a[href*='/c/']", 5);
   await pause(page, 3000);
 
   // END
