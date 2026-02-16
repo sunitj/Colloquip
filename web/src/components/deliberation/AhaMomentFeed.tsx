@@ -229,14 +229,17 @@ export function AhaMomentFeed({ posts, energyHistory, phaseHistory, members }: A
     }
   }, [moments.length]);
 
-  if (moments.length === 0) return null;
-
   return (
     <div>
       <h4 className="text-xs font-medium text-text-muted uppercase tracking-wider mb-3 flex items-center gap-1.5">
         <Zap className="h-3 w-3 text-warning" />
         Key Moments
       </h4>
+      {moments.length === 0 ? (
+        <p className="text-xs text-text-muted italic">
+          Waiting for significant events...
+        </p>
+      ) : (
       <div
         ref={containerRef}
         className="space-y-2 max-h-[280px] overflow-y-auto pr-1"
@@ -287,6 +290,7 @@ export function AhaMomentFeed({ posts, energyHistory, phaseHistory, members }: A
           })}
         </AnimatePresence>
       </div>
+      )}
     </div>
   );
 }
