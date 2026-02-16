@@ -15,6 +15,7 @@ import { TriggerDrawer } from '@/components/deliberation/TriggerDrawer';
 import { PhaseTimeline } from '@/components/deliberation/PhaseTimeline';
 import { EnergyGauge } from '@/components/deliberation/EnergyGauge';
 import { AgentStage } from '@/components/deliberation/AgentStage';
+import { AhaMomentFeed } from '@/components/deliberation/AhaMomentFeed';
 import { ConsensusReveal } from '@/components/deliberation/ConsensusReveal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ReportOutcomeDialog } from '@/components/dialogs/ReportOutcomeDialog';
@@ -75,8 +76,8 @@ function ThreadPage() {
   );
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="px-6 pt-6">
+    <div className="flex flex-col h-[100dvh] overflow-hidden">
+      <div className="px-6 pt-6 shrink-0">
         <PageHeader
           title={threadMeta?.title || state.hypothesis || 'Deliberation'}
           subtitle={state.hypothesis || threadMeta?.hypothesis || undefined}
@@ -188,6 +189,14 @@ function ThreadPage() {
         {/* Right panel */}
         <RightPanel>
           <div className="space-y-6">
+            {/* Aha moment feed — key emergent moments highlighted */}
+            <AhaMomentFeed
+              posts={state.posts}
+              energyHistory={state.energyHistory}
+              phaseHistory={state.phaseHistory}
+              members={members}
+            />
+
             {/* Phase timeline */}
             <div>
               <h4 className="text-xs font-medium text-text-muted uppercase tracking-wider mb-3">

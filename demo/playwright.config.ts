@@ -2,11 +2,11 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: ".",
-  testMatch: "demo.spec.ts",
+  testMatch: ["demo.spec.ts", "demo-v2.spec.ts"],
   fullyParallel: false,
   retries: 0,
   workers: 1,
-  timeout: 180_000, // 3 minutes max for full demo
+  timeout: 300_000, // 5 minutes max for full demo
 
   use: {
     baseURL: process.env.DEMO_BASE_URL || "http://localhost:8000",
