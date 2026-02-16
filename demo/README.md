@@ -1,26 +1,32 @@
 # Colloquip Demo — 3-Minute Competition Video
 
-Automated Playwright script that walks through the full Colloquip experience for a competition demo recording.
+Automated Playwright script that showcases two simultaneous deliberations running concurrently on the Colloquip platform.
 
-## Story Arc
+## Story Arc — Dual Deliberation
 
 | Time | Act | What Happens |
 |------|-----|-------------|
-| 0:00–0:30 | **Platform Overview** | Home page, initialize platform, browse agent pool |
-| 0:30–1:00 | **Create & Configure** | Enter community, view members, create a deliberation thread |
-| 1:00–2:20 | **Live Deliberation** | Launch session, watch agents debate in real-time with energy/phase tracking |
-| 2:20–2:40 | **Human Intervention** | Inject a question mid-deliberation, see agents respond |
-| 2:40–3:00 | **Consensus Reveal** | Final consensus: agreements, disagreements, minority positions, stances |
+| 0:00–0:25 | **Platform Overview** | Home page, initialize platform, browse agent pool |
+| 0:25–1:05 | **Create & Configure** | Enter community, view members, create **both** threads |
+| 1:05–1:15 | **Launch Thread 1** | Start the drug repurposing deliberation |
+| 1:15–1:50 | **Launch Thread 2** | Open a second tab, launch protein engineering — Thread 1 keeps running |
+| 1:50–2:20 | **Cross-cut** | Flip between both live tabs — agents debating concurrently |
+| 2:20–2:40 | **Human Intervention** | Inject a question into the protein engineering deliberation |
+| 2:40–3:00 | **Consensus Reveal** | Show consensus: agreements, disagreements, minority positions, stances |
 
-## Demo Hypothesis
+## The Two Hypotheses
 
+**Thread 1 — Drug Repurposing:**
 > *"Repurposing GLP-1 receptor agonists (semaglutide) for Alzheimer's disease is a viable therapeutic strategy, given emerging evidence of neuroinflammatory pathway modulation and improved cognitive outcomes in diabetic cohorts."*
 
-This was chosen because it:
-- Spans multiple agent domains (biology, chemistry, clinical, regulatory)
-- Has genuine scientific tension (red-team will challenge)
-- Is timely and compelling for a general audience
-- Triggers all 5 deliberation phases
+**Thread 2 — Protein Engineering:**
+> *"Combining machine-learning-guided directed evolution with computational protein design (RFdiffusion / ProteinMPNN) can produce de novo enzymes with catalytic efficiencies rivaling natural enzymes within 3 rounds of experimental screening."*
+
+These were chosen because they:
+- Span multiple agent domains (biology, chemistry, clinical, regulatory, red-team)
+- Have genuine scientific tension (red-team agents will challenge both)
+- Are timely topics that resonate with both specialist and general audiences
+- Running both at once showcases concurrency — the platform's key differentiator
 
 ## Prerequisites
 
@@ -53,14 +59,15 @@ The video is automatically saved to `demo/test-results/`.
 ### Tips for Recording
 
 - Use OBS or similar to capture the Chromium window
-- The script includes built-in pauses for readability
+- The script uses two browser tabs (pages) — when recording, capture the whole browser window to show tab switching
 - `slowMo: 60` in the config makes interactions feel natural
 - Adjust `pause()` durations in `demo.spec.ts` to fine-tune timing
-- For a shorter/longer demo, change `maxWatchTime` in Act 3
+- For a shorter/longer demo, tweak the wait times in Acts 5–7
 
 ### Customizing
 
-- **Different hypothesis**: Edit the `typeSlowly` call in Act 2
-- **Faster pacing**: Reduce `pause()` durations and `slowMo` in config
-- **Skip intervention**: Comment out Act 4 section
-- **Different theme**: Add a theme switch step in Act 1 (visit Settings, click theme)
+- **Different hypotheses**: Edit `THREAD_1` and `THREAD_2` constants at the top of the script
+- **Faster pacing**: Reduce `pause()` durations and `slowMo` in `playwright.config.ts`
+- **Single deliberation**: Comment out Acts 4–6 and use the original single-thread flow
+- **Different theme**: Add a theme switch step in Act 1 (visit Settings, click a theme card)
+- **Different intervention**: Edit the `typeSlowly` text in Act 6
