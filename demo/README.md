@@ -30,21 +30,37 @@ These were chosen because they:
 
 ## Prerequisites
 
-1. **Backend** running on port 8000:
-   ```bash
-   uv sync --group dev
-   uv run uvicorn colloquip.api:create_app --factory --reload --port 8000
-   ```
+### 1. Start the platform (Docker Compose)
 
-2. **Frontend** dev server running on port 5173:
-   ```bash
-   cd web && npm install && npm run dev
-   ```
+```bash
+# From the repo root — builds and starts everything (app + PostgreSQL + Redis)
+docker compose up -d
 
-3. **Demo dependencies** installed:
-   ```bash
-   cd demo && npm install && npx playwright install chromium
-   ```
+# Verify the app is healthy
+docker compose ps
+curl http://localhost:8000/health
+```
+
+The app serves the React SPA + REST API + WebSocket all on `http://localhost:8000`. No separate frontend server is needed.
+
+> **Without Docker:** If you prefer running locally without containers, start the backend and frontend separately:
+> ```bash
+> # Terminal 1: Backend
+> uv sync --group dev
+> uv run uvicorn colloquip.api:create_app --factory --reload --port 8000
+>
+> # Terminal 2: Frontend (dev server on port 5173)
+> cd web && npm install && npm run dev
+> ```
+> Then update `baseURL` in `playwright.config.ts` to `http://localhost:5173`.
+
+### 2. Install demo dependencies
+
+```bash
+cd demo
+npm install
+npx playwright install chromium
+```
 
 ## Running the Demo
 
@@ -71,3 +87,13 @@ The video is automatically saved to `demo/test-results/`.
 - **Single deliberation**: Comment out Acts 4–6 and use the original single-thread flow
 - **Different theme**: Add a theme switch step in Act 1 (visit Settings, click a theme card)
 - **Different intervention**: Edit the `typeSlowly` text in Act 6
+
+### Teardown
+
+```bash
+# Stop the platform
+docker compose down
+
+# Stop and remove volumes (clean slate)
+docker compose down -v
+```

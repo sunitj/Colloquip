@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "demo": "npx playwright test --headed",
+    "demo:vite": "DEMO_BASE_URL=http://localhost:5173 npx playwright test --headed",
     "demo:record": "npx playwright test --headed --video on",
     "install:browsers": "npx playwright install chromium"
   },

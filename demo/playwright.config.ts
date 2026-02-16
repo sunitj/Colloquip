@@ -9,7 +9,7 @@ export default defineConfig({
   timeout: 180_000, // 3 minutes max for full demo
 
   use: {
-    baseURL: "http://localhost:5173",
+    baseURL: process.env.DEMO_BASE_URL || "http://localhost:8000",
     video: "on",
     viewport: { width: 1440, height: 900 },
     launchOptions: {

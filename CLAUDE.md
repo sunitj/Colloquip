@@ -77,6 +77,7 @@ Colloquip/
 ├── scripts/                 # pre-commit hook, install-hooks.sh, healthcheck.py
 ├── docs/                    # Design docs (system design, energy model, observer, triggers, prompts)
 ├── plan/                    # Implementation plans and evolution strategy
+├── demo/                    # Playwright demo script for competition video
 ├── issues/                  # QA reports
 ├── docker-compose.yml       # Production: app + postgres + redis
 ├── docker-compose.dev.yml   # Development overrides with hot-reload
@@ -87,7 +88,64 @@ Colloquip/
 └── uv.lock                  # Locked Python dependencies
 ```
 
-## Quick Reference Commands
+## Quick Start (Docker Compose)
+
+The recommended way to run Colloquip is via Docker Compose. A single command brings up the full stack (FastAPI backend + React SPA + PostgreSQL + pgvector + Redis):
+
+```bash
+# Production — builds multi-stage image, serves frontend from FastAPI on port 8000
+docker compose up -d
+
+# View logs
+docker compose logs -f app
+
+# Stop
+docker compose down
+```
+
+The app is available at `http://localhost:8000`. The React SPA, REST API, and WebSocket all share this single origin — no separate frontend server needed.
+
+### Development with Docker
+
+```bash
+# Development — hot-reload (backend), debug port 5678, source volumes mounted
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+# With monitoring (Prometheus on :9090, Grafana on :3000)
+docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+```
+
+The dev override mounts `src/`, `tests/`, `config/`, `web/`, and `alembic/` as volumes so changes are reflected without rebuilding. Uses `EMBEDDING_PROVIDER=mock` and `MEMORY_STORE=in_memory` for fast iteration.
+
+### Docker Compose Services
+
+| Service | Image | Ports | Purpose |
+|---------|-------|-------|---------|
+| `app` | Custom (multi-stage) | 8000 | FastAPI + static SPA |
+| `postgres` | pgvector/pgvector:pg16 | 5432 (dev only) | Database with vector extension |
+| `redis` | redis:7-alpine | 6379 (dev only) | Watcher job queue |
+| `prometheus` | prom/prometheus (monitoring) | 9090 | Metrics collection |
+| `grafana` | grafana/grafana (monitoring) | 3000 | Dashboards |
+
+### Environment Variables for Docker
+
+Copy `.env.example` to `.env` and configure:
+
+```bash
+cp .env.example .env
+# Required for live LLM mode:
+#   ANTHROPIC_API_KEY=sk-ant-...
+# Optional:
+#   DB_PASSWORD=colloquip       (default: colloquip)
+#   EMBEDDING_PROVIDER=mock     (mock or openai)
+#   LOG_LEVEL=INFO
+```
+
+Docker Compose reads `.env` automatically. For mock mode (no API keys needed), the defaults work out of the box.
+
+## Quick Reference Commands (without Docker)
+
+For local development without containers:
 
 ### Backend
 
@@ -139,19 +197,6 @@ npm run build
 
 # Lint
 npm run lint
-```
-
-### Docker
-
-```bash
-# Development (hot-reload, debug port 5678)
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up
-
-# Production
-docker compose up -d
-
-# With monitoring (Prometheus + Grafana)
-docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
 ```
 
 ## Architecture & Key Concepts
