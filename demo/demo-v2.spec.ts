@@ -2,7 +2,8 @@
  * Colloquium Demo v2 — Live Commentary Script
  *
  * Playwright drives the browser; you record your screen + voice.
- * Pre-seeded data: 4 communities, 13 completed threads.
+ * Pre-seeded data: 5 communities, 16 completed threads (includes
+ * a cross-community microbiome+immuno-oncology thread).
  * One NEW deliberation runs live for the "deep dive" portion.
  *
  * Prerequisites:
@@ -82,10 +83,10 @@ const INTERVENTION =
 // ─── The Demo ───────────────────────────────────────────────────────────────
 
 test("Colloquium Demo v2 — Live Commentary", async ({ page }) => {
-  test.setTimeout(300_000); // 5 min max (deliberation can take time)
+  test.setTimeout(600_000); // 10 min max (real LLM deliberation + exploration)
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // ACT 1 — THE HOOK: Show a completed thread first (0:00–0:25)
+  // ACT 1 — THE HOOK: Show a completed thread first (0:00–0:30)
   //
   // NARRATOR: "Multi-agent AI today is choreographed — agents take turns in
   // a fixed sequence. What if instead, agents decided for themselves when to
@@ -97,108 +98,121 @@ test("Colloquium Demo v2 — Live Commentary", async ({ page }) => {
   await expect(page.locator("text=Welcome to Colloquium")).toBeVisible();
   await pause(page, 3000);
 
-  // Click into a completed thread to show the end result first
-  // Navigate to the neuropharmacology community
+  // Navigate to neuropharmacology community
   const neuroLink = page.locator("a", { hasText: "Neuropharmacology" }).first();
   await neuroLink.click();
   await page.waitForURL(/\/c\/neuropharmacology/);
   await pause(page, 2000);
 
-  // Click threads tab if not already active
+  // Click threads tab
   const threadsTab = page.locator('[role="tab"]', { hasText: "Threads" });
   if (await threadsTab.isVisible().catch(() => false)) {
     await threadsTab.click();
     await pause(page, 800);
   }
 
-  // Click the first completed thread (Gut-Brain or Psilocybin — something interesting)
-  const completedThread = page
-    .locator("a[href*='/thread/']")
-    .first();
+  // Click the first completed thread to show the end result first
+  const completedThread = page.locator("a[href*='/thread/']").first();
   if (await completedThread.isVisible().catch(() => false)) {
     await completedThread.click();
     await page.waitForURL(/\/thread\//);
     await pause(page, 2000);
 
-    // Scroll through the consensus reveal
+    // Show the right panel — Key Moments feed is the hook
+    const keyMomentsHook = page.locator("text=Key Moments").first();
+    if (await keyMomentsHook.isVisible().catch(() => false)) {
+      await keyMomentsHook.scrollIntoViewIfNeeded().catch(() => {});
+      await pause(page, 2000);
+      // NARRATOR: "Look at this panel — phase transitions, red-team challenges,
+      // bridge connections. None of this was scripted."
+    }
+
+    // Scroll through the consensus
     const consensusSection = page.locator("text=Consensus Reached").first();
     if (await consensusSection.isVisible().catch(() => false)) {
       await consensusSection.scrollIntoViewIfNeeded();
-      await pause(page, 3000);
+      await pause(page, 2000);
 
-      // Show agreements
-      const agreements = page.locator("text=Agreements").first();
-      if (await agreements.isVisible().catch(() => false)) {
-        await agreements.scrollIntoViewIfNeeded();
-        await pause(page, 2000);
+      // Walk through consensus sections
+      for (const section of ["Agreements", "Minority Positions"]) {
+        const el = page.locator(`text=${section}`).first();
+        if (await el.isVisible().catch(() => false)) {
+          await el.scrollIntoViewIfNeeded();
+          await pause(page, 1500);
+        }
       }
+    }
 
-      // Show minority positions
-      const minority = page.locator("text=Minority Positions").first();
-      if (await minority.isVisible().catch(() => false)) {
-        await minority.scrollIntoViewIfNeeded();
-        await pause(page, 2000);
-      }
+    // Show cost summary at the bottom of right panel
+    const costSection = page.locator("text=Cost Summary").first();
+    if (await costSection.isVisible().catch(() => false)) {
+      await costSection.scrollIntoViewIfNeeded();
+      await pause(page, 1500);
+      // NARRATOR: "Every deliberation tracks token costs in real time."
     }
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // ACT 2 — PLATFORM TOUR: Show breadth (0:25–0:50)
+  // ACT 2 — PLATFORM TOUR: Show breadth (0:30–1:00)
   //
-  // NARRATOR: "Colloquium is structured like a scientific Reddit. Communities
-  // scope deliberations by domain. Each community recruits specialist agents
-  // from a shared pool. Let me show you."
+  // NARRATOR: "Colloquium is structured like a scientific Reddit. Five
+  // communities from neuropharmacology to microbiome therapeutics, each
+  // with its own specialist agents recruited by expertise."
   // ═══════════════════════════════════════════════════════════════════════════
 
-  // Go back to home to show all communities
+  // Go back to home to show all 5 communities
   await page.goto("/");
   await pause(page, 2000);
 
-  // Hover over community cards to show variety
+  // Hover over all community cards to show variety
   const communityCards = page.locator("a[href*='/c/']");
   const cardCount = await communityCards.count();
-  for (let i = 0; i < Math.min(cardCount, 4); i++) {
+  for (let i = 0; i < Math.min(cardCount, 5); i++) {
     const card = communityCards.nth(i);
     if (await card.isVisible().catch(() => false)) {
       await card.hover();
-      await pause(page, 800);
+      await pause(page, 700);
     }
   }
   await pause(page, 1000);
 
-  // Show agent pool briefly
+  // Show agent pool
   await page.goto("/agents");
-  await page.waitForSelector(
-    '[class*="grid"] a, [class*="grid"] [class*="AgentCard"]',
-    { timeout: 10_000 },
-  ).catch(() => {});
+  await page
+    .waitForSelector(
+      '[class*="grid"] a, [class*="grid"] [class*="AgentCard"]',
+      { timeout: 10_000 },
+    )
+    .catch(() => {});
   await pause(page, 3000);
 
-  // Navigate to neuropharmacology and show Members tab
+  // Show neuropharmacology Members tab
   await page.goto("/c/neuropharmacology");
   await pause(page, 1500);
 
   const membersTab = page.locator('[role="tab"]', { hasText: "Members" });
   if (await membersTab.isVisible().catch(() => false)) {
     await membersTab.click();
-    await pause(page, 3000);
-    // NARRATOR: "This community has a biology expert, a chemist, a clinical
-    // trials specialist, a regulatory advisor, and — critically — a red team
-    // adversary. The red team agent exists to challenge premature consensus."
+    await pause(page, 2500);
+    // NARRATOR: "This community has biology, chemistry, clinical, regulatory,
+    // and a red-team adversary. The red team exists to challenge premature
+    // consensus — and it activates automatically."
   }
 
-  // Show a different community's members for contrast
-  await page.goto("/c/immuno_oncology");
+  // Flash microbiome community for contrast — it's new and cross-links
+  await page.goto("/c/microbiome_therapeutics");
   await pause(page, 1500);
   const membersTab2 = page.locator('[role="tab"]', { hasText: "Members" });
   if (await membersTab2.isVisible().catch(() => false)) {
     await membersTab2.click();
     await pause(page, 2000);
-    // NARRATOR: "Different community, different agents recruited by domain."
+    // NARRATOR: "The Microbiome community — different domain, different
+    // agents. But notice — one of its threads overlaps with Immuno-Oncology.
+    // The system detects cross-community connections."
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // ACT 3 — LAUNCH LIVE DELIBERATION (0:50–1:05)
+  // ACT 3 — LAUNCH LIVE DELIBERATION (1:00–1:15)
   //
   // NARRATOR: "Now let's watch a deliberation happen live. I'm posing a
   // hypothesis about repurposing semaglutide — a diabetes drug — for
@@ -206,7 +220,6 @@ test("Colloquium Demo v2 — Live Commentary", async ({ page }) => {
   // what order to speak in."
   // ═══════════════════════════════════════════════════════════════════════════
 
-  // Navigate to neuropharmacology
   await page.goto("/c/neuropharmacology");
   await pause(page, 1000);
 
@@ -228,7 +241,7 @@ test("Colloquium Demo v2 — Live Commentary", async ({ page }) => {
   await typeSlowly(
     page,
     'input[placeholder="Deliberation title"]',
-    "GLP-1 for Alzheimer's — LIVE"
+    "GLP-1 for Alzheimer's — LIVE",
   );
   await typeSlowly(
     page,
@@ -242,8 +255,7 @@ test("Colloquium Demo v2 — Live Commentary", async ({ page }) => {
   await page.waitForURL(/\/thread\//, { timeout: 10_000 });
   await pause(page, 1000);
 
-  // Launch the deliberation
-  // Select mode
+  // Select LLM mode
   const modeSelect = page.locator('button[role="combobox"]');
   if (await modeSelect.isVisible({ timeout: 2_000 }).catch(() => false)) {
     await modeSelect.click();
@@ -264,7 +276,7 @@ test("Colloquium Demo v2 — Live Commentary", async ({ page }) => {
   await pause(page, 1500);
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // ACT 4 — THE EMERGENT DANCE: Watch and narrate (1:05–1:50)
+  // ACT 4 — THE EMERGENT DANCE: Watch and narrate (1:15–2:05)
   //
   // This is the MONEY SHOT. The narrator calls out each emergent moment
   // as the Key Moments panel highlights them on the right.
@@ -273,29 +285,29 @@ test("Colloquium Demo v2 — Live Commentary", async ({ page }) => {
   //   - "The biology agent spoke first — highest relevance score."
   //   - "Watch the right panel — Key Moments lights up when something
   //     emergent happens."
-  //   - [Phase transition appears] "Phase transition! The observer detected
-  //     a shift to Debate — disagreement crossed the threshold."
-  //   - [Red team fires] "There — the red team agent just activated.
-  //     Three agents agreed without challenge, and it fired automatically."
-  //   - [Bridge connection] "Bridge trigger — the chemistry agent just
-  //     connected concepts from biology and clinical domains."
+  //   - [Phase transition] "Phase transition! The observer detected a shift
+  //     to Debate — disagreement crossed the threshold."
+  //   - [Red team fires] "The red team agent just activated. Agents agreed
+  //     without challenge, and the adversary fired automatically."
+  //   - [Bridge connection] "Bridge trigger — connecting concepts across
+  //     two different specialists' domains."
+  //   - [Energy gauge] "Watch the energy bar. It has a metabolism — novelty
+  //     drives it up, repetition drives it down."
   // ═══════════════════════════════════════════════════════════════════════════
 
-  // Wait for seed phase posts to arrive
+  // Wait for seed phase posts
   await waitForPosts(page, 3, 60_000);
   await scrollToLatestPost(page);
   await pause(page, 2000);
 
   // Let the deliberation run, scrolling periodically
-  // The narrator speaks over whatever is happening on screen
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 10; i++) {
     await page.waitForTimeout(4000 * NARRATOR_PACE);
     await scrollToLatestPost(page);
 
-    // Check if Key Moments section appeared (first aha moment)
+    // Check if Key Moments appeared — scroll right panel to show it
     const keyMoments = page.locator("text=Key Moments").first();
     if (await keyMoments.isVisible().catch(() => false)) {
-      // Briefly scroll right panel to show the aha feed
       await keyMoments.scrollIntoViewIfNeeded().catch(() => {});
       await pause(page, 1500);
     }
@@ -303,8 +315,15 @@ test("Colloquium Demo v2 — Live Commentary", async ({ page }) => {
     // Check for energy gauge
     const energyLabel = page.locator("text=Conversation Energy").first();
     if (await energyLabel.isVisible().catch(() => false)) {
-      // Energy is visible — good for narrator to comment on
-      await pause(page, 1000);
+      await pause(page, 800);
+    }
+
+    // Check for cost summary updating live
+    const costLabel = page.locator("text=Cost Summary").first();
+    if (await costLabel.isVisible().catch(() => false) && i === 5) {
+      await costLabel.scrollIntoViewIfNeeded().catch(() => {});
+      await pause(page, 1500);
+      // NARRATOR: "Cost tracking is live — every LLM call is metered."
     }
   }
 
@@ -314,17 +333,13 @@ test("Colloquium Demo v2 — Live Commentary", async ({ page }) => {
   await pause(page, 2000);
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // ACT 5 — HUMAN INTERVENTION: The energy spike (1:50–2:15)
+  // ACT 5 — HUMAN INTERVENTION: The energy spike (2:05–2:30)
   //
   // NARRATOR: "I'm going to intervene with a hard question the agents
   // haven't addressed: does semaglutide actually cross the blood-brain
-  // barrier? Watch what happens to the energy gauge..."
-  //
-  // [After typing]: "Energy spiked! My question injected novelty. The
-  // agents are now responding to something none of them raised on their own."
+  // barrier? Watch the energy gauge..."
   // ═══════════════════════════════════════════════════════════════════════════
 
-  // Type the intervention
   const interventionBar = page.locator('textarea[placeholder*="Intervene"]');
   if (await interventionBar.isVisible().catch(() => false)) {
     await typeSlowly(
@@ -338,33 +353,42 @@ test("Colloquium Demo v2 — Live Commentary", async ({ page }) => {
     await page.locator("button", { hasText: "Send" }).click();
     await pause(page, 1000);
 
-    // Wait for agents to respond
+    // Wait for agents to respond to the intervention
     const preCount = await postCount(page);
     await waitForPosts(page, preCount + 2, 60_000);
     await scrollToLatestPost(page);
     await pause(page, 3000);
 
-    // NARRATOR: Comment on energy spike, agents pivoting to BBB question
+    // Check for energy spike in Key Moments
+    const spikeLabel = page.locator("text=Energy Spike").first();
+    if (await spikeLabel.isVisible().catch(() => false)) {
+      await spikeLabel.scrollIntoViewIfNeeded().catch(() => {});
+      await pause(page, 2000);
+      // NARRATOR: "Energy spiked! My question injected novelty. The agents
+      // are pivoting to address something none of them raised."
+    }
+
+    // Check for human intervention moment
+    const humanMoment = page.locator("text=Human").first();
+    if (await humanMoment.isVisible().catch(() => false)) {
+      await pause(page, 1000);
+    }
   }
 
-  // Let the deliberation continue for a bit more
-  for (let i = 0; i < 4; i++) {
+  // Let the deliberation continue a bit
+  for (let i = 0; i < 3; i++) {
     await page.waitForTimeout(3000 * NARRATOR_PACE);
     await scrollToLatestPost(page);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // ACT 6 — BROWSE PRE-SEEDED THREADS: Show depth (2:15–2:40)
+  // ACT 6 — PRE-SEEDED DEPTH: Completed threads + cross-community (2:30–3:00)
   //
-  // While the live deliberation might still be running, switch to a
-  // pre-seeded completed thread to show the consensus.
-  //
-  // NARRATOR: "While that deliberation continues, let me show you a
-  // completed one. This is what happens when the energy decays below the
-  // termination threshold for three consecutive turns..."
+  // NARRATOR: "While that continues, let me show you a completed deliberation.
+  // This is what happens when energy decays below the termination threshold..."
   // ═══════════════════════════════════════════════════════════════════════════
 
-  // Navigate to a pre-seeded thread with consensus
+  // Show a completed enzyme engineering thread
   await page.goto("/c/enzyme_engineering");
   await pause(page, 1500);
 
@@ -374,62 +398,150 @@ test("Colloquium Demo v2 — Live Commentary", async ({ page }) => {
     await pause(page, 800);
   }
 
-  // Click a completed thread
   const seededThread = page.locator("a[href*='/thread/']").first();
   if (await seededThread.isVisible().catch(() => false)) {
     await seededThread.click();
     await page.waitForURL(/\/thread\//);
     await pause(page, 2000);
 
-    // Show the conversation feed
+    // Show conversation feed
     await scrollToLatestPost(page);
     await pause(page, 2000);
 
-    // Show the Key Moments panel for this completed thread
+    // Show Key Moments for completed thread
     const keyMoments = page.locator("text=Key Moments").first();
     if (await keyMoments.isVisible().catch(() => false)) {
       await keyMoments.scrollIntoViewIfNeeded().catch(() => {});
       await pause(page, 2000);
+      // NARRATOR: "The forensic trail of emergence — every phase transition,
+      // every red-team challenge, every bridge connection."
     }
 
-    // Show consensus section
+    // Show consensus
     const consensus = page.locator("text=Consensus Reached").first();
     if (await consensus.isVisible().catch(() => false)) {
       await consensus.scrollIntoViewIfNeeded();
       await pause(page, 2000);
 
-      // Walk through consensus sections
-      for (const section of ["Agreements", "Disagreements", "Minority Positions"]) {
+      for (const section of [
+        "Agreements",
+        "Disagreements",
+        "Minority Positions",
+      ]) {
         const el = page.locator(`text=${section}`).first();
         if (await el.isVisible().catch(() => false)) {
           await el.scrollIntoViewIfNeeded();
-          await pause(page, 1500);
+          await pause(page, 1200);
         }
+      }
+      // NARRATOR: "The minority position survived intact. That's a feature —
+      // the system preserves disagreement, not just consensus."
+    }
+  }
+
+  // Show the cross-community thread in microbiome
+  await page.goto("/c/microbiome_therapeutics");
+  await pause(page, 1500);
+
+  const threadsTabMicro = page.locator('[role="tab"]', { hasText: "Threads" });
+  if (await threadsTabMicro.isVisible().catch(() => false)) {
+    await threadsTabMicro.click();
+    await pause(page, 800);
+  }
+
+  // Look for the cross-community thread (gut microbiome + immunotherapy)
+  const crossThread = page
+    .locator("a[href*='/thread/']", { hasText: /[Mm]icrobiome|[Ii]mmuno/ })
+    .first();
+  if (await crossThread.isVisible().catch(() => false)) {
+    await crossThread.click();
+    await page.waitForURL(/\/thread\//);
+    await pause(page, 2500);
+    await scrollToLatestPost(page);
+    await pause(page, 2000);
+    // NARRATOR: "This thread spans two communities — Microbiome and
+    // Immuno-Oncology. The system detected overlapping entities between
+    // their memories. Cross-pollination of knowledge."
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ACT 7 — INSTITUTIONAL MEMORY: The graph view (3:00–3:20)
+  //
+  // NARRATOR: "Every completed deliberation produces a memory with Bayesian
+  // confidence. Let me show you the knowledge graph."
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  await page.goto("/memories");
+  await pause(page, 2000);
+
+  // Show the grid view first briefly
+  const memoriesGrid = page.locator("text=Institutional Knowledge").first();
+  if (await memoriesGrid.isVisible().catch(() => false)) {
+    await pause(page, 2000);
+    // NARRATOR: "Each card is a memory distilled from a deliberation.
+    // Confidence is Bayesian — updated by annotations and outcomes."
+  }
+
+  // Switch to Graph view — the new Reagraph visualization
+  const graphTab = page.locator('[role="tab"]', { hasText: "Graph" });
+  if (await graphTab.isVisible().catch(() => false)) {
+    await graphTab.click();
+    await pause(page, 3000);
+    // NARRATOR: "Switch to the graph view — each node is a memory, sized by
+    // confidence, colored by community. Edges are cross-references detected
+    // by shared entities and embedding similarity."
+
+    // Hover over a few nodes if visible
+    const graphCanvas = page.locator("canvas").first();
+    if (await graphCanvas.isVisible().catch(() => false)) {
+      // Move the mouse across the graph to trigger hover labels
+      const box = await graphCanvas.boundingBox();
+      if (box) {
+        // Sweep from left to right across the graph
+        for (let x = 0.2; x <= 0.8; x += 0.15) {
+          await page.mouse.move(box.x + box.width * x, box.y + box.height * 0.5);
+          await pause(page, 800);
+        }
+        // Click near center to potentially select a node
+        await page.mouse.click(
+          box.x + box.width * 0.5,
+          box.y + box.height * 0.45,
+        );
+        await pause(page, 2000);
+        // NARRATOR: "Click a node to see its conclusions, confidence score,
+        // and the agents who contributed."
       }
     }
   }
 
+  // Switch back to grid briefly to show the filter
+  const gridTab = page.locator('[role="tab"]', { hasText: "Grid" });
+  if (await gridTab.isVisible().catch(() => false)) {
+    await gridTab.click();
+    await pause(page, 1500);
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
-  // ACT 7 — CLOSE: Vision + ending (2:40–3:00)
+  // ACT 8 — CLOSE: Vision + ending (3:20–3:40)
   //
-  // NARRATOR: "Every conclusion became a memory with Bayesian confidence.
-  // The next deliberation in this community will build on what these agents
-  // learned. Complex behavior from simple rules — that's Colloquium,
-  // powered by Claude Opus 4.6."
+  // NARRATOR: "Complex behavior from simple rules. Agents that decide when
+  // to speak. A conversation that terminates when it runs out of ideas.
+  // Institutional memory that grows with every deliberation.
+  // That's Colloquium — emergent scientific discourse, powered by Claude."
   // ═══════════════════════════════════════════════════════════════════════════
 
   // Return to home page for the closing shot
   await page.goto("/");
   await pause(page, 2000);
 
-  // Slow pan over the communities
+  // Slow pan over all 5 communities
   const finalCards = page.locator("a[href*='/c/']");
   const finalCount = await finalCards.count();
-  for (let i = 0; i < Math.min(finalCount, 4); i++) {
+  for (let i = 0; i < Math.min(finalCount, 5); i++) {
     await finalCards.nth(i).hover();
     await pause(page, 600);
   }
 
-  await pause(page, 3000);
+  await pause(page, 4000);
   // END
 });
