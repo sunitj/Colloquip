@@ -138,7 +138,7 @@ test("Colloquip Competition Demo — Dual Deliberation", async ({
 
   // Initialize platform
   await page.goto("/settings");
-  await expect(page.locator("text=Settings")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
   await pause(page, 800);
 
   await page.locator("button", { hasText: "Initialize Platform" }).click();
