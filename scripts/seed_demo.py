@@ -22,7 +22,6 @@ import argparse
 import asyncio
 import json
 import logging
-import sys
 import time
 
 import httpx
@@ -427,7 +426,9 @@ def main():
     concurrency = args.concurrency if not args.mock else max(args.concurrency, 4)
 
     logger.info("Seeding in %s mode (concurrency=%d)...", mode, concurrency)
-    asyncio.run(run_seed(mode=mode, communities_only=args.communities_only, concurrency=concurrency))
+    asyncio.run(
+        run_seed(mode=mode, communities_only=args.communities_only, concurrency=concurrency)
+    )
 
 
 if __name__ == "__main__":
