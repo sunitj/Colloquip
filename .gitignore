@@ -24,3 +24,7 @@ web/.vite/
 .playwright-mcp/
 demo/test-results/
 demo/package-lock.json
+demo/fixtures/
+colloquip.db
+colloquip.db-wal
+colloquip.db-shm

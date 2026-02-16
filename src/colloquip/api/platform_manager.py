@@ -222,13 +222,14 @@ class PlatformManager:
         seed: int = 42,
         model: Optional[str] = None,
         max_turns: int = 30,
+        thread_id: Optional[str] = None,
     ) -> dict:
         """Create a deliberation thread within a subreddit.
 
         This creates the thread metadata and delegates to SessionManager
         for the actual deliberation engine setup.
         """
-        thread_id = str(uuid4())
+        thread_id = thread_id or str(uuid4())
         thread = {
             "id": thread_id,
             "subreddit_id": subreddit_id,

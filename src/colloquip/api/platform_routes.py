@@ -84,6 +84,7 @@ class CreateThreadRequest(BaseModel):
     seed: int = 42
     model: Optional[str] = None
     max_turns: int = Field(default=30, ge=1, le=100)
+    thread_id: Optional[str] = None
 
 
 class ThreadResponse(BaseModel):
@@ -216,6 +217,7 @@ async def create_thread(name: str, body: CreateThreadRequest, request: Request):
         seed=body.seed,
         model=body.model,
         max_turns=body.max_turns,
+        thread_id=body.thread_id,
     )
 
     return ThreadResponse(

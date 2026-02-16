@@ -1,28 +1,36 @@
 #!/usr/bin/env python3
 """Seed the Colloquium platform with demo data.
 
-Creates 4 communities with 10-15 threads of varying topics.
+Creates 5 communities with 16 threads of varying topics.
 Threads are run using real LLM to produce authentic deliberation content.
+After seeding, export the DB + manifest so it can be reloaded instantly
+after a database reset.
 
 Usage:
     # Backend must be running first:
     uv run uvicorn colloquip.api:create_app --factory --port 8000
 
-    # Then seed:
+    # Seed with real LLM (authentic content, needs ANTHROPIC_API_KEY):
     uv run python scripts/seed_demo.py
 
-    # Use --mock flag for fast seeding without API keys:
-    uv run python scripts/seed_demo.py --mock
+    # Export after seeding (saves DB + manifest for reload):
+    uv run python scripts/seed_demo.py --export
 
-    # Seed only communities (no deliberations):
-    uv run python scripts/seed_demo.py --communities-only
+    # Reload from fixture (instant, no API keys needed):
+    uv run python scripts/seed_demo.py --load-fixture
+
+    # Mock mode for testing the pipeline (fast, shallow content):
+    uv run python scripts/seed_demo.py --mock
 """
 
 import argparse
 import asyncio
 import json
 import logging
+import shutil
+import sys
 import time
+from pathlib import Path
 
 import httpx
 
@@ -30,6 +38,12 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger(__name__)
 
 BASE_URL = "http://localhost:8000"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+FIXTURE_DIR = PROJECT_ROOT / "demo" / "fixtures"
+FIXTURE_DB = FIXTURE_DIR / "seed.db"
+FIXTURE_MANIFEST = FIXTURE_DIR / "manifest.json"
+# Default SQLite DB location (relative to where the server runs, typically project root)
+DEFAULT_DB = PROJECT_ROOT / "colloquip.db"
 
 # ---------------------------------------------------------------------------
 # Community definitions
@@ -84,6 +98,19 @@ COMMUNITIES = [
         "required_expertise": ["biology", "chemistry", "synth_bio", "computational"],
         "max_agents": 7,
     },
+    {
+        "name": "microbiome_therapeutics",
+        "display_name": "Microbiome Therapeutics",
+        "description": (
+            "Translating microbiome science into clinical interventions. "
+            "Covers FMT, engineered probiotics, metabolomics-guided therapy, "
+            "and the gut-brain/gut-immune axes."
+        ),
+        "primary_domain": "drug_discovery",
+        "thinking_type": "assessment",
+        "required_expertise": ["biology", "chemistry", "clinical", "regulatory", "synth_bio"],
+        "max_agents": 8,
+    },
 ]
 
 # ---------------------------------------------------------------------------
@@ -120,15 +147,6 @@ THREADS = {
                 "to halt disease progression in early-stage Huntington's patients."
             ),
             "max_turns": 12,
-        },
-        {
-            "title": "Gut-Brain Axis in Parkinson's Disease",
-            "hypothesis": (
-                "Alpha-synuclein aggregation initiates in the enteric nervous system "
-                "and propagates to the CNS via the vagus nerve, suggesting that early "
-                "intervention targeting gut microbiome composition could delay PD onset."
-            ),
-            "max_turns": 10,
         },
     ],
     "enzyme_engineering": [
@@ -221,6 +239,43 @@ THREADS = {
             "max_turns": 10,
         },
     ],
+    "microbiome_therapeutics": [
+        {
+            "title": "FMT vs Defined Consortia for Recurrent C. difficile",
+            "hypothesis": (
+                "Rationally designed bacterial consortia (e.g., SER-109-like defined "
+                "communities of 8-12 Firmicutes strains) will match or exceed fecal "
+                "microbiota transplantation efficacy for recurrent C. difficile infection "
+                "while eliminating donor-screening risks and enabling standardized "
+                "manufacturing."
+            ),
+            "max_turns": 12,
+        },
+        {
+            "title": "Engineered Probiotics as Living Therapeutics for IBD",
+            "hypothesis": (
+                "Engineered E. coli Nissle 1917 strains expressing IL-10 and "
+                "anti-TNF-alpha nanobodies under inflammation-responsive promoters "
+                "can achieve localized immunosuppression in the gut sufficient to "
+                "maintain remission in ulcerative colitis, outperforming systemic "
+                "biologics in safety profile."
+            ),
+            "max_turns": 12,
+        },
+        {
+            "title": "Gut Microbiome Signatures as Predictors of Immunotherapy Response",
+            "hypothesis": (
+                "Pre-treatment gut microbiome composition — specifically the ratio of "
+                "Akkermansia muciniphila to Bacteroides fragilis and the abundance of "
+                "butyrate-producing Faecalibacterium — can predict anti-PD-1 checkpoint "
+                "inhibitor response in melanoma patients with >80% accuracy, and "
+                "microbiome-targeted interventions can convert non-responders."
+            ),
+            "max_turns": 12,
+            # Cross-links with immuno_oncology — the hypothesis deliberately
+            # spans both communities to test cross-reference detection.
+        },
+    ],
 }
 
 
@@ -261,6 +316,7 @@ async def create_thread(
     community_name: str,
     thread_config: dict,
     mode: str = "real",
+    thread_id: str | None = None,
 ) -> dict:
     """Create a thread in a community."""
     payload = {
@@ -269,6 +325,8 @@ async def create_thread(
         "mode": mode,
         "max_turns": thread_config.get("max_turns", 15),
     }
+    if thread_id:
+        payload["thread_id"] = thread_id
     resp = await client.post(
         f"{BASE_URL}/api/subreddits/{community_name}/threads",
         json=payload,
@@ -288,7 +346,6 @@ async def launch_deliberation(
     max_turns: int = 15,
 ) -> None:
     """Launch a deliberation via the create + SSE start pattern."""
-    # Create the deliberation session
     create_resp = await client.post(
         f"{BASE_URL}/api/deliberations",
         json={
@@ -300,12 +357,10 @@ async def launch_deliberation(
         },
     )
     if create_resp.status_code == 400:
-        # Session may already exist
         logger.warning("Session %s may already exist, trying to start anyway", session_id)
     else:
         create_resp.raise_for_status()
 
-    # Start the deliberation via SSE and consume events
     logger.info("Starting deliberation %s...", session_id)
     async with client.stream(
         "POST",
@@ -318,8 +373,6 @@ async def launch_deliberation(
                 post_count += 1
                 if post_count % 3 == 0:
                     logger.info("  ...%d posts generated", post_count)
-            elif line.startswith("event: phase_change"):
-                pass  # Phase changes logged via data
             elif line.startswith("data: "):
                 try:
                     data = json.loads(line[6:])
@@ -336,9 +389,16 @@ async def launch_deliberation(
                 break
 
 
+# ---------------------------------------------------------------------------
+# Core seeding
+# ---------------------------------------------------------------------------
+
+
 async def run_seed(mode: str = "real", communities_only: bool = False, concurrency: int = 2):
-    """Main seeding routine."""
+    """Main seeding routine. Returns manifest data for export."""
     timeout = httpx.Timeout(10.0, read=300.0)
+    manifest = {"communities": [], "threads": []}
+
     async with httpx.AsyncClient(timeout=timeout) as client:
         # 1) Initialize platform
         await init_platform(client)
@@ -346,18 +406,37 @@ async def run_seed(mode: str = "real", communities_only: bool = False, concurren
         # 2) Create all communities
         for community_config in COMMUNITIES:
             await create_community(client, community_config)
+            manifest["communities"].append({
+                "name": community_config["name"],
+                "display_name": community_config["display_name"],
+                "description": community_config["description"],
+                "primary_domain": community_config["primary_domain"],
+                "thinking_type": community_config["thinking_type"],
+                "required_expertise": community_config["required_expertise"],
+                "max_agents": community_config["max_agents"],
+            })
 
         if communities_only:
             logger.info("Communities created. Skipping deliberations (--communities-only).")
-            return
+            return manifest
 
         # 3) Create all threads and collect launch tasks
         launch_tasks = []
         for community_name, threads in THREADS.items():
             for thread_config in threads:
                 thread_data = await create_thread(client, community_name, thread_config, mode)
+                thread_id = thread_data["id"]
+
+                manifest["threads"].append({
+                    "thread_id": thread_id,
+                    "community_name": community_name,
+                    "title": thread_config["title"],
+                    "hypothesis": thread_config["hypothesis"],
+                    "max_turns": thread_config.get("max_turns", 15),
+                })
+
                 launch_tasks.append({
-                    "session_id": thread_data["id"],
+                    "session_id": thread_id,
                     "community_name": community_name,
                     "hypothesis": thread_config["hypothesis"],
                     "max_turns": thread_config.get("max_turns", 15),
@@ -400,14 +479,126 @@ async def run_seed(mode: str = "real", communities_only: bool = False, concurren
         await asyncio.gather(*[_launch_one(task) for task in launch_tasks])
 
     logger.info("Seeding complete!")
+    return manifest
+
+
+# ---------------------------------------------------------------------------
+# Export / Import fixtures
+# ---------------------------------------------------------------------------
+
+
+def export_fixture(manifest: dict, db_path: Path = DEFAULT_DB):
+    """Copy the SQLite DB and save the manifest for later reload."""
+    FIXTURE_DIR.mkdir(parents=True, exist_ok=True)
+
+    if not db_path.exists():
+        logger.error("Database file not found at %s — cannot export.", db_path)
+        sys.exit(1)
+
+    shutil.copy2(db_path, FIXTURE_DB)
+    logger.info("Exported DB -> %s (%.1f MB)", FIXTURE_DB, FIXTURE_DB.stat().st_size / 1e6)
+
+    with open(FIXTURE_MANIFEST, "w") as f:
+        json.dump(manifest, f, indent=2)
+    logger.info("Exported manifest -> %s (%d threads)", FIXTURE_MANIFEST, len(manifest["threads"]))
+
+
+async def load_fixture(db_path: Path = DEFAULT_DB):
+    """Restore the DB from fixture and recreate platform state."""
+    if not FIXTURE_DB.exists():
+        logger.error(
+            "Fixture DB not found at %s. Run with --export first after seeding.", FIXTURE_DB
+        )
+        sys.exit(1)
+    if not FIXTURE_MANIFEST.exists():
+        logger.error("Fixture manifest not found at %s.", FIXTURE_MANIFEST)
+        sys.exit(1)
+
+    with open(FIXTURE_MANIFEST) as f:
+        manifest = json.load(f)
+
+    # 1) Restore DB file (server must be stopped or will pick up changes on next query)
+    shutil.copy2(FIXTURE_DB, db_path)
+    logger.info(
+        "Restored DB <- %s (%.1f MB)", FIXTURE_DB, FIXTURE_DB.stat().st_size / 1e6
+    )
+
+    # 2) Wait for server to be ready
+    timeout = httpx.Timeout(10.0, read=30.0)
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        for attempt in range(10):
+            try:
+                resp = await client.get(f"{BASE_URL}/health")
+                if resp.status_code == 200:
+                    break
+            except httpx.ConnectError:
+                pass
+            logger.info("Waiting for server... (attempt %d)", attempt + 1)
+            await asyncio.sleep(1)
+        else:
+            logger.error("Server not reachable at %s", BASE_URL)
+            sys.exit(1)
+
+        # 3) Initialize platform (loads agent personas)
+        await init_platform(client)
+
+        # 4) Recreate communities
+        for community in manifest["communities"]:
+            await create_community(client, community)
+
+        # 5) Recreate thread entries with original IDs (data already in DB)
+        for thread in manifest["threads"]:
+            await create_thread(
+                client,
+                community_name=thread["community_name"],
+                thread_config={
+                    "title": thread["title"],
+                    "hypothesis": thread["hypothesis"],
+                    "max_turns": thread["max_turns"],
+                },
+                mode="mock",
+                thread_id=thread["thread_id"],
+            )
+            logger.info(
+                "Linked thread '%s' (%s...) in c/%s",
+                thread["title"],
+                thread["thread_id"][:8],
+                thread["community_name"],
+            )
+
+    logger.info(
+        "Fixture loaded! %d communities, %d threads restored.",
+        len(manifest["communities"]),
+        len(manifest["threads"]),
+    )
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Seed Colloquium with demo data")
+    parser = argparse.ArgumentParser(
+        description="Seed Colloquium with demo data",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # First-time seed with real LLM + export:
+  uv run python scripts/seed_demo.py
+  uv run python scripts/seed_demo.py --export
+
+  # Reload after DB reset (instant, no API keys):
+  uv run python scripts/seed_demo.py --load-fixture
+
+  # Dry run with mock LLM:
+  uv run python scripts/seed_demo.py --mock
+        """,
+    )
     parser.add_argument(
         "--mock",
         action="store_true",
-        help="Use mock LLM mode (no API keys needed, fast but less realistic)",
+        help="Use mock LLM mode (no API keys needed, fast but shallow content)",
     )
     parser.add_argument(
         "--communities-only",
@@ -420,15 +611,60 @@ def main():
         default=2,
         help="Number of concurrent deliberations (default: 2, increase for mock mode)",
     )
+    parser.add_argument(
+        "--export",
+        action="store_true",
+        help="Export current DB + manifest to demo/fixtures/ for later reload",
+    )
+    parser.add_argument(
+        "--load-fixture",
+        action="store_true",
+        help="Restore DB from fixture and recreate platform state (no LLM needed)",
+    )
+    parser.add_argument(
+        "--db-path",
+        type=Path,
+        default=DEFAULT_DB,
+        help=f"Path to SQLite DB file (default: {DEFAULT_DB})",
+    )
     args = parser.parse_args()
+
+    # --load-fixture is a standalone operation
+    if args.load_fixture:
+        asyncio.run(load_fixture(db_path=args.db_path))
+        return
+
+    # --export just copies the DB and saves the manifest
+    if args.export:
+        if FIXTURE_MANIFEST.exists():
+            with open(FIXTURE_MANIFEST) as f:
+                manifest = json.load(f)
+            export_fixture(manifest, db_path=args.db_path)
+        else:
+            logger.error(
+                "No manifest found. Run seed first (without --export), then --export."
+            )
+            sys.exit(1)
+        return
 
     mode = "mock" if args.mock else "real"
     concurrency = args.concurrency if not args.mock else max(args.concurrency, 4)
 
     logger.info("Seeding in %s mode (concurrency=%d)...", mode, concurrency)
-    asyncio.run(
+    manifest = asyncio.run(
         run_seed(mode=mode, communities_only=args.communities_only, concurrency=concurrency)
     )
+
+    # Auto-save manifest after seeding so --export can pick it up
+    FIXTURE_DIR.mkdir(parents=True, exist_ok=True)
+    with open(FIXTURE_MANIFEST, "w") as f:
+        json.dump(manifest, f, indent=2)
+    logger.info("Manifest saved to %s", FIXTURE_MANIFEST)
+
+    if not args.communities_only:
+        logger.info(
+            "To export for reload later: uv run python scripts/seed_demo.py --export"
+        )
 
 
 if __name__ == "__main__":
