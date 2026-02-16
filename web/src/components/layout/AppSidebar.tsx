@@ -47,7 +47,7 @@ export function AppSidebar() {
             </span>
           ) : (
             <span className="group-hover:bg-gradient-to-r group-hover:from-accent group-hover:to-accent-hover group-hover:bg-clip-text group-hover:text-transparent transition-all">
-              COLLOQUIP
+              COLLOQUIUM
             </span>
           )}
         </Link>

@@ -47,7 +47,7 @@ def create_app(
             await dispose_engine()
 
     app = FastAPI(
-        title="Colloquip",
+        title="Colloquium",
         description="Emergent multi-agent deliberation API",
         version="0.1.0",
         lifespan=lifespan,
