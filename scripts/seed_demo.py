@@ -27,6 +27,7 @@ import argparse
 import asyncio
 import json
 import logging
+import os
 import shutil
 import sys
 import time
@@ -42,8 +43,43 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 FIXTURE_DIR = PROJECT_ROOT / "demo" / "fixtures"
 FIXTURE_DB = FIXTURE_DIR / "seed.db"
 FIXTURE_MANIFEST = FIXTURE_DIR / "manifest.json"
-# Default SQLite DB location (relative to where the server runs, typically project root)
-DEFAULT_DB = PROJECT_ROOT / "colloquip.db"
+
+
+def _resolve_db_path() -> Path:
+    """Resolve the SQLite DB path from DATABASE_URL env var or default.
+
+    The SQLite DB is created relative to the *server's* working directory,
+    which is typically the project root.  But DATABASE_URL can override this.
+    We also check the current working directory as a fallback since the user
+    might run the script from there.
+    """
+    db_url = os.environ.get("DATABASE_URL", "sqlite+aiosqlite:///colloquip.db")
+
+    # Extract the file path from the SQLAlchemy URL
+    # Formats: sqlite+aiosqlite:///relative.db  or  sqlite+aiosqlite:////absolute/path.db
+    for prefix in ("sqlite+aiosqlite:///", "sqlite:///"):
+        if db_url.startswith(prefix):
+            raw = db_url[len(prefix):]
+            if raw.startswith("/"):
+                # Absolute path (4 slashes total: sqlite+aiosqlite:////abs/path)
+                return Path(raw)
+            # Relative path — check multiple locations
+            candidates = [
+                Path.cwd() / raw,           # where the user is running from
+                PROJECT_ROOT / raw,          # project root
+            ]
+            for candidate in candidates:
+                if candidate.exists():
+                    return candidate
+            # Nothing found yet; default to cwd (where the server likely ran)
+            return Path.cwd() / raw
+
+    # Non-SQLite URL (e.g., PostgreSQL) — fixture export not applicable
+    logger.warning("DATABASE_URL is not SQLite (%s); fixture export may not work.", db_url)
+    return PROJECT_ROOT / "colloquip.db"
+
+
+DEFAULT_DB = _resolve_db_path()
 
 # ---------------------------------------------------------------------------
 # Community definitions
@@ -625,7 +661,30 @@ def export_fixture(manifest: dict, db_path: Path = DEFAULT_DB):
     FIXTURE_DIR.mkdir(parents=True, exist_ok=True)
 
     if not db_path.exists():
-        logger.error("Database file not found at %s — cannot export.", db_path)
+        # Help the user find it
+        candidates = [
+            Path.cwd() / "colloquip.db",
+            PROJECT_ROOT / "colloquip.db",
+        ]
+        found = [str(c) for c in candidates if c.exists()]
+        if found:
+            logger.error(
+                "Database not found at %s, but found at: %s\n"
+                "  Use --db-path %s",
+                db_path,
+                ", ".join(found),
+                found[0],
+            )
+        else:
+            logger.error(
+                "Database file not found at %s — cannot export.\n"
+                "  Checked: %s, %s\n"
+                "  Make sure the backend is running and has been seeded.\n"
+                "  Use --db-path to specify the correct location.",
+                db_path,
+                Path.cwd() / "colloquip.db",
+                PROJECT_ROOT / "colloquip.db",
+            )
         sys.exit(1)
 
     shutil.copy2(db_path, FIXTURE_DB)
