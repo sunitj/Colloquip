@@ -6,7 +6,7 @@ export default defineConfig({
   fullyParallel: false,
   retries: 0,
   workers: 1,
-  timeout: 300_000, // 5 minutes max for full demo
+  timeout: process.env.DEMO_MODE === "mock" ? 300_000 : 600_000,
 
   use: {
     baseURL: process.env.DEMO_BASE_URL || "http://localhost:8000",

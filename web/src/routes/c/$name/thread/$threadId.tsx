@@ -148,7 +148,7 @@ function ThreadPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="real">Real LLM</SelectItem>
+                      <SelectItem value="real">claude-opus-4-6</SelectItem>
                       <SelectItem value="mock">Mock (testing)</SelectItem>
                     </SelectContent>
                   </Select>

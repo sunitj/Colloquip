@@ -130,24 +130,29 @@ async function createThread(
   return url;
 }
 
-/** Launch a pending deliberation and wait for the first post */
+/** Launch a pending deliberation and wait for the first post.
+ *  Set DEMO_MODE=mock env var to use mock LLM (faster, no API key needed). */
 async function launchDeliberation(page: Page) {
-  // Select mock mode for demo speed
-  const modeSelect = page.locator('button[role="combobox"]');
-  if (await modeSelect.isVisible({ timeout: 2_000 }).catch(() => false)) {
-    await modeSelect.click();
-    await page.locator('[role="option"]', { hasText: "Mock" }).click();
-    await pause(page, 300);
+  const useMock = process.env.DEMO_MODE === "mock";
+
+  if (useMock) {
+    const modeSelect = page.locator('button[role="combobox"]');
+    if (await modeSelect.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await modeSelect.click();
+      await page.locator('[role="option"]', { hasText: "Mock" }).click();
+      await pause(page, 300);
+    }
   }
 
   const launchBtn = page.locator("button", { hasText: "Launch Deliberation" });
   await expect(launchBtn).toBeVisible({ timeout: 5_000 });
   await launchBtn.click();
 
-  // Wait for the first post
+  // Real LLM posts take longer — allow up to 120s for the first post
+  const firstPostTimeout = useMock ? 30_000 : 120_000;
   await page.waitForSelector(
     '[style*="border-left-width: 3px"], [style*="border-left: 3px"]',
-    { timeout: 30_000 },
+    { timeout: firstPostTimeout },
   );
 }
 
@@ -205,7 +210,8 @@ test("Colloquium Competition Demo — Dual Community Deliberation", async ({
   page,
   context,
 }) => {
-  test.setTimeout(180_000);
+  const useMock = process.env.DEMO_MODE === "mock";
+  test.setTimeout(useMock ? 180_000 : 600_000);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // ACT 1 — Platform Overview (~20 seconds)
@@ -323,7 +329,7 @@ test("Colloquium Competition Demo — Dual Community Deliberation", async ({
   await pause(page2, 1500);
 
   // Watch Thread 2 for a bit
-  await waitForPosts(page2, 3, 20_000);
+  await waitForPosts(page2, 3, useMock ? 20_000 : 180_000);
   await scrollToLatestPost(page2);
   await pause(page2, 1500);
 
@@ -418,14 +424,14 @@ test("Colloquium Competition Demo — Dual Community Deliberation", async ({
   // Wait for consensus on either thread (try Thread 1 first)
   let consensusPage = page;
   try {
-    await page.waitForSelector("text=Consensus Reached", { timeout: 30_000 });
+    await page.waitForSelector("text=Consensus Reached", { timeout: useMock ? 30_000 : 300_000 });
   } catch {
     // Try Thread 2 instead
     await page2.bringToFront();
     consensusPage = page2;
     try {
       await page2.waitForSelector("text=Consensus Reached", {
-        timeout: 20_000,
+        timeout: useMock ? 20_000 : 180_000,
       });
     } catch {
       // Neither finished — show where we are
