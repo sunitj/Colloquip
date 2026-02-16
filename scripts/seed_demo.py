@@ -656,52 +656,107 @@ async def run_seed(mode: str = "real", communities_only: bool = False, concurren
 # ---------------------------------------------------------------------------
 
 
-def export_fixture(manifest: dict, db_path: Path = DEFAULT_DB):
-    """Copy the SQLite DB and save the manifest for later reload."""
-    FIXTURE_DIR.mkdir(parents=True, exist_ok=True)
+def _detect_db_backend() -> str:
+    """Detect whether the running server uses SQLite or PostgreSQL."""
+    db_url = os.environ.get("DATABASE_URL", "sqlite+aiosqlite:///colloquip.db")
+    if "postgresql" in db_url or "postgres" in db_url:
+        return "postgres"
+    return "sqlite"
 
-    if not db_path.exists():
-        # Help the user find it
-        candidates = [
-            Path.cwd() / "colloquip.db",
-            PROJECT_ROOT / "colloquip.db",
-        ]
-        found = [str(c) for c in candidates if c.exists()]
-        if found:
-            logger.error(
-                "Database not found at %s, but found at: %s\n"
-                "  Use --db-path %s",
-                db_path,
-                ", ".join(found),
-                found[0],
-            )
-        else:
-            logger.error(
-                "Database file not found at %s — cannot export.\n"
-                "  Checked: %s, %s\n"
-                "  Make sure the backend is running and has been seeded.\n"
-                "  Use --db-path to specify the correct location.",
-                db_path,
-                Path.cwd() / "colloquip.db",
-                PROJECT_ROOT / "colloquip.db",
-            )
+
+def _pg_dump_fixture():
+    """Export PostgreSQL database via docker compose exec pg_dump."""
+    import subprocess
+
+    dump_file = FIXTURE_DIR / "seed.sql"
+    logger.info("Running pg_dump via docker compose...")
+    result = subprocess.run(
+        [
+            "docker", "compose", "exec", "-T", "postgres",
+            "pg_dump", "-U", "colloquip", "--clean", "--if-exists", "colloquip",
+        ],
+        capture_output=True,
+        cwd=PROJECT_ROOT,
+    )
+    if result.returncode != 0:
+        logger.error("pg_dump failed: %s", result.stderr.decode())
+        sys.exit(1)
+    dump_file.write_bytes(result.stdout)
+    size_mb = dump_file.stat().st_size / 1e6
+    logger.info("Exported DB -> %s (%.1f MB)", dump_file, size_mb)
+
+
+def _pg_restore_fixture():
+    """Restore PostgreSQL database via docker compose exec psql."""
+    import subprocess
+
+    dump_file = FIXTURE_DIR / "seed.sql"
+    if not dump_file.exists():
+        logger.error("Fixture SQL dump not found at %s.", dump_file)
         sys.exit(1)
 
-    shutil.copy2(db_path, FIXTURE_DB)
-    logger.info("Exported DB -> %s (%.1f MB)", FIXTURE_DB, FIXTURE_DB.stat().st_size / 1e6)
+    logger.info("Restoring PostgreSQL from %s...", dump_file)
+    result = subprocess.run(
+        [
+            "docker", "compose", "exec", "-T", "postgres",
+            "psql", "-U", "colloquip", "-d", "colloquip",
+        ],
+        input=dump_file.read_bytes(),
+        capture_output=True,
+        cwd=PROJECT_ROOT,
+    )
+    if result.returncode != 0:
+        stderr = result.stderr.decode()
+        # pg_restore often emits non-fatal notices; only fail on real errors
+        if "ERROR" in stderr:
+            logger.warning("psql warnings:\n%s", stderr[:2000])
+    size_mb = dump_file.stat().st_size / 1e6
+    logger.info("Restored DB <- %s (%.1f MB)", dump_file, size_mb)
+
+
+def export_fixture(manifest: dict, db_path: Path = DEFAULT_DB):
+    """Export the database (SQLite file copy or Postgres pg_dump) and manifest."""
+    FIXTURE_DIR.mkdir(parents=True, exist_ok=True)
+
+    backend = _detect_db_backend()
+    if backend == "postgres":
+        _pg_dump_fixture()
+    else:
+        # SQLite: copy the file
+        if not db_path.exists():
+            candidates = [
+                Path.cwd() / "colloquip.db",
+                PROJECT_ROOT / "colloquip.db",
+            ]
+            found = [str(c) for c in candidates if c.exists()]
+            if found:
+                db_path = Path(found[0])
+                logger.info("Found DB at %s", db_path)
+            else:
+                logger.error(
+                    "Database file not found at %s.\n"
+                    "  Checked: %s, %s\n"
+                    "  If running in Docker, set DATABASE_URL to your postgres URL.\n"
+                    "  Or use --db-path to specify the SQLite file.",
+                    db_path,
+                    Path.cwd() / "colloquip.db",
+                    PROJECT_ROOT / "colloquip.db",
+                )
+                sys.exit(1)
+        shutil.copy2(db_path, FIXTURE_DB)
+        logger.info(
+            "Exported DB -> %s (%.1f MB)", FIXTURE_DB, FIXTURE_DB.stat().st_size / 1e6
+        )
 
     with open(FIXTURE_MANIFEST, "w") as f:
         json.dump(manifest, f, indent=2)
-    logger.info("Exported manifest -> %s (%d threads)", FIXTURE_MANIFEST, len(manifest["threads"]))
+    logger.info(
+        "Exported manifest -> %s (%d threads)", FIXTURE_MANIFEST, len(manifest["threads"])
+    )
 
 
 async def load_fixture(db_path: Path = DEFAULT_DB):
     """Restore the DB from fixture and recreate platform state."""
-    if not FIXTURE_DB.exists():
-        logger.error(
-            "Fixture DB not found at %s. Run with --export first after seeding.", FIXTURE_DB
-        )
-        sys.exit(1)
     if not FIXTURE_MANIFEST.exists():
         logger.error("Fixture manifest not found at %s.", FIXTURE_MANIFEST)
         sys.exit(1)
@@ -709,11 +764,20 @@ async def load_fixture(db_path: Path = DEFAULT_DB):
     with open(FIXTURE_MANIFEST) as f:
         manifest = json.load(f)
 
-    # 1) Restore DB file (server must be stopped or will pick up changes on next query)
-    shutil.copy2(FIXTURE_DB, db_path)
-    logger.info(
-        "Restored DB <- %s (%.1f MB)", FIXTURE_DB, FIXTURE_DB.stat().st_size / 1e6
-    )
+    # 1) Restore database
+    backend = _detect_db_backend()
+    if backend == "postgres":
+        _pg_restore_fixture()
+    else:
+        if not FIXTURE_DB.exists():
+            logger.error(
+                "Fixture DB not found at %s. Run seed first to auto-export.", FIXTURE_DB
+            )
+            sys.exit(1)
+        shutil.copy2(FIXTURE_DB, db_path)
+        logger.info(
+            "Restored DB <- %s (%.1f MB)", FIXTURE_DB, FIXTURE_DB.stat().st_size / 1e6
+        )
 
     # 2) Wait for server to be ready
     timeout = httpx.Timeout(10.0, read=30.0)
