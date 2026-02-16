@@ -81,6 +81,16 @@ def create_app(
     app.state.platform_manager = PlatformManager()
     app.state.platform_manager.initialize()
 
+    # Outcome tracker for calibration endpoint
+    from colloquip.feedback.outcome import InMemoryOutcomeTracker
+
+    app.state.outcome_tracker = InMemoryOutcomeTracker()
+
+    # Memory store for institutional memory
+    from colloquip.memory.store import InMemoryStore
+
+    app.state.memory_store = InMemoryStore()
+
     @app.get("/health")
     async def health():
         return {"status": "ok"}

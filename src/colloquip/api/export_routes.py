@@ -2,24 +2,15 @@
 
 import logging
 from typing import Dict
-from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 
+from colloquip.api.utils import parse_uuid as _parse_uuid
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api")
-
-
-# --- Helpers ---
-
-
-def _parse_uuid(value: str, label: str = "ID") -> UUID:
-    try:
-        return UUID(value)
-    except (ValueError, AttributeError):
-        raise HTTPException(status_code=400, detail=f"Invalid {label}: {value!r}")
 
 
 async def _get_synthesis_data(request: Request, thread_id: str) -> Dict:

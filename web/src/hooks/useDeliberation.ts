@@ -158,6 +158,8 @@ export function useDeliberation() {
     hypothesis: string,
     mode: string = 'mock',
     maxTurns: number = 30,
+    communityName?: string,
+    sessionId?: string,
   ) => {
     setState({ ...initialState, hypothesis });
 
@@ -166,17 +168,23 @@ export function useDeliberation() {
       const res = await fetch(`${API_BASE}/api/deliberations`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hypothesis, mode, max_turns: maxTurns }),
+        body: JSON.stringify({
+          hypothesis,
+          mode,
+          max_turns: maxTurns,
+          community_name: communityName,
+          session_id: sessionId,
+        }),
       });
 
       if (!res.ok) throw new Error('Failed to create session');
       const session = await res.json();
-      const sessionId = session.id;
+      const createdSessionId = session.id;
 
-      setState(s => ({ ...s, sessionId, status: 'pending' }));
+      setState(s => ({ ...s, sessionId: createdSessionId, status: 'pending' }));
 
       // Connect WebSocket
-      connect(sessionId);
+      connect(createdSessionId);
 
       // Wait for WebSocket to open, then send start
       const ws = wsRef.current!;

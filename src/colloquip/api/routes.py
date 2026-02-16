@@ -27,6 +27,8 @@ class CreateSessionRequest(BaseModel):
     seed: int = 42
     model: Optional[str] = None
     max_turns: int = Field(default=30, ge=1, le=100)
+    community_name: Optional[str] = None
+    session_id: Optional[str] = None
 
 
 class CreateSessionResponse(BaseModel):
@@ -68,13 +70,20 @@ def _get_manager(request: Request) -> SessionManager:
 async def create_deliberation(body: CreateSessionRequest, request: Request):
     """Create a new deliberation session."""
     manager = _get_manager(request)
+    platform_manager = getattr(request.app.state, "platform_manager", None)
+    memory_store = getattr(request.app.state, "memory_store", None)
     session = manager.create_session(
         hypothesis=body.hypothesis,
         mode=body.mode,
         seed=body.seed,
         model=body.model,
         max_turns=body.max_turns,
+        community_name=body.community_name,
+        platform_manager=platform_manager,
+        session_id=body.session_id,
+        memory_store=memory_store,
     )
+    await manager.persist_session(session)
     return CreateSessionResponse(
         id=str(session.id),
         hypothesis=session.hypothesis,
@@ -99,6 +108,9 @@ async def start_deliberation(session_id: UUID, request: Request):
     except ValueError as e:
         manager.unsubscribe(session_id, queue)
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        manager.unsubscribe(session_id, queue)
+        raise
 
     async def event_stream():
         try:
@@ -251,6 +263,12 @@ async def get_session_history(session_id: UUID, request: Request):
     if session:
         posts = manager.get_posts(session_id)
         energy_history = manager.get_energy_history(session_id)
+        # Extract consensus from events if session is completed
+        consensus = None
+        for evt in manager.get_events(session_id):
+            if evt.get("type") == "session_complete":
+                consensus = evt.get("data")
+                break
         return {
             "session": {
                 "id": str(session.id),
@@ -260,6 +278,7 @@ async def get_session_history(session_id: UUID, request: Request):
             },
             "posts": [p.model_dump(mode="json") for p in posts],
             "energy_history": energy_history,
+            "consensus": consensus,
         }
 
     # Try loading from database

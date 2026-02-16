@@ -5,11 +5,11 @@ Endpoints for listing, viewing, and annotating synthesis memories.
 
 import logging
 from typing import List, Literal, Optional
-from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from colloquip.api.utils import parse_uuid as _parse_uuid
 from colloquip.memory.store import MemoryStore
 
 logger = logging.getLogger(__name__)
@@ -26,14 +26,6 @@ def _get_store(request: Request) -> MemoryStore:
     if store is None:
         raise HTTPException(status_code=503, detail="Memory system not initialized")
     return store
-
-
-def _parse_uuid(value: str, label: str = "ID") -> UUID:
-    """Parse a UUID string, raising 400 if invalid."""
-    try:
-        return UUID(value)
-    except (ValueError, AttributeError):
-        raise HTTPException(status_code=400, detail=f"Invalid {label}: {value!r}")
 
 
 # --- Request / Response schemas ---

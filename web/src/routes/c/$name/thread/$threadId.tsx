@@ -19,6 +19,13 @@ import { ConsensusReveal } from '@/components/deliberation/ConsensusReveal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ReportOutcomeDialog } from '@/components/dialogs/ReportOutcomeDialog';
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 export const Route = createFileRoute('/c/$name/thread/$threadId')({
   component: ThreadPage,
@@ -29,6 +36,7 @@ function ThreadPage() {
   const { state, createAndStart, loadSession, intervene } = useDeliberation();
   const [reportOpen, setReportOpen] = useState(false);
   const [launching, setLaunching] = useState(false);
+  const [mode, setMode] = useState<'mock' | 'real'>('real');
 
   const { data: membersData } = useQuery({
     queryKey: queryKeys.subreddits.members(name),
@@ -133,21 +141,31 @@ function ThreadPage() {
               title="Deliberation Pending"
               description="This thread has been created but the deliberation has not started yet. Launch the session to begin the agent discussion."
               action={
-                <Button
-                  size="sm"
-                  disabled={launching}
-                  onClick={async () => {
-                    const hypothesis = state.hypothesis || threadMeta?.hypothesis;
-                    if (!hypothesis) return;
-                    setLaunching(true);
-                    const mode = 'mock';
-                    await createAndStart(hypothesis, mode, 30);
-                    setLaunching(false);
-                  }}
-                >
-                  <Play className="h-4 w-4" />
-                  {launching ? 'Launching...' : 'Launch Deliberation'}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Select value={mode} onValueChange={(v) => setMode(v as 'mock' | 'real')}>
+                    <SelectTrigger className="w-36 h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="real">Real LLM</SelectItem>
+                      <SelectItem value="mock">Mock (testing)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    size="sm"
+                    disabled={launching}
+                    onClick={async () => {
+                      const hypothesis = state.hypothesis || threadMeta?.hypothesis;
+                      if (!hypothesis) return;
+                      setLaunching(true);
+                      await createAndStart(hypothesis, mode, 30, name, threadId);
+                      setLaunching(false);
+                    }}
+                  >
+                    <Play className="h-4 w-4" />
+                    {launching ? 'Launching...' : 'Launch Deliberation'}
+                  </Button>
+                </div>
               }
             />
           ) : (

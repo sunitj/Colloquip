@@ -35,6 +35,7 @@ class SessionStatus(str, Enum):
     RUNNING = "running"
     PAUSED = "paused"
     COMPLETED = "completed"
+    FAILED = "failed"
 
 
 class Citation(BaseModel):
