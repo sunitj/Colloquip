@@ -115,7 +115,117 @@ async def list_memories(
         annotations = await store.get_annotations(mem.id)
         result_memories.append(_format_memory(mem, annotations))
 
+    # Fall back to DB if in-memory store is empty
+    if not result_memories:
+        sm = getattr(request.app.state, "session_manager", None)
+        if sm and sm._db_factory:
+            async with sm._db_factory() as db:
+                from colloquip.db.repository import SessionRepository
+
+                repo = SessionRepository(db)
+                sub_filter = subreddit_id if subreddit_id else None
+                db_memories = await repo.list_memories(
+                    subreddit_id=sub_filter, limit=limit
+                )
+                for dm in db_memories:
+                    alpha = dm.get("confidence_alpha", 1.0)
+                    beta = dm.get("confidence_beta", 1.0)
+                    confidence = alpha / (alpha + beta) if (alpha + beta) > 0 else 0.5
+                    result_memories.append(
+                        MemoryResponse(
+                            id=str(dm["id"]),
+                            thread_id=str(dm["thread_id"]),
+                            subreddit_id=str(dm["subreddit_id"]),
+                            subreddit_name=dm.get("subreddit_name", ""),
+                            topic=dm.get("topic", ""),
+                            key_conclusions=dm.get("key_conclusions", []),
+                            citations_used=dm.get("citations_used", []),
+                            agents_involved=dm.get("agents_involved", []),
+                            template_type=dm.get("template_type", ""),
+                            confidence_level=dm.get("confidence_level", "medium"),
+                            evidence_quality=dm.get("evidence_quality", "moderate"),
+                            confidence=confidence,
+                            confidence_alpha=alpha,
+                            confidence_beta=beta,
+                            created_at=str(dm.get("created_at", "")),
+                            annotations=[],
+                        )
+                    )
+
     return MemoryListResponse(memories=result_memories, total=len(result_memories))
+
+
+@router.get("/memories/graph")
+async def get_memory_graph(request: Request) -> MemoryGraphResponse:
+    """Get all memories and cross-references for graph visualization."""
+    store = _get_store(request)
+
+    memories = await store.list_all(limit=500)
+
+    result_memories = []
+    for mem in memories:
+        annotations = await store.get_annotations(mem.id)
+        result_memories.append(_format_memory(mem, annotations))
+
+    # Fall back to DB if in-memory store is empty
+    cross_refs_raw = []
+    sm = getattr(request.app.state, "session_manager", None)
+    if sm and sm._db_factory:
+        async with sm._db_factory() as db:
+            from colloquip.db.repository import SessionRepository
+
+            repo = SessionRepository(db)
+
+            # Load memories from DB if in-memory store is empty
+            if not result_memories:
+                db_memories = await repo.list_memories(limit=500)
+                for dm in db_memories:
+                    alpha = dm.get("confidence_alpha", 1.0)
+                    beta = dm.get("confidence_beta", 1.0)
+                    confidence = alpha / (alpha + beta) if (alpha + beta) > 0 else 0.5
+                    result_memories.append(
+                        MemoryResponse(
+                            id=str(dm["id"]),
+                            thread_id=str(dm["thread_id"]),
+                            subreddit_id=str(dm["subreddit_id"]),
+                            subreddit_name=dm.get("subreddit_name", ""),
+                            topic=dm.get("topic", ""),
+                            key_conclusions=dm.get("key_conclusions", []),
+                            citations_used=dm.get("citations_used", []),
+                            agents_involved=dm.get("agents_involved", []),
+                            template_type=dm.get("template_type", ""),
+                            confidence_level=dm.get("confidence_level", "medium"),
+                            evidence_quality=dm.get("evidence_quality", "moderate"),
+                            confidence=confidence,
+                            confidence_alpha=alpha,
+                            confidence_beta=beta,
+                            created_at=str(dm.get("created_at", "")),
+                            annotations=[],
+                        )
+                    )
+
+            cross_refs_raw = await repo.list_cross_references()
+
+    cross_refs = [
+        CrossReferenceResponse(
+            id=str(cr["id"]),
+            source_memory_id=str(cr["source_memory_id"]),
+            target_memory_id=str(cr["target_memory_id"]),
+            source_subreddit_id=str(cr["source_subreddit_id"]),
+            target_subreddit_id=str(cr["target_subreddit_id"]),
+            source_subreddit_name=cr["source_subreddit_name"],
+            target_subreddit_name=cr["target_subreddit_name"],
+            similarity=cr["similarity"],
+            shared_entities=cr["shared_entities"],
+            reasoning=cr["reasoning"],
+            status=cr["status"],
+            reviewed_by=cr.get("reviewed_by"),
+            created_at=str(cr["created_at"]),
+        )
+        for cr in cross_refs_raw
+    ]
+
+    return MemoryGraphResponse(memories=result_memories, cross_references=cross_refs)
 
 
 @router.get("/memories/{memory_id}")
@@ -166,50 +276,6 @@ async def annotate_memory(
         created_by=ann.get("created_by"),
         created_at=str(ann.get("created_at", "")),
     )
-
-
-@router.get("/memories/graph")
-async def get_memory_graph(request: Request) -> MemoryGraphResponse:
-    """Get all memories and cross-references for graph visualization."""
-    store = _get_store(request)
-
-    memories = await store.list_all(limit=500)
-
-    result_memories = []
-    for mem in memories:
-        annotations = await store.get_annotations(mem.id)
-        result_memories.append(_format_memory(mem, annotations))
-
-    # Load cross-references from DB if available, otherwise from store
-    cross_refs_raw = []
-    sm = getattr(request.app.state, "session_manager", None)
-    if sm and sm._db_factory:
-        async with sm._db_factory() as db:
-            from colloquip.db.repository import SessionRepository
-
-            repo = SessionRepository(db)
-            cross_refs_raw = await repo.list_cross_references()
-
-    cross_refs = [
-        CrossReferenceResponse(
-            id=str(cr["id"]),
-            source_memory_id=str(cr["source_memory_id"]),
-            target_memory_id=str(cr["target_memory_id"]),
-            source_subreddit_id=str(cr["source_subreddit_id"]),
-            target_subreddit_id=str(cr["target_subreddit_id"]),
-            source_subreddit_name=cr["source_subreddit_name"],
-            target_subreddit_name=cr["target_subreddit_name"],
-            similarity=cr["similarity"],
-            shared_entities=cr["shared_entities"],
-            reasoning=cr["reasoning"],
-            status=cr["status"],
-            reviewed_by=cr.get("reviewed_by"),
-            created_at=str(cr["created_at"]),
-        )
-        for cr in cross_refs_raw
-    ]
-
-    return MemoryGraphResponse(memories=result_memories, cross_references=cross_refs)
 
 
 @router.get("/subreddits/{subreddit_name}/memories")

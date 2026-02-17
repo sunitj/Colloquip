@@ -1,5 +1,6 @@
 import { motion } from 'motion/react';
 import { AgentAvatar } from '@/components/shared/AgentAvatar';
+import { MarkdownContent } from '@/components/shared/MarkdownContent';
 import { StanceBadge } from '@/components/shared/StanceBadge';
 import type { ConsensusMap, AgentStance } from '@/types/deliberation';
 import type { AgentMember } from '@/types/platform';
@@ -29,7 +30,7 @@ export function ConsensusReveal({ consensus, members }: ConsensusRevealProps) {
         className="bg-bg-surface p-6 rounded-xl border border-border-default"
       >
         <h3 className="text-sm font-medium text-text-muted mb-2">Consensus Summary</h3>
-        <p className="text-lg text-text-primary leading-relaxed">{consensus.summary}</p>
+        <MarkdownContent content={consensus.summary} className="text-text-primary leading-relaxed" />
       </motion.div>
 
       {/* Agreements */}
@@ -45,7 +46,7 @@ export function ConsensusReveal({ consensus, members }: ConsensusRevealProps) {
               className="bg-bg-surface p-4 rounded-lg"
               style={{ borderLeft: '3px solid #22C55E' }}
             >
-              <p className="text-sm text-text-primary">{agreement}</p>
+              <MarkdownContent content={agreement} className="text-sm text-text-primary" />
             </motion.div>
           ))}
         </div>
@@ -64,7 +65,7 @@ export function ConsensusReveal({ consensus, members }: ConsensusRevealProps) {
               className="bg-bg-surface p-4 rounded-lg"
               style={{ borderLeft: '3px solid #EF4444' }}
             >
-              <p className="text-sm text-text-primary">{disagreement}</p>
+              <MarkdownContent content={disagreement} className="text-sm text-text-primary" />
             </motion.div>
           ))}
         </div>
@@ -83,7 +84,7 @@ export function ConsensusReveal({ consensus, members }: ConsensusRevealProps) {
               className="bg-bg-surface p-4 rounded-lg"
               style={{ borderLeft: '3px solid #F59E0B' }}
             >
-              <p className="text-sm text-text-primary">{position}</p>
+              <MarkdownContent content={position} className="text-sm text-text-primary" />
             </motion.div>
           ))}
         </div>
@@ -105,7 +106,7 @@ export function ConsensusReveal({ consensus, members }: ConsensusRevealProps) {
               <p className="text-xs font-medium mb-1" style={{ color: '#A855F7' }}>
                 {conn.agent}
               </p>
-              <p className="text-sm text-text-primary">{conn.connection}</p>
+              <MarkdownContent content={conn.connection} className="text-sm text-text-primary" />
             </motion.div>
           ))}
         </div>

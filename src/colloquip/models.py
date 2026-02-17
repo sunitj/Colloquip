@@ -125,11 +125,11 @@ class EngineConfig(BaseModel):
     hysteresis_threshold: int = 3
     phase_max_tokens: Dict[str, int] = Field(
         default_factory=lambda: {
-            "explore": 512,
-            "debate": 640,
-            "deepen": 512,
-            "converge": 384,
-            "synthesis": 1024,
+            "explore": 1024,
+            "debate": 1280,
+            "deepen": 1024,
+            "converge": 768,
+            "synthesis": 2048,
         }
     )
 

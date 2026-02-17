@@ -159,7 +159,7 @@ class TestHysteresis:
         assert signal.current_phase == Phase.DEBATE
 
     def test_interrupted_signal_resets_counter(self, observer):
-        """Interrupted signal → counter resets, no transition."""
+        """Interrupted signal -> counter resets, no transition."""
         citation = Citation(document_id="D1", title="P", excerpt="E", relevance=0.9)
         debate_posts = [
             create_post(
@@ -177,12 +177,11 @@ class TestHysteresis:
             for i in range(6)
         ]
 
-        # Two debate signals
+        # One debate signal (not enough for hysteresis_threshold=2)
         observer.detect_phase(debate_posts)
-        observer.detect_phase(debate_posts)
-        # Interrupted by explore signal (or ambiguous)
+        # Interrupted by explore signal — resets counter
         observer.detect_phase(explore_posts)
-        # One more debate signal — not enough to transition
+        # One more debate signal — counter is 1, not enough to transition
         signal = observer.detect_phase(debate_posts)
         assert signal.current_phase == Phase.EXPLORE
 
@@ -203,8 +202,7 @@ class TestConfidence:
             )
             for i in range(6)
         ]
-        # First signal starts pending
-        observer.detect_phase(debate_posts)
+        # With hysteresis_threshold=2, first signal starts pending (lower confidence)
         signal = observer.detect_phase(debate_posts)
         assert signal.confidence < 0.9
 

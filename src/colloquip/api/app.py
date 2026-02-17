@@ -7,7 +7,6 @@ from typing import Any, AsyncIterator, Callable, Dict, List, Optional
 from uuid import UUID
 
 from colloquip.agents.base import BaseDeliberationAgent
-from colloquip.config import EnergyConfig
 from colloquip.energy import EnergyCalculator
 from colloquip.engine import EmergentDeliberationEngine
 from colloquip.llm.mock import MockBehavior, MockLLM
@@ -51,17 +50,17 @@ class SessionManager:
         self._session_context: Dict[UUID, Dict[str, Any]] = {}
         # Optional database factory
         self._db_factory = db_session_factory
-        # Load phase_max_tokens from config
-        self._phase_max_tokens = self._load_phase_max_tokens()
+        # Load full config from YAML
+        self._config = self._load_config()
+        self._phase_max_tokens = self._config.engine.phase_max_tokens
 
     @staticmethod
-    def _load_phase_max_tokens() -> Dict[str, int]:
+    def _load_config():
         from pathlib import Path
 
         from colloquip.config import load_config
 
-        config = load_config(engine_path=Path("config/engine.yaml"))
-        return config.engine.phase_max_tokens
+        return load_config(engine_path=Path("config/engine.yaml"))
 
     def create_session(
         self,
@@ -107,9 +106,12 @@ class SessionManager:
         agents = self._create_agents_from_community(llm, community_name, platform_manager)
         num_agents = len(agents)
 
-        energy_config = EnergyConfig()
-        energy_calc = EnergyCalculator(config=energy_config, num_agents=num_agents)
-        observer = ObserverAgent(energy_calculator=energy_calc, num_agents=num_agents)
+        energy_calc = EnergyCalculator(config=self._config.energy, num_agents=num_agents)
+        observer = ObserverAgent(
+            energy_calculator=energy_calc,
+            config=self._config.observer,
+            num_agents=num_agents,
+        )
 
         # Wire cost tracker from platform manager
         cost_tracker = getattr(platform_manager, "cost_tracker", None) if platform_manager else None
@@ -529,6 +531,53 @@ class SessionManager:
             )
             await memory_store.save(memory)
             logger.info("Extracted and stored memory %s for session %s", memory.id, session_id)
+
+            # Persist memory to DB and detect cross-references
+            if self._db_factory:
+                try:
+                    from colloquip.db.repository import SessionRepository
+                    from colloquip.memory.cross_references import (
+                        CrossReferenceDetector,
+                        extract_entities,
+                    )
+
+                    async with self._db_factory() as db:
+                        repo = SessionRepository(db)
+                        await repo.save_memory(memory)
+                        await db.commit()
+                    logger.info("Persisted memory %s to database", memory.id)
+
+                    # Detect cross-references using entity overlap
+                    detector = CrossReferenceDetector(
+                        memory_store=memory_store,
+                        embedding_provider=MockEmbeddingProvider(),
+                        similarity_threshold=0.3,
+                    )
+                    cross_refs = await detector.detect_for_memory(memory)
+                    if cross_refs:
+                        async with self._db_factory() as db:
+                            repo = SessionRepository(db)
+                            for ref in cross_refs:
+                                await repo.save_cross_reference(
+                                    cross_ref_id=str(ref.id),
+                                    source_memory_id=str(ref.source_memory_id),
+                                    target_memory_id=str(ref.target_memory_id),
+                                    source_subreddit_id=str(ref.source_subreddit_id),
+                                    target_subreddit_id=str(ref.target_subreddit_id),
+                                    source_subreddit_name=ref.source_subreddit_name,
+                                    target_subreddit_name=ref.target_subreddit_name,
+                                    similarity=ref.similarity,
+                                    shared_entities=ref.shared_entities,
+                                    reasoning=ref.reasoning,
+                                )
+                            await db.commit()
+                        logger.info(
+                            "Saved %d cross-references for memory %s",
+                            len(cross_refs),
+                            memory.id,
+                        )
+                except Exception as db_err:
+                    logger.warning("DB persistence/cross-ref detection failed: %s", db_err)
         except Exception as e:
             logger.error("Failed to extract memory for session %s: %s", session_id, e)
 
