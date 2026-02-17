@@ -188,19 +188,19 @@ def detect_phase(metrics: ConversationMetrics) -> Phase:
     """
 
     # EXPLORE: High questions + diverse participation
-    if metrics.question_rate > 0.3 and metrics.topic_diversity > 0.6:
+    if metrics.question_rate > 0.25 and metrics.topic_diversity > 0.5:
         return Phase.EXPLORE
 
     # DEBATE: High disagreement + evidence-heavy
-    if metrics.disagreement_rate > 0.4 and metrics.citation_density > 0.5:
+    if metrics.disagreement_rate > 0.3 and metrics.citation_density > 0.4:
         return Phase.DEBATE
 
     # DEEPEN: Focused (low diversity) + high novelty
-    if metrics.topic_diversity < 0.5 and metrics.novelty_avg > 0.5:
+    if metrics.topic_diversity < 0.5 and metrics.novelty_avg > 0.4:
         return Phase.DEEPEN
 
     # CONVERGE: Low energy + stagnating
-    if metrics.energy < 0.3 and metrics.posts_since_novel > 5:
+    if metrics.energy < 0.35 and metrics.posts_since_novel > 3:
         return Phase.CONVERGE
 
     # Default: no clear signal, maintain current phase
@@ -213,7 +213,7 @@ Phase transitions require sustained signal:
 
 ```python
 class ObserverAgent:
-    def __init__(self, hysteresis_threshold: int = 3):
+    def __init__(self, hysteresis_threshold: int = 2):
         self.current_phase = Phase.EXPLORE
         self.pending_phase: Optional[Phase] = None
         self.pending_count: int = 0
@@ -257,12 +257,11 @@ Turn 4: DEBATE (critical stance)
 ...
 ```
 
-With hysteresis (threshold=3):
+With hysteresis (threshold=2):
 ```
 Turn 1: EXPLORE (detected DEBATE, count=1)
 Turn 2: EXPLORE (detected DEBATE, count=2)
-Turn 3: EXPLORE (detected DEBATE, count=3)
-Turn 4: DEBATE ← transition after sustained signal
+Turn 3: DEBATE ← transition after sustained signal
 ```
 
 ---
@@ -452,24 +451,24 @@ But agents are asking questions (EXPLORE behavior)
 
 ```yaml
 observer:
-  hysteresis_threshold: 3       # Rounds before phase change
-  window_size: 10               # Posts to consider for metrics
-  min_posts_before_converge: 12 # Minimum deliberation depth
-  observation_frequency: 0.2    # Max fraction of turns with observations
+  hysteresis_threshold: 2       # Rounds before phase change
+  window_size: 5                # Posts to consider for metrics
+  min_posts_before_converge: 8  # Minimum deliberation depth
+  observation_frequency: 0.5    # Max fraction of turns with observations
 
 thresholds:
   explore:
-    question_rate_min: 0.3
-    topic_diversity_min: 0.6
+    question_rate_min: 0.25
+    topic_diversity_min: 0.5
   debate:
-    disagreement_rate_min: 0.4
-    citation_density_min: 0.5
+    disagreement_rate_min: 0.3
+    citation_density_min: 0.4
   deepen:
     topic_diversity_max: 0.5
-    novelty_avg_min: 0.5
+    novelty_avg_min: 0.4
   converge:
-    energy_max: 0.3
-    posts_since_novel_min: 5
+    energy_max: 0.35
+    posts_since_novel_min: 3
 ```
 
 ### Tuning Guidelines

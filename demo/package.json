@@ -8,6 +8,8 @@
     "demo:competition:mock": "DEMO_MODE=mock npx playwright test demo-competition.spec.ts --headed",
     "demo:vite": "DEMO_BASE_URL=http://localhost:5173 npx playwright test --headed",
     "demo:record": "npx playwright test --headed --video on",
+    "screenshots": "npx playwright test screenshots.spec.ts",
+    "screenshots:headed": "npx playwright test screenshots.spec.ts --headed",
     "install:browsers": "npx playwright install chromium"
   },
   "devDependencies": {
