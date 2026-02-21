@@ -500,7 +500,7 @@ class SessionManager:
             return
 
         try:
-            from colloquip.embeddings.mock import MockEmbeddingProvider
+            from colloquip.embeddings import create_embedding_provider
             from colloquip.memory.extractor import SynthesisMemoryExtractor
             from colloquip.models import Synthesis
 
@@ -521,7 +521,7 @@ class SessionManager:
                 metadata={"agents_involved": agent_ids},
             )
 
-            extractor = SynthesisMemoryExtractor(MockEmbeddingProvider())
+            extractor = SynthesisMemoryExtractor(create_embedding_provider())
             memory = await extractor.extract(
                 synthesis=synthesis,
                 topic=session.hypothesis,
@@ -538,7 +538,6 @@ class SessionManager:
                     from colloquip.db.repository import SessionRepository
                     from colloquip.memory.cross_references import (
                         CrossReferenceDetector,
-                        extract_entities,
                     )
 
                     async with self._db_factory() as db:
@@ -550,7 +549,7 @@ class SessionManager:
                     # Detect cross-references using entity overlap
                     detector = CrossReferenceDetector(
                         memory_store=memory_store,
-                        embedding_provider=MockEmbeddingProvider(),
+                        embedding_provider=create_embedding_provider(),
                         similarity_threshold=0.3,
                     )
                     cross_refs = await detector.detect_for_memory(memory)
