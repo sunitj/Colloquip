@@ -5,21 +5,27 @@ engine:
   low_energy_rounds: 3
   refractory_period: 2
   hysteresis_threshold: 3
+  phase_max_tokens:
+    explore: 1024
+    debate: 1280
+    deepen: 1024
+    converge: 768
+    synthesis: 2048
 
 observer:
-  hysteresis_threshold: 3
-  window_size: 10
-  min_posts_before_converge: 12
-  observation_frequency: 0.2
+  hysteresis_threshold: 2
+  window_size: 5
+  min_posts_before_converge: 8
+  observation_frequency: 0.5
 
-  explore_question_rate_min: 0.3
-  explore_topic_diversity_min: 0.6
-  debate_disagreement_rate_min: 0.4
-  debate_citation_density_min: 0.5
+  explore_question_rate_min: 0.25
+  explore_topic_diversity_min: 0.5
+  debate_disagreement_rate_min: 0.3
+  debate_citation_density_min: 0.4
   deepen_topic_diversity_max: 0.5
-  deepen_novelty_avg_min: 0.5
-  converge_energy_max: 0.3
-  converge_posts_since_novel_min: 5
+  deepen_novelty_avg_min: 0.4
+  converge_energy_max: 0.35
+  converge_posts_since_novel_min: 3
 
 energy:
   window: 10

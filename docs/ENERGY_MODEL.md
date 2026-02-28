@@ -1,5 +1,7 @@
 # Energy Model & Termination Logic
 
+> **Wiki**: See [Core Concepts](https://github.com/sunitj/Colloquip/wiki/Core-Concepts) for a concise overview of the energy model. See [Deliberation Engine](https://github.com/sunitj/Colloquip/wiki/Deliberation-Engine) for configuration parameters. This document contains the complete calculation implementations and calibration guidelines.
+
 The Energy Model determines when a conversation naturally winds down. Instead of fixed round counts, we measure "conversation energy" — the vitality of ongoing discourse — and terminate when energy decays below threshold.
 
 ---

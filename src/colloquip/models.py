@@ -123,6 +123,15 @@ class EngineConfig(BaseModel):
     low_energy_rounds: int = 3
     refractory_period: int = 2
     hysteresis_threshold: int = 3
+    phase_max_tokens: Dict[str, int] = Field(
+        default_factory=lambda: {
+            "explore": 1024,
+            "debate": 1280,
+            "deepen": 1024,
+            "converge": 768,
+            "synthesis": 2048,
+        }
+    )
 
 
 class HumanIntervention(BaseModel):

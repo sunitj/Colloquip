@@ -1,5 +1,7 @@
 # Agent Prompts: Emergent Deliberation System
 
+> **Wiki**: See [Agent System](https://github.com/sunitj/Colloquip/wiki/Agent-System) for the full 10-persona roster, response length limits, red-team requirements, and recruitment. This document contains the complete prompt text for the original 6 deliberation agents + observer. The platform now ships with 10 pre-built personas (see wiki).
+
 This document contains the complete prompt specifications for all agents in the emergent deliberation system. Each agent has a core persona plus phase-dependent mandates that modulate behavior based on conversation dynamics.
 
 ---

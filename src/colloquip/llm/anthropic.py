@@ -93,7 +93,18 @@ def parse_agent_response(raw_text: str) -> LLMResult:
         novelty = 0.6
 
     # Strip the structured sections from content to get the main analysis
-    content = raw_text.strip()
+    content = raw_text
+    for pattern in [_STANCE_PATTERN, _CLAIMS_PATTERN, _QUESTIONS_PATTERN, _CONNECTIONS_PATTERN]:
+        # Remove entire matched section (header + list items)
+        content = pattern.sub("", content)
+    # Also remove standalone section headers that may remain
+    content = re.sub(
+        r"^#{1,4}\s*(Analysis|Stance|Key Claims|Questions Raised|Connections Identified)\s*$",
+        "",
+        content,
+        flags=re.MULTILINE | re.IGNORECASE,
+    )
+    content = re.sub(r"\n{3,}", "\n\n", content).strip()
 
     return LLMResult(
         content=content,
@@ -142,13 +153,14 @@ class AnthropicLLM:
         self,
         system_prompt: str,
         user_prompt: str,
+        max_tokens: Optional[int] = None,
     ) -> LLMResult:
         """Generate a structured agent response via Claude."""
         self._call_count += 1
 
         message = await self.client.messages.create(
             model=self.model,
-            max_tokens=self.max_tokens,
+            max_tokens=max_tokens or self.max_tokens,
             temperature=self.temperature,
             system=system_prompt,
             messages=[{"role": "user", "content": user_prompt}],
@@ -170,13 +182,15 @@ class AnthropicLLM:
         self,
         system_prompt: str,
         user_prompt: str,
+        max_tokens: Optional[int] = None,
     ) -> str:
         """Generate a free-form synthesis response via Claude."""
         self._call_count += 1
 
+        synthesis_tokens = max_tokens or (self.max_tokens * 2)
         message = await self.client.messages.create(
             model=self.model,
-            max_tokens=self.max_tokens * 2,  # Synthesis needs more space
+            max_tokens=synthesis_tokens,
             temperature=0.5,  # Lower temperature for synthesis
             system=system_prompt,
             messages=[{"role": "user", "content": user_prompt}],

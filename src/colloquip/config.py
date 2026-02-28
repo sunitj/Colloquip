@@ -10,20 +10,20 @@ from colloquip.models import EngineConfig
 
 
 class ObserverConfig(BaseModel):
-    hysteresis_threshold: int = Field(default=3, ge=1)
-    window_size: int = Field(default=10, ge=1)
-    min_posts_before_converge: int = 12
-    observation_frequency: float = 0.2
+    hysteresis_threshold: int = Field(default=2, ge=1)
+    window_size: int = Field(default=5, ge=1)
+    min_posts_before_converge: int = 8
+    observation_frequency: float = 0.5
 
     # Phase detection thresholds
-    explore_question_rate_min: float = 0.3
-    explore_topic_diversity_min: float = 0.6
-    debate_disagreement_rate_min: float = 0.4
-    debate_citation_density_min: float = 0.5
+    explore_question_rate_min: float = 0.25
+    explore_topic_diversity_min: float = 0.5
+    debate_disagreement_rate_min: float = 0.3
+    debate_citation_density_min: float = 0.4
     deepen_topic_diversity_max: float = 0.5
-    deepen_novelty_avg_min: float = 0.5
-    converge_energy_max: float = 0.3
-    converge_posts_since_novel_min: int = 5
+    deepen_novelty_avg_min: float = 0.4
+    converge_energy_max: float = 0.35
+    converge_posts_since_novel_min: int = 3
 
 
 class EnergyConfig(BaseModel):

@@ -21,8 +21,8 @@ class TestDefaults:
 
     def test_default_observer_config(self):
         config = ColloquipConfig()
-        assert config.observer.hysteresis_threshold == 3
-        assert config.observer.window_size == 10
+        assert config.observer.hysteresis_threshold == 2
+        assert config.observer.window_size == 5
 
     def test_default_energy_config(self):
         config = ColloquipConfig()
@@ -41,7 +41,7 @@ class TestYAMLLoading:
             engine_path=Path("config/engine.yaml"),
         )
         assert config.engine.max_turns == 30
-        assert config.observer.hysteresis_threshold == 3
+        assert config.observer.hysteresis_threshold == 2
 
     def test_load_nonexistent_uses_defaults(self):
         config = load_config(

@@ -271,12 +271,17 @@ export function useDeliberation() {
         consensus: data.consensus,
         connected: false,
         error: null,
-        thinking: false,
+        thinking: data.session.status === 'running',
       });
+
+      // Reconnect WebSocket if session is still running (enables intervention)
+      if (data.session.status === 'running') {
+        connect(data.session.id);
+      }
     } catch (err) {
       setState(s => ({ ...s, error: String(err) }));
     }
-  }, []);
+  }, [connect]);
 
   const reset = useCallback(() => {
     if (wsRef.current) {

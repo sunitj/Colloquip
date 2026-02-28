@@ -463,7 +463,8 @@ async def get_thread_agents(client: httpx.AsyncClient, thread_id: str) -> list[s
     if resp.status_code != 200:
         logger.warning("Could not fetch posts for thread %s: %s", thread_id, resp.status_code)
         return []
-    posts = resp.json()
+    data = resp.json()
+    posts = data.get("posts", data) if isinstance(data, dict) else data
     seen = set()
     agent_ids = []
     for post in posts:
@@ -661,10 +662,33 @@ async def run_seed(mode: str = "real", communities_only: bool = False, concurren
 
 
 def _detect_db_backend() -> str:
-    """Detect whether the running server uses SQLite or PostgreSQL."""
-    db_url = os.environ.get("DATABASE_URL", "sqlite+aiosqlite:///colloquip.db")
+    """Detect whether the running server uses SQLite or PostgreSQL.
+
+    Checks DATABASE_URL env var first, then probes for a running
+    Docker postgres container (common when seeding locally against
+    a Docker Compose stack).
+    """
+    db_url = os.environ.get("DATABASE_URL", "")
     if "postgresql" in db_url or "postgres" in db_url:
         return "postgres"
+    if db_url:
+        return "sqlite"
+
+    # No DATABASE_URL set — check if Docker postgres container is running
+    import subprocess
+
+    try:
+        result = subprocess.run(
+            ["docker", "compose", "ps", "--services", "--filter", "status=running"],
+            capture_output=True,
+            text=True,
+            cwd=PROJECT_ROOT,
+            timeout=5,
+        )
+        if "postgres" in result.stdout:
+            return "postgres"
+    except Exception:
+        pass
     return "sqlite"
 
 

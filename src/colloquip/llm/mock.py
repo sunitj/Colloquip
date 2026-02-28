@@ -33,6 +33,7 @@ class MockLLM:
         self,
         system_prompt: str,
         user_prompt: str,
+        max_tokens: Optional[int] = None,
     ) -> LLMResult:
         self._call_count += 1
         stance = self._pick_stance()
@@ -68,6 +69,7 @@ class MockLLM:
         self,
         system_prompt: str,
         user_prompt: str,
+        max_tokens: Optional[int] = None,
     ) -> str:
         return (
             "After thorough deliberation, the panel has reached a nuanced consensus. "

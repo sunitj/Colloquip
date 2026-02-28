@@ -166,7 +166,9 @@ MINIMAL_PERSONAS: Dict[str, str] = {
 }
 
 
-def create_default_agents(llm) -> Dict[str, BaseDeliberationAgent]:
+def create_default_agents(
+    llm, phase_max_tokens: Optional[Dict[str, int]] = None
+) -> Dict[str, BaseDeliberationAgent]:
     """Create the default set of 6 agents with minimal personas."""
     agents = {}
     for agent_id, agent_data in DEFAULT_AGENTS.items():
@@ -179,7 +181,9 @@ def create_default_agents(llm) -> Dict[str, BaseDeliberationAgent]:
             knowledge_scope=agent_data["knowledge_scope"],
             is_red_team=agent_data["is_red_team"],
         )
-        agents[agent_id] = BaseDeliberationAgent(config=config, llm=llm)
+        agents[agent_id] = BaseDeliberationAgent(
+            config=config, llm=llm, phase_max_tokens=phase_max_tokens
+        )
     return agents
 
 
@@ -203,8 +207,15 @@ async def run_deliberation(
     use_rich: bool = True,
 ) -> None:
     """Run a complete deliberation and display results."""
+    from pathlib import Path
+
+    from colloquip.config import load_config
+
+    config = load_config(engine_path=Path("config/engine.yaml"))
+    phase_max_tokens = config.engine.phase_max_tokens
+
     llm = _create_llm(mode, seed=seed, model=model)
-    agents = create_default_agents(llm)
+    agents = create_default_agents(llm, phase_max_tokens=phase_max_tokens)
     num_agents = len(agents)
 
     energy_config = EnergyConfig()

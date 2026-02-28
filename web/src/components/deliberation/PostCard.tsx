@@ -4,6 +4,7 @@ import { TRIGGER_COLORS } from '@/lib/agentColors';
 import { AgentAvatar } from '@/components/shared/AgentAvatar';
 import { StanceBadge } from '@/components/shared/StanceBadge';
 import { PhaseBadge } from '@/components/shared/PhaseBadge';
+import { MarkdownContent } from '@/components/shared/MarkdownContent';
 import { PostClaimsBlock } from './PostClaimsBlock';
 import { PostQuestionsBlock } from './PostQuestionsBlock';
 import { PostCitationsBlock } from './PostCitationsBlock';
@@ -88,9 +89,7 @@ export function PostCard({ post, members }: PostCardProps) {
 
       {/* Content */}
       <div className="mt-3 max-w-[680px]">
-        <p className="text-[15px] leading-[1.7] text-text-primary whitespace-pre-wrap">
-          {post.content}
-        </p>
+        <MarkdownContent content={post.content} />
       </div>
 
       {/* Key Claims */}

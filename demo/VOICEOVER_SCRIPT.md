@@ -1,183 +1,195 @@
-# Colloquium Demo — Voiceover Script (~3.5 minutes)
+# Colloquium — 3-Minute Competition Voiceover
 
-**Recording setup**: Playwright drives the browser. You record your screen (OBS/QuickTime/Loom) and narrate live. Speak during the pauses — the script has breathing room built in. If the browser is ahead of your narration, that's fine — the pauses will catch up.
-
-**Run command**:
-```bash
-# 1. Start backend
-uv run uvicorn colloquip.api:create_app --factory --port 8000
-
-# 2. Seed demo data (run once)
-uv run python scripts/seed_demo.py          # real mode (needs ANTHROPIC_API_KEY)
-uv run python scripts/seed_demo.py --mock   # mock mode (no keys, fast)
-
-# 3. Start recording your screen + microphone
-
-# 4. Launch Playwright (it will drive the browser)
-cd demo && npx playwright test demo-v2.spec.ts --headed
-```
+**Playwright script**: `demo-competition.spec.ts`
+**Run**: `cd demo && npm run demo:competition` (or `demo:competition:mock` for dry runs)
+**Setup**: Start OBS/Loom recording BEFORE running the Playwright script.
 
 ---
 
-## ACT 1 — THE HOOK (0:00–0:30)
-*[Screen: Home page with 5 pre-seeded communities, then into a completed thread]*
+## How to Use
 
-> Multi-agent AI today is choreographed. Agent A speaks, then B, then C, repeat. The output is predictable because the process is predictable.
+- **[ON SCREEN]** = what Playwright is showing
+- **[SPEAK]** = what to say (adapt naturally, don't read word-for-word)
+- **[CUE]** = visual cue to watch for before speaking
+- Adjust `NARRATOR_PACE` in the script if you need more breathing room
+
+---
+
+## ACT 1 — THE HOOK (0:00–0:20)
+
+**[ON SCREEN]** Home page, then into Neuropharmacology > completed thread.
+
+**[SPEAK]**
+
+> What happens when you give six AI scientists a controversial hypothesis and let them decide for themselves when to speak? No turns. No choreography. Just rules of engagement — and emergence.
+
+**[CUE]** Key Moments panel appears on right sidebar.
+
+**[SPEAK]**
+
+> This is the output. Phase transitions detected from conversation metrics. A red-team agent that fired automatically. Bridge connections across domains. None of this was scripted.
+
+**[CUE]** Consensus sections scroll into view (green/red/amber borders).
+
+**[SPEAK]**
+
+> Agreements, disagreements, and minority positions that survived intact. The system preserves dissent.
+
+---
+
+## ACT 2 — THE PLATFORM (0:20–0:40)
+
+**[ON SCREEN]** Home page cards being scanned, then agent pool, then agent profile.
+
+**[SPEAK]**
+
+> Colloquium is like a scientific Reddit — communities scoped by domain, each with its own specialist agents.
+
+**[CUE]** Agent profile page loads with persona prompt.
+
+**[SPEAK]**
+
+> Look at this persona. Not "you are a biology expert." A nuanced scientific identity — publication biases, intellectual blind spots. Opus 4.6 doesn't follow instructions. It inhabits a character.
+
+---
+
+## ACT 3 — BUILD (0:40–1:05)
+
+**[ON SCREEN]** Create Community dialog, typing "CRISPR Therapeutics."
+
+**[SPEAK]**
+
+> Let me build something new. A CRISPR therapeutics community.
+
+**[CUE]** Community page loads, Members tab flashes.
+
+**[SPEAK]**
+
+> Auto-recruited agents by expertise matching. Every community must have a red-team adversary — that's a design constraint.
+
+**[ON SCREEN]** Create Thread dialog, hypothesis being typed.
+
+**[SPEAK]**
+
+> The hypothesis: can in-vivo base editing cure sickle cell disease — in three years? That timeline is deliberately provocative. The red team will challenge it.
+
+---
+
+## ACT 4 — THE LIVE EVENT (1:05–1:50)
+
+**[ON SCREEN]** Launch button clicked, posts appearing.
+
+**[SPEAK]**
+
+> Biology agent speaks first — highest relevance score. No one told it to go first.
+
+**[CUE]** 3+ posts visible with stance badges.
+
+**[SPEAK]**
+
+> Three seed posts, three different stances. The persona prompts create genuine intellectual diversity.
+
+**[CUE]** Watch Key Moments panel and adapt:
+
+> *[Phase transition]* Phase transition! The observer detected a shift from Explore to Debate — disagreement crossed the threshold. Not scripted.
 >
-> What if instead, agents decided *for themselves* when to speak — and the conversation organized itself?
+> *[Red team fires]* Red team activated — too many agreements without challenge.
 >
-> This is Colloquium. And this [gesture at right panel] is what it produces.
+> *[Bridge connection]* Bridge — connecting concepts across two specialists' domains.
 
-*[Playwright opens a completed thread and shows Key Moments panel]*
+**[CUE]** Energy gauge visible (iteration 2).
 
-> Look at this trail — phase transitions detected from conversation metrics, a red-team agent that fired automatically when others agreed too easily, bridge connections across domains. None of this was scripted.
+**[SPEAK]**
 
-*[Playwright scrolls to consensus, then Agreements and Minority Positions]*
+> The energy bar: 0.4 novelty, 0.3 disagreement, 0.2 questions, minus 0.1 staleness. Below 0.2 for three turns, it terminates itself.
 
-> Structured consensus with preserved minority positions. And every token is metered — you can see the cost right here.
+**[CUE]** Phase Progress visible (iteration 4).
 
-*[Playwright scrolls to Cost Summary in right panel]*
+**[SPEAK]**
 
----
-
-## ACT 2 — PLATFORM TOUR (0:30–1:00)
-*[Screen: Home page showing all 5 communities, then agent pool, then community members]*
-
-> Colloquium is structured like a scientific Reddit. Five communities — Neuropharmacology, Enzyme Engineering, Immuno-Oncology, Synthetic Biology, and Microbiome Therapeutics. Each scopes deliberations by domain.
-
-*[Playwright hovers over all 5 community cards]*
-
-> [Agent pool appears] Each community recruits from a shared pool of specialist agents. Biology, chemistry, clinical, regulatory, computational — and every community must have a red-team adversary.
-
-*[Playwright shows neuropharmacology Members tab]*
-
-> This community has six agents recruited by expertise. The red-team agent exists for one reason: to challenge premature consensus. It activates *automatically* when other agents agree too easily.
-
-*[Playwright flashes microbiome community members]*
-
-> The Microbiome community — different domain, different agent roster. But notice — one of its threads overlaps with Immuno-Oncology. The system can detect cross-community connections through shared entities and embedding similarity.
+> Phase transitions detected from metrics. The system can oscillate back if new questions emerge.
 
 ---
 
-## ACT 3 — LAUNCH LIVE (1:00–1:15)
-*[Screen: Thread creation, then launch]*
+## ACT 5 — HUMAN IN THE LOOP (1:50–2:15)
 
-> Now let's watch a deliberation happen live. I'm posing a hypothesis about repurposing semaglutide — a GLP-1 diabetes drug — for Alzheimer's disease.
+**[ON SCREEN]** Typing intervention about off-target editing.
+
+**[SPEAK]**
+
+> Now I'll challenge them on off-target editing — bystander edits that could be oncogenic. Something none of them raised.
+
+**[CUE]** Send clicked, new posts appearing.
+
+**[SPEAK]**
+
+> Watch the energy gauge... The agents are pivoting independently. Clinical specialist with safety data. Red team amplifying. Biology defending. Each decided to respond via trigger matching.
+
+**[CUE]** "Energy Spike" in Key Moments.
+
+**[SPEAK]**
+
+> Energy spiked. My question injected novelty into a converging discussion.
+
+---
+
+## ACT 6 — INSTITUTIONAL MEMORY (2:15–2:35)
+
+**[ON SCREEN]** Memories page, grid then graph.
+
+**[SPEAK]**
+
+> Every deliberation produces a memory with Bayesian confidence — a Beta distribution with 120-day half-life. Old knowledge fades unless confirmed.
+
+**[CUE]** Knowledge graph appears.
+
+**[SPEAK]**
+
+> The knowledge graph. Nodes sized by confidence, colored by community. Cross-references detected automatically. Knowledge doesn't stay siloed.
+
+---
+
+## ACT 7 — THE CLOSE (2:35–3:00)
+
+**[ON SCREEN]** Home page, slow pan over community cards.
+
+**[SPEAK]**
+
+> Complex behavior from simple rules. Agents that decide when to speak. A conversation that terminates when it runs out of ideas. A red team that fires when consensus forms too quickly. Institutional memory that grows with every deliberation. And a human who can intervene at any moment.
 >
-> Six agents are about to debate this. I didn't assign turns. I didn't choreograph who speaks when. Let's see what happens.
-
-*[Playwright launches deliberation, first posts start appearing]*
-
----
-
-## ACT 4 — THE EMERGENT DANCE (1:15–2:05)
-*[Screen: Live deliberation running, posts arriving, right panel updating]*
-
-**This is the most important section. Narrate what you see on screen. These are your cue phrases — speak them when you see the corresponding event in the "Key Moments" panel on the right:**
-
-### When the first posts arrive:
-> The biology agent spoke first — it had the highest relevance score for this hypothesis. No one told it to go first.
-
-### When a phase transition appears (Key Moments: "Phase: Explore → Debate"):
-> Phase transition! The observer detected a shift to Debate. This happened because disagreement crossed the threshold — not because anyone told the system to change phases.
-
-### When red team fires (Key Moments: "Red Team: [name]"):
-> There — the red team agent just activated. Agents agreed without challenge, and the adversary fired *automatically*. That's the consensus-forming trigger.
-
-### When a bridge connection appears (Key Moments: "Bridge: [name]"):
-> Bridge trigger — this agent just connected concepts across two different specialists' domains. Novel synthesis that neither agent would have produced alone.
-
-### When you see the energy gauge declining:
-> Watch the energy bar on the right. It has a metabolism — novelty drives it up, repetition drives it down. The conversation runs out of steam naturally.
-
-### When Cost Summary updates mid-deliberation (~halfway through):
-> And every single LLM call is tracked. You can see the token count and estimated cost updating in real time.
-
-### General filler if needed:
-> Notice only [N] agents responded this round. The others stayed silent — nothing triggered them. They'll speak when they have something relevant to add.
-
----
-
-## ACT 5 — HUMAN INTERVENTION (2:05–2:30)
-*[Screen: Typing intervention into the bar, energy spike visible]*
-
-> I'm going to ask a hard question the agents haven't addressed: does semaglutide actually cross the blood-brain barrier?
-
-*[Playwright types and submits the question]*
-
-> Watch the energy gauge...
-
-*[Pause — wait for the agents to respond and energy to update]*
-
-> Energy spiked. My question injected novelty into the conversation. The agents are now responding to something none of them raised on their own. The deliberation just got new life.
-
-*[If "Human →" appears in Key Moments]*
-
-> The Key Moments panel picked it up — human intervention triggered new agent responses.
-
----
-
-## ACT 6 — PRE-SEEDED DEPTH + CROSS-COMMUNITY (2:30–3:00)
-*[Screen: Navigating to a completed enzyme engineering thread]*
-
-> While that deliberation continues, let me show you a completed one — Enzyme Engineering, debating whether PETases can degrade plastic at industrial scale.
-
-*[Playwright shows the completed thread, Key Moments, and consensus]*
-
-> Look at the Key Moments panel — every phase transition, every red-team challenge. This is the forensic trail of emergence.
-
-*[Playwright scrolls through consensus sections]*
-
-> The consensus preserves disagreement. The minority position survived the deliberation intact. That's a feature, not a bug.
-
-*[Playwright navigates to microbiome community, clicks cross-community thread]*
-
-> Now here's something powerful — this thread in the Microbiome community overlaps with Immuno-Oncology. Gut microbiome signatures as predictors of immunotherapy response. The system detects shared entities between communities' memories — cross-pollination of institutional knowledge.
-
----
-
-## ACT 7 — INSTITUTIONAL MEMORY: THE GRAPH (3:00–3:20)
-*[Screen: /memories page, grid view then graph view]*
-
-> Every completed deliberation produces a memory with Bayesian confidence — it starts from the synthesis and gets updated by human annotations and real-world outcomes.
-
-*[Playwright switches to Graph tab]*
-
-> Switch to the graph view. Each node is a memory — sized by confidence, colored by community. Edges are cross-references detected by shared entities and embedding similarity.
-
-*[Playwright sweeps mouse across graph, clicks a node]*
-
-> Click a node and you see the full memory — conclusions, confidence score, the agents who contributed. This is how institutional knowledge accumulates — not just stored, but connected.
-
-*[Playwright switches back to grid]*
-
----
-
-## ACT 8 — CLOSE (3:20–3:40)
-*[Screen: Home page with all 5 communities]*
-
-> Complex behavior from simple rules. Agents that decide when to speak. A conversation that terminates when it runs out of ideas, not when it runs out of turns. Institutional memory that grows and connects with every deliberation. Real-time cost tracking so you know what you're spending.
+> This is Colloquium — emergent scientific discourse, powered by Claude Opus 4.6.
 >
-> That's Colloquium — emergent scientific discourse, powered by Claude.
+> Not a chatbot. A deliberation engine.
 
-*[Hold on home page for 4 seconds, then stop recording]*
+*[Hold 3 seconds. Stop recording.]*
 
 ---
 
-## TIPS FOR RECORDING
+## Tips
 
-1. **Don't try to be word-perfect.** The script is a guide, not a teleprompter. Natural delivery beats precise wording.
+1. **React to emergence.** No two runs are identical — that's the feature. Call out surprising moments.
+2. **Energy gauge is your anchor.** When you're between lines, talk about the energy gauge.
+3. **Slow down for Key Moments.** Pause a beat when it lights up so viewers can see it.
+4. **Dry run first.** `npm run demo:competition:mock` for timing practice.
+5. **Post-production.** You can speed up typing sequences slightly. Don't cut deliberation pauses.
 
-2. **React to what you see.** If the red team fires early, great — call it out. If it fires late, adapt. The emergent moments are real and unpredictable.
+---
 
-3. **Slow down for the "aha" moments.** When the Key Moments panel lights up, pause your narration for a beat so viewers can see it. Then explain what just happened.
+## Key Phrases by Judging Criterion
 
-4. **Don't panic if timing is off.** The Playwright pauses are generous. If the deliberation runs slow (real LLM mode), the script waits. You may need to stretch or compress your narration.
+### Impact (25%)
+- "Preserves dissent, not just consensus"
+- "Knowledge doesn't stay siloed"
+- "Curative gene therapy accessible in resource-limited settings"
 
-5. **Do a dry run with `--mock` first.** Run the whole thing once in mock mode to practice timing. Then do the real recording in real LLM mode for authentic content.
+### Opus 4.6 Use (25%)
+- "Inhabits a character"
+- "Decided independently via trigger matching"
+- "None of this was scripted"
+- "Inverted trigger rules for the adversary"
 
-6. **Energy gauge is your visual anchor.** When you don't know what to say, talk about the energy gauge — it's always changing and always meaningful.
-
-7. **The graph view is your closer.** The memory graph is visually striking — let it speak for itself for a moment before narrating over it.
-
-8. **Cost summary is a credibility signal.** Judges care about cost awareness. Mention it at least once during the live deliberation and once on the completed thread.
+### Depth & Execution (20%)
+- "0.4 novelty + 0.3 disagreement + 0.2 questions - 0.1 staleness"
+- "Below 0.2 for three turns, terminates itself"
+- "Bayesian confidence with 120-day half-life"
+- "Every community must have a red team"
