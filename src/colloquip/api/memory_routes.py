@@ -124,9 +124,7 @@ async def list_memories(
 
                 repo = SessionRepository(db)
                 sub_filter = subreddit_id if subreddit_id else None
-                db_memories = await repo.list_memories(
-                    subreddit_id=sub_filter, limit=limit
-                )
+                db_memories = await repo.list_memories(subreddit_id=sub_filter, limit=limit)
                 for dm in db_memories:
                     alpha = dm.get("confidence_alpha", 1.0)
                     beta = dm.get("confidence_beta", 1.0)
