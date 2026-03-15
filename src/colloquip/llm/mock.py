@@ -2,9 +2,9 @@
 
 import random
 from enum import Enum
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
-from colloquip.llm.interface import LLMResult
+from colloquip.llm.interface import LLMResult, ToolExecutor, ToolInvocation
 from colloquip.models import AgentStance
 
 
@@ -24,16 +24,20 @@ class MockLLM:
         self,
         behavior: MockBehavior = MockBehavior.MIXED,
         seed: Optional[int] = None,
+        tool_use_probability: float = 0.3,
     ):
         self.behavior = behavior
         self.rng = random.Random(seed)
         self._call_count = 0
+        self._tool_use_probability = tool_use_probability
 
     async def generate(
         self,
         system_prompt: str,
         user_prompt: str,
         max_tokens: Optional[int] = None,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        tool_executor: Optional[ToolExecutor] = None,
     ) -> LLMResult:
         self._call_count += 1
         stance = self._pick_stance()
@@ -43,7 +47,32 @@ class MockLLM:
         agent_name = self._extract_agent_name(system_prompt)
         phase = self._extract_phase(system_prompt)
 
-        content = self._generate_content(agent_name, phase, stance)
+        # Simulate tool usage if tools are available
+        tool_invocations: List[ToolInvocation] = []
+        tool_context = ""
+        if tools and tool_executor and self.rng.random() < self._tool_use_probability:
+            # Pick a random tool to "invoke"
+            tool = self.rng.choice(tools)
+            tool_name = tool.get("name", "unknown_tool")
+            mock_input = self._build_mock_tool_input(tool)
+            try:
+                result = await tool_executor(tool_name, mock_input)
+                tool_invocations.append(
+                    ToolInvocation(
+                        tool_name=tool_name,
+                        tool_input=mock_input,
+                        tool_result=result,
+                        duration_ms=0.1,
+                    )
+                )
+                tool_context = (
+                    f" After consulting {tool_name}, the data confirms "
+                    f"the analysis with additional evidence."
+                )
+            except Exception:
+                pass  # Tool failed in mock — skip
+
+        content = self._generate_content(agent_name, phase, stance) + tool_context
         claims = self._generate_claims(agent_name, stance)
         questions = self._generate_questions(agent_name)
         connections = self._generate_connections(agent_name, novelty)
@@ -63,6 +92,7 @@ class MockLLM:
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             citations=citations,
+            tool_invocations=tool_invocations,
         )
 
     async def generate_synthesis(
@@ -207,3 +237,20 @@ class MockLLM:
                 }
             )
         return citations
+
+    def _build_mock_tool_input(self, tool_schema: Dict[str, Any]) -> Dict[str, Any]:
+        """Build mock input for a tool based on its schema."""
+        props = tool_schema.get("input_schema", {}).get("properties", {})
+        required = tool_schema.get("input_schema", {}).get("required", [])
+        mock_input: Dict[str, Any] = {}
+        for name, spec in props.items():
+            if name not in required:
+                continue
+            ptype = spec.get("type", "string")
+            if ptype == "string":
+                mock_input[name] = f"mock_{name}_query"
+            elif ptype == "integer":
+                mock_input[name] = spec.get("default", 5)
+            elif ptype == "boolean":
+                mock_input[name] = True
+        return mock_input

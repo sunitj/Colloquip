@@ -17,6 +17,7 @@ from colloquip.api.app import SessionManager, create_session_manager
 from colloquip.api.export_routes import router as export_router
 from colloquip.api.external_routes import router as external_router
 from colloquip.api.feedback_routes import router as feedback_router
+from colloquip.api.job_routes import router as job_router
 from colloquip.api.memory_routes import router as memory_router
 from colloquip.api.platform_routes import router as platform_router
 from colloquip.api.routes import router
@@ -74,6 +75,7 @@ def create_app(
     app.include_router(export_router)
     app.include_router(external_router)
     app.include_router(feedback_router)
+    app.include_router(job_router)
 
     # Platform manager (auto-initialize on startup)
     from colloquip.api.platform_manager import PlatformManager

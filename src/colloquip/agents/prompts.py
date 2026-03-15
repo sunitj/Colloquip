@@ -407,6 +407,8 @@ def build_v3_system_prompt(
         if isinstance(tool_descriptions, list):
             tool_descriptions = "\n".join(f"- {d}" for d in tool_descriptions)
         parts.append(_V3_TOOL_INSTRUCTIONS.format(tool_descriptions=tool_descriptions))
+        # Include job proposal instructions when tools are available
+        parts.append(_JOB_PROPOSAL_INSTRUCTIONS)
 
     parts.append(_V2_RESPONSE_GUIDELINES)
 
@@ -472,6 +474,34 @@ def build_memory_context(retrieved_memories: "RetrievedMemories") -> str:
         return ""
 
     return retrieved_memories.format_for_prompt()
+
+
+_JOB_PROPOSAL_INSTRUCTIONS = """
+## Computational Pipeline Proposals
+
+You can propose computational jobs to be run. When you believe a specific
+computational analysis would advance the deliberation, include a structured
+proposal in your response:
+
+### Pipeline Proposal
+- **Pipeline**: [Name of the pipeline]
+- **Processes**: [List the Nextflow processes from the library to chain]
+- **Input Data**: [What data should be provided]
+- **Rationale**: [Why this analysis is needed for the deliberation]
+- **Expected Output**: [What results would be informative]
+
+Proposals will be reviewed before execution. When job results arrive,
+they will be posted as new data in the thread for further discussion.
+
+Available process categories:
+- structure_prediction (AlphaFold2, ESMFold, RoseTTAFold)
+- sequence_alignment (ColabFold MSA, MMseqs2)
+- structure_search (FoldSeek)
+- protein_design (ProteinMPNN)
+- structure_refinement (Rosetta Relax)
+- simulation (Molecular Dynamics / OpenMM)
+- analysis (Binding Affinity, Docking)
+""".strip()
 
 
 def build_subreddit_context(

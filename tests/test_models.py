@@ -132,5 +132,6 @@ class TestEngineConfig:
 
 class TestEnergySource:
     def test_all_sources(self):
-        assert len(EnergySource) == 4
+        assert len(EnergySource) == 5
         assert EnergySource.HUMAN_INTERVENTION == "human_intervention"
+        assert EnergySource.JOB_RESULT == "job_result"

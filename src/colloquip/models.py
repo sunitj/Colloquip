@@ -28,6 +28,7 @@ class EnergySource(str, Enum):
     HUMAN_INTERVENTION = "human_intervention"
     NOVEL_POST = "novel_post"
     RED_TEAM_CHALLENGE = "red_team_challenge"
+    JOB_RESULT = "job_result"
 
 
 class SessionStatus(str, Enum):
@@ -58,6 +59,7 @@ class Post(BaseModel):
     novelty_score: float = Field(default=0.0, ge=0.0, le=1.0)
     phase: Phase
     triggered_by: List[str] = Field(default_factory=list)
+    tool_invocations: List[Dict[str, Any]] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -589,6 +591,180 @@ class Notification(BaseModel):
     thread_id: Optional[UUID] = None  # If a thread was created from this
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     acted_at: Optional[datetime] = None
+
+
+# ---------------------------------------------------------------------------
+# Phase 6: Jobs, Pipelines, and Agent Tool Integration
+# ---------------------------------------------------------------------------
+
+
+class JobStatus(str, Enum):
+    """Lifecycle status of a computational job."""
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    SUBMITTED = "submitted"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class ComputeBackend(str, Enum):
+    """Available compute backends for job execution."""
+
+    LOCAL = "local"
+    AWS_BATCH = "aws_batch"
+    SPARK = "spark"
+
+
+class ActionProposalStatus(str, Enum):
+    """Status of an agent's action proposal."""
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    EXPIRED = "expired"
+
+
+class ChannelSpec(BaseModel):
+    """Specification for a Nextflow process input/output channel."""
+
+    name: str
+    data_type: str  # "fasta", "pdb", "csv", "params", etc.
+    description: str = ""
+    optional: bool = False
+
+
+class ParamSpec(BaseModel):
+    """Specification for a Nextflow process parameter."""
+
+    name: str
+    param_type: str = "string"  # "string", "integer", "float", "boolean", "path"
+    description: str = ""
+    default: Optional[Any] = None
+    required: bool = True
+
+
+class ResourceSpec(BaseModel):
+    """Resource requirements for a Nextflow process."""
+
+    cpus: int = 1
+    memory_gb: float = 4.0
+    gpu: bool = False
+    estimated_runtime_minutes: int = 30
+
+
+class NextflowProcess(BaseModel):
+    """A pre-built Nextflow process in the library."""
+
+    process_id: str
+    name: str
+    description: str = ""
+    category: str = ""  # "structure_prediction", "sequence_alignment", etc.
+    input_channels: List[ChannelSpec] = Field(default_factory=list)
+    output_channels: List[ChannelSpec] = Field(default_factory=list)
+    parameters: List[ParamSpec] = Field(default_factory=list)
+    container: str = ""
+    resource_requirements: ResourceSpec = Field(default_factory=ResourceSpec)
+    version: str = "1.0.0"
+
+
+class PipelineStep(BaseModel):
+    """A single step in a composed pipeline."""
+
+    process_id: str
+    step_name: str
+    input_mappings: Dict[str, str] = Field(default_factory=dict)
+    parameter_overrides: Dict[str, Any] = Field(default_factory=dict)
+
+
+class PipelineDefinition(BaseModel):
+    """A composed pipeline from library processes."""
+
+    id: UUID = Field(default_factory=uuid4)
+    name: str
+    description: str = ""
+    steps: List[PipelineStep] = Field(default_factory=list)
+    parameters: Dict[str, Any] = Field(default_factory=dict)
+
+
+class JobArtifact(BaseModel):
+    """An output artifact from a completed job."""
+
+    name: str
+    artifact_type: str = ""  # "pdb", "csv", "plot", "log"
+    path: str = ""  # S3 URI or local path
+    size_bytes: int = 0
+    description: str = ""
+
+
+class Job(BaseModel):
+    """A computational job submitted for execution."""
+
+    id: UUID = Field(default_factory=uuid4)
+    session_id: UUID
+    thread_id: Optional[UUID] = None
+    agent_id: str
+    pipeline: PipelineDefinition
+    compute_backend: ComputeBackend = ComputeBackend.LOCAL
+    compute_profile: str = "standard"
+    status: JobStatus = JobStatus.PENDING
+    nextflow_run_id: Optional[str] = None
+    result_summary: Optional[str] = None
+    result_artifacts: List[JobArtifact] = Field(default_factory=list)
+    error_message: Optional[str] = None
+    submitted_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class ActionProposal(BaseModel):
+    """Structured action proposal from an agent requiring approval."""
+
+    id: UUID = Field(default_factory=uuid4)
+    session_id: UUID
+    thread_id: Optional[UUID] = None
+    agent_id: str
+    action_type: str = "launch_pipeline"  # "launch_pipeline", "query_large_dataset"
+    description: str = ""
+    rationale: str = ""
+    proposed_pipeline: Optional[PipelineDefinition] = None
+    proposed_params: Dict[str, Any] = Field(default_factory=dict)
+    status: ActionProposalStatus = ActionProposalStatus.PENDING
+    reviewed_by: Optional[str] = None
+    review_note: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    reviewed_at: Optional[datetime] = None
+
+
+class DataConnection(BaseModel):
+    """A user-configured database connection for agent queries."""
+
+    id: UUID = Field(default_factory=uuid4)
+    subreddit_id: UUID
+    name: str
+    description: str = ""
+    db_type: str = "postgresql"  # "postgresql", "mysql", "sqlite"
+    connection_string: str = ""  # Encrypted in production
+    read_only: bool = True
+    enabled: bool = True
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class JobsConfig(BaseModel):
+    """Configuration for the jobs subsystem."""
+
+    enabled: bool = True
+    auto_approve: bool = False
+    max_concurrent_jobs: int = 3
+    default_compute_backend: ComputeBackend = ComputeBackend.LOCAL
+    available_backends: List[ComputeBackend] = Field(default_factory=lambda: [ComputeBackend.LOCAL])
+    nextflow_config_path: str = "./nextflow.config"
+    process_library_path: str = "./config/nf_processes.yaml"
+    work_dir: str = "./work"
+    result_retention_days: int = 30
+    energy_injection_on_result: float = 0.3
 
 
 # Resolve forward references for models that use them

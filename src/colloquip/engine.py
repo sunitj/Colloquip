@@ -308,6 +308,8 @@ class EmergentDeliberationEngine:
         try:
             post = await agent.generate_post(deps)
             post.triggered_by = rules
+            # Attach tool invocation data from the agent's last generation
+            post.tool_invocations = getattr(agent, "last_tool_invocations", [])
             self._record_cost(agent)
 
             from colloquip.metrics import (

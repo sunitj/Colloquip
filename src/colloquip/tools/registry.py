@@ -23,6 +23,18 @@ class ToolRegistry:
     def _register_defaults(self):
         """Register the built-in tool types."""
         from colloquip.tools.company_docs import CompanyDocsTool, MockCompanyDocsTool
+        from colloquip.tools.database_query import DatabaseQueryTool, MockDatabaseQueryTool
+        from colloquip.tools.domain_databases import (
+            MockPDBTool,
+            MockUniProtTool,
+            PDBTool,
+            UniProtTool,
+        )
+        from colloquip.tools.nextflow_tool import (
+            JobStatusTool,
+            MockJobStatusTool,
+            NextflowProcessLibraryTool,
+        )
         from colloquip.tools.pubmed import MockPubMedTool, PubMedTool
         from colloquip.tools.web_search import MockWebSearchTool, WebSearchTool
 
@@ -37,6 +49,26 @@ class ToolRegistry:
         self._tool_factories["web_search"] = {
             "real": WebSearchTool,
             "mock": MockWebSearchTool,
+        }
+        self._tool_factories["database_query"] = {
+            "real": DatabaseQueryTool,
+            "mock": MockDatabaseQueryTool,
+        }
+        self._tool_factories["pdb_search"] = {
+            "real": PDBTool,
+            "mock": MockPDBTool,
+        }
+        self._tool_factories["uniprot_search"] = {
+            "real": UniProtTool,
+            "mock": MockUniProtTool,
+        }
+        self._tool_factories["nf_process_library"] = {
+            "real": NextflowProcessLibraryTool,
+            "mock": NextflowProcessLibraryTool,  # Same impl, uses catalog data
+        }
+        self._tool_factories["job_status"] = {
+            "real": JobStatusTool,
+            "mock": MockJobStatusTool,
         }
 
     def register_tool(

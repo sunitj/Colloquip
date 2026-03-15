@@ -56,6 +56,7 @@ class EnergyConfig(BaseModel):
             "human_intervention": 0.4,
             "novel_post": 0.2,
             "red_team_challenge": 0.15,
+            "job_result": 0.3,
         }
     )
 

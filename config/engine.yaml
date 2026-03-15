@@ -70,3 +70,19 @@ triggers:
   red_team_consensus_threshold: 3
   red_team_criticism_gap: 3
   red_team_min_debate_posts: 15
+
+jobs:
+  enabled: true
+  auto_approve: false
+  max_concurrent_jobs: 3
+  default_compute_backend: local
+  available_backends:
+    - local
+    - aws_batch
+  nextflow_config_path: ./nextflow.config
+  process_library_path: ./config/nf_processes.yaml
+  work_dir: ./work
+  result_retention_days: 30
+  poll_interval_seconds: 30
+  energy_injection:
+    job_result: 0.3

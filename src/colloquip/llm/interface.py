@@ -1,8 +1,23 @@
 """LLM interface protocol for the deliberation system."""
 
-from typing import List, Optional, Protocol, runtime_checkable
+from typing import Any, Callable, Coroutine, Dict, List, Optional, Protocol, runtime_checkable
+
+from pydantic import BaseModel, Field
 
 from colloquip.models import AgentStance
+
+
+class ToolInvocation(BaseModel):
+    """Record of a tool call made during LLM generation."""
+
+    tool_name: str
+    tool_input: Dict[str, Any] = Field(default_factory=dict)
+    tool_result: Dict[str, Any] = Field(default_factory=dict)
+    duration_ms: float = 0.0
+
+
+# Type alias for the async callable that executes tool calls
+ToolExecutor = Callable[[str, Dict[str, Any]], Coroutine[Any, Any, Dict[str, Any]]]
 
 
 @runtime_checkable
@@ -31,6 +46,7 @@ class LLMResult:
         input_tokens: int = 0,
         output_tokens: int = 0,
         citations: Optional[List[dict]] = None,
+        tool_invocations: Optional[List[ToolInvocation]] = None,
     ):
         self.content = content
         self.stance = stance
@@ -41,6 +57,7 @@ class LLMResult:
         self.input_tokens = input_tokens
         self.output_tokens = output_tokens
         self.citations = citations or []
+        self.tool_invocations = tool_invocations or []
 
 
 @runtime_checkable
@@ -52,8 +69,19 @@ class LLMInterface(Protocol):
         system_prompt: str,
         user_prompt: str,
         max_tokens: Optional[int] = None,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        tool_executor: Optional[ToolExecutor] = None,
     ) -> LLMResult:
-        """Generate a structured response from the LLM."""
+        """Generate a structured response from the LLM.
+
+        Args:
+            system_prompt: System prompt for the LLM.
+            user_prompt: User prompt for the LLM.
+            max_tokens: Maximum tokens to generate.
+            tools: List of Claude API tool schemas.
+            tool_executor: Async callable to execute tool calls.
+                           Signature: (tool_name, tool_input) -> result_dict
+        """
         ...
 
     async def generate_synthesis(

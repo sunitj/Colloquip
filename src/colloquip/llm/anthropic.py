@@ -2,9 +2,10 @@
 
 import logging
 import re
-from typing import List, Optional
+import time
+from typing import Any, Dict, List, Optional
 
-from colloquip.llm.interface import LLMResult
+from colloquip.llm.interface import LLMResult, ToolExecutor, ToolInvocation
 from colloquip.models import AgentStance
 
 logger = logging.getLogger(__name__)
@@ -154,28 +155,111 @@ class AnthropicLLM:
         system_prompt: str,
         user_prompt: str,
         max_tokens: Optional[int] = None,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        tool_executor: Optional[ToolExecutor] = None,
     ) -> LLMResult:
-        """Generate a structured agent response via Claude."""
+        """Generate a structured agent response via Claude.
+
+        When tools are provided, handles the tool_use loop: if Claude responds
+        with tool_use blocks, executes them via tool_executor and feeds results
+        back until a final text response is produced.
+        """
         self._call_count += 1
 
-        message = await self.client.messages.create(
-            model=self.model,
-            max_tokens=max_tokens or self.max_tokens,
-            temperature=self.temperature,
-            system=system_prompt,
-            messages=[{"role": "user", "content": user_prompt}],
+        messages: List[Dict[str, Any]] = [{"role": "user", "content": user_prompt}]
+        total_input = 0
+        total_output = 0
+        tool_invocations: List[ToolInvocation] = []
+        max_tool_rounds = 10  # Safety limit
+
+        for _round in range(max_tool_rounds):
+            kwargs: Dict[str, Any] = {
+                "model": self.model,
+                "max_tokens": max_tokens or self.max_tokens,
+                "temperature": self.temperature,
+                "system": system_prompt,
+                "messages": messages,
+            }
+            if tools:
+                kwargs["tools"] = tools
+
+            message = await self.client.messages.create(**kwargs)
+
+            total_input += message.usage.input_tokens
+            total_output += message.usage.output_tokens
+
+            if not message.content:
+                raise ValueError("LLM returned empty content (possibly filtered or rate-limited)")
+
+            # Check for tool_use blocks
+            tool_use_blocks = [b for b in message.content if getattr(b, "type", None) == "tool_use"]
+
+            if not tool_use_blocks or not tool_executor:
+                # Final response — extract text and return
+                text_parts = [b.text for b in message.content if getattr(b, "type", None) == "text"]
+                raw_text = "\n".join(text_parts) if text_parts else ""
+                if not raw_text:
+                    raise ValueError("LLM returned no text content in final response")
+
+                self._total_input_tokens += total_input
+                self._total_output_tokens += total_output
+
+                result = parse_agent_response(raw_text)
+                result.input_tokens = total_input
+                result.output_tokens = total_output
+                result.tool_invocations = tool_invocations
+                return result
+
+            # Execute tool calls and build follow-up messages
+            # Add assistant message with all content blocks
+            messages.append({"role": "assistant", "content": message.content})
+
+            tool_results_content = []
+            for block in tool_use_blocks:
+                tool_name = block.name
+                tool_input = block.input
+                tool_id = block.id
+
+                start_time = time.monotonic()
+                try:
+                    tool_result = await tool_executor(tool_name, tool_input)
+                except Exception as e:
+                    logger.error("Tool execution failed for %s: %s", tool_name, e)
+                    tool_result = {"error": str(e)}
+                elapsed_ms = (time.monotonic() - start_time) * 1000
+
+                tool_invocations.append(
+                    ToolInvocation(
+                        tool_name=tool_name,
+                        tool_input=tool_input,
+                        tool_result=tool_result,
+                        duration_ms=elapsed_ms,
+                    )
+                )
+
+                import json
+
+                tool_results_content.append(
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": tool_id,
+                        "content": json.dumps(tool_result),
+                    }
+                )
+
+            messages.append({"role": "user", "content": tool_results_content})
+
+        # Exhausted max rounds — return what we have
+        logger.warning("Tool use loop hit max rounds (%d)", max_tool_rounds)
+        self._total_input_tokens += total_input
+        self._total_output_tokens += total_output
+        result = LLMResult(
+            content="[Agent reached maximum tool invocation rounds]",
+            stance=AgentStance.NEUTRAL,
+            input_tokens=total_input,
+            output_tokens=total_output,
+            tool_invocations=tool_invocations,
         )
-
-        # Track token usage
-        self._total_input_tokens += message.usage.input_tokens
-        self._total_output_tokens += message.usage.output_tokens
-
-        if not message.content:
-            raise ValueError("LLM returned empty content (possibly filtered or rate-limited)")
-        raw_text = message.content[0].text
-        result = parse_agent_response(raw_text)
-        result.input_tokens = message.usage.input_tokens
-        result.output_tokens = message.usage.output_tokens
         return result
 
     async def generate_synthesis(

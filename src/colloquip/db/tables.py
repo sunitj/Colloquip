@@ -92,6 +92,7 @@ class DBPost(Base):
     novelty_score = Column(Float, nullable=False, default=0.0)
     phase = Column(String(20), nullable=False)
     triggered_by = Column(JSON, nullable=False, default=list)
+    tool_invocations = Column(JSON, nullable=False, default=list)
     created_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
 
     session = relationship("DBSession", back_populates="posts")
@@ -434,4 +435,101 @@ class DBOutcomeReport(Base):
     conclusions_evaluated = Column(JSON, nullable=False, default=list)
     agent_assessments = Column(JSON, nullable=False, default=dict)
     reported_by = Column(String(100), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+
+
+# ---------------------------------------------------------------------------
+# Phase 6: Jobs, Pipelines, and Agent Tool Integration
+# ---------------------------------------------------------------------------
+
+
+class DBNextflowProcess(Base):
+    """nextflow_processes table — catalog of pre-built NF processes."""
+
+    __tablename__ = "nextflow_processes"
+    __table_args__ = (Index("idx_nfproc_category", "category"),)
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    process_id = Column(String(100), unique=True, nullable=False)
+    name = Column(String(200), nullable=False)
+    description = Column(Text, nullable=False, default="")
+    category = Column(String(100), nullable=False, default="")
+    input_channels = Column(JSON, nullable=False, default=list)
+    output_channels = Column(JSON, nullable=False, default=list)
+    parameters = Column(JSON, nullable=False, default=list)
+    container = Column(String(500), nullable=False, default="")
+    resource_requirements = Column(JSON, nullable=False, default=dict)
+    version = Column(String(50), nullable=False, default="1.0.0")
+    created_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow, onupdate=_utcnow)
+
+
+class DBJob(Base):
+    """jobs table — computational job execution tracking."""
+
+    __tablename__ = "jobs"
+    __table_args__ = (
+        Index("idx_job_session", "session_id"),
+        Index("idx_job_status", "status"),
+        Index("idx_job_thread", "thread_id"),
+    )
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    session_id = Column(String(36), ForeignKey("deliberation_sessions.id"), nullable=False)
+    thread_id = Column(String(36), nullable=True)
+    agent_id = Column(String(50), nullable=False)
+    pipeline = Column(JSON, nullable=False, default=dict)
+    compute_backend = Column(String(20), nullable=False, default="local")
+    compute_profile = Column(String(100), nullable=False, default="standard")
+    status = Column(String(20), nullable=False, default="pending")
+    nextflow_run_id = Column(String(200), nullable=True)
+    result_summary = Column(Text, nullable=True)
+    result_artifacts = Column(JSON, nullable=False, default=list)
+    error_message = Column(Text, nullable=True)
+    submitted_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+
+    session = relationship("DBSession")
+
+
+class DBActionProposal(Base):
+    """action_proposals table — agent proposals requiring human approval."""
+
+    __tablename__ = "action_proposals"
+    __table_args__ = (
+        Index("idx_proposal_session", "session_id"),
+        Index("idx_proposal_status", "status"),
+    )
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    session_id = Column(String(36), ForeignKey("deliberation_sessions.id"), nullable=False)
+    thread_id = Column(String(36), nullable=True)
+    agent_id = Column(String(50), nullable=False)
+    action_type = Column(String(50), nullable=False, default="launch_pipeline")
+    description = Column(Text, nullable=False, default="")
+    rationale = Column(Text, nullable=False, default="")
+    proposed_pipeline = Column(JSON, nullable=True)
+    proposed_params = Column(JSON, nullable=False, default=dict)
+    status = Column(String(20), nullable=False, default="pending")
+    reviewed_by = Column(String(100), nullable=True)
+    review_note = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+    reviewed_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class DBDataConnection(Base):
+    """data_connections table — user-configured database connections."""
+
+    __tablename__ = "data_connections"
+    __table_args__ = (Index("idx_dataconn_subreddit", "subreddit_id"),)
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    subreddit_id = Column(String(36), ForeignKey("subreddits.id"), nullable=False)
+    name = Column(String(200), nullable=False)
+    description = Column(Text, nullable=False, default="")
+    db_type = Column(String(20), nullable=False, default="postgresql")
+    connection_string = Column(Text, nullable=False, default="")
+    read_only = Column(Boolean, nullable=False, default=True)
+    enabled = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)

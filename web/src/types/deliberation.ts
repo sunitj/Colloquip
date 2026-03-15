@@ -11,6 +11,13 @@ export interface Citation {
   relevance: number;
 }
 
+export interface ToolInvocation {
+  tool_name: string;
+  tool_input: Record<string, unknown>;
+  tool_result: Record<string, unknown>;
+  duration_ms: number;
+}
+
 export interface Post {
   id: string;
   session_id: string;
@@ -24,6 +31,7 @@ export interface Post {
   novelty_score: number;
   phase: Phase;
   triggered_by: string[];
+  tool_invocations: ToolInvocation[];
   created_at: string;
 }
 

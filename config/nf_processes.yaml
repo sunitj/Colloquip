@@ -1,0 +1,454 @@
+# Nextflow Process Library for Colloquip
+# Pre-built processes that agents can compose into pipelines
+
+processes:
+  - process_id: alphafold2
+    name: AlphaFold2 Structure Prediction
+    description: >
+      Predict protein 3D structure from amino acid sequence using AlphaFold2.
+      Produces PDB files with per-residue confidence scores (pLDDT) and
+      predicted aligned error (PAE) matrices.
+    category: structure_prediction
+    input_channels:
+      - name: sequences
+        data_type: fasta
+        description: Input protein sequences in FASTA format
+    output_channels:
+      - name: structures
+        data_type: pdb
+        description: Predicted structures with confidence scores
+      - name: scores
+        data_type: csv
+        description: Per-residue pLDDT and PAE scores
+    parameters:
+      - name: model_preset
+        param_type: string
+        default: monomer
+        description: "Prediction mode: monomer, multimer, or monomer_casp14"
+        required: false
+      - name: max_template_date
+        param_type: string
+        default: "2024-01-01"
+        description: Maximum template date for structure search
+        required: false
+      - name: db_preset
+        param_type: string
+        default: full_dbs
+        description: "Database preset: full_dbs or reduced_dbs"
+        required: false
+    container: "ghcr.io/alphafold/alphafold:2.3.2"
+    resource_requirements:
+      cpus: 8
+      memory_gb: 64
+      gpu: true
+      estimated_runtime_minutes: 120
+    version: "2.3.2"
+
+  - process_id: esmfold
+    name: ESMFold Fast Structure Prediction
+    description: >
+      Fast single-sequence structure prediction using ESMFold.
+      No MSA required - predicts directly from sequence using the ESM-2
+      language model. Much faster than AlphaFold but may be less accurate
+      for some targets.
+    category: structure_prediction
+    input_channels:
+      - name: sequences
+        data_type: fasta
+        description: Input protein sequences
+    output_channels:
+      - name: structures
+        data_type: pdb
+        description: Predicted structures
+      - name: confidence
+        data_type: csv
+        description: Per-residue pLDDT confidence scores
+    parameters:
+      - name: chunk_size
+        param_type: integer
+        default: 64
+        description: Chunk size for long sequences
+        required: false
+    container: "ghcr.io/facebookresearch/esm:2.0"
+    resource_requirements:
+      cpus: 4
+      memory_gb: 16
+      gpu: true
+      estimated_runtime_minutes: 15
+    version: "2.0.0"
+
+  - process_id: rosettafold
+    name: RoseTTAFold Structure Prediction
+    description: >
+      Three-track neural network for protein structure prediction.
+      Uses 1D sequence, 2D distance map, and 3D coordinate tracks
+      simultaneously. Good alternative to AlphaFold.
+    category: structure_prediction
+    input_channels:
+      - name: sequences
+        data_type: fasta
+        description: Input protein sequences
+      - name: msa
+        data_type: a3m
+        description: Pre-computed MSA (optional - will generate if missing)
+        optional: true
+    output_channels:
+      - name: structures
+        data_type: pdb
+        description: Predicted protein structures
+      - name: scores
+        data_type: csv
+        description: Confidence scores and model quality metrics
+    parameters:
+      - name: n_models
+        param_type: integer
+        default: 5
+        description: Number of models to generate
+        required: false
+    container: "ghcr.io/rosettafold/rosettafold:1.1"
+    resource_requirements:
+      cpus: 8
+      memory_gb: 32
+      gpu: true
+      estimated_runtime_minutes: 90
+    version: "1.1.0"
+
+  - process_id: colabfold_msa
+    name: ColabFold MSA Generation
+    description: >
+      Generate multiple sequence alignments using MMseqs2 via ColabFold.
+      Fast MSA generation without requiring large local databases.
+    category: sequence_alignment
+    input_channels:
+      - name: sequences
+        data_type: fasta
+        description: Query sequences
+    output_channels:
+      - name: msa
+        data_type: a3m
+        description: Multiple sequence alignment in A3M format
+      - name: templates
+        data_type: pdb
+        description: Template structures found during search
+        optional: true
+    parameters:
+      - name: msa_mode
+        param_type: string
+        default: mmseqs2_uniref_env
+        description: "MSA mode: mmseqs2_uniref_env or mmseqs2_uniref"
+        required: false
+      - name: pair_mode
+        param_type: string
+        default: unpaired_paired
+        description: "Pairing mode for multimer: unpaired, paired, unpaired_paired"
+        required: false
+    container: "ghcr.io/sokrypton/colabfold:1.5"
+    resource_requirements:
+      cpus: 4
+      memory_gb: 16
+      gpu: false
+      estimated_runtime_minutes: 20
+    version: "1.5.5"
+
+  - process_id: mmseqs2_search
+    name: MMseqs2 Sequence Search
+    description: >
+      Ultra-fast sequence search against large protein databases.
+      10,000x faster than BLAST with comparable sensitivity.
+      Useful for finding homologs and building custom databases.
+    category: sequence_alignment
+    input_channels:
+      - name: query
+        data_type: fasta
+        description: Query sequences
+      - name: target_db
+        data_type: mmseqs_db
+        description: Target database (MMseqs2 format)
+        optional: true
+    output_channels:
+      - name: hits
+        data_type: tsv
+        description: Search hits with E-values, scores, and alignments
+      - name: alignments
+        data_type: a3m
+        description: Aligned sequences in A3M format
+    parameters:
+      - name: sensitivity
+        param_type: float
+        default: 7.5
+        description: "Sensitivity (1-8, higher = more sensitive but slower)"
+        required: false
+      - name: max_seqs
+        param_type: integer
+        default: 1000
+        description: Maximum number of sequences to report
+        required: false
+      - name: evalue
+        param_type: float
+        default: 0.001
+        description: E-value threshold
+        required: false
+    container: "ghcr.io/soedinglab/mmseqs2:15"
+    resource_requirements:
+      cpus: 8
+      memory_gb: 32
+      gpu: false
+      estimated_runtime_minutes: 10
+    version: "15.6f452"
+
+  - process_id: foldseek
+    name: FoldSeek Structure Search
+    description: >
+      Search protein structures against structural databases.
+      Uses 3D structure alignment to find structurally similar proteins
+      regardless of sequence similarity. Essential for finding remote
+      homologs and analyzing structural conservation.
+    category: structure_search
+    input_channels:
+      - name: query_structures
+        data_type: pdb
+        description: Query protein structures
+    output_channels:
+      - name: hits
+        data_type: tsv
+        description: Structural search hits with TM-scores and alignments
+      - name: alignments
+        data_type: pdb
+        description: Structural alignments of top hits
+    parameters:
+      - name: database
+        param_type: string
+        default: afdb50
+        description: "Target database: afdb50, pdb100, or custom path"
+        required: false
+      - name: tmscore_threshold
+        param_type: float
+        default: 0.5
+        description: Minimum TM-score threshold
+        required: false
+    container: "ghcr.io/steineggerlab/foldseek:9"
+    resource_requirements:
+      cpus: 4
+      memory_gb: 16
+      gpu: false
+      estimated_runtime_minutes: 15
+    version: "9.427df8a"
+
+  - process_id: protein_mpnn
+    name: ProteinMPNN Sequence Design
+    description: >
+      Design protein sequences that fold into a target 3D structure.
+      Uses a message passing neural network to predict amino acid
+      sequences compatible with a given backbone structure. Essential
+      for protein engineering and de novo design.
+    category: protein_design
+    input_channels:
+      - name: structures
+        data_type: pdb
+        description: Target backbone structures
+    output_channels:
+      - name: designed_sequences
+        data_type: fasta
+        description: Designed amino acid sequences
+      - name: scores
+        data_type: csv
+        description: Per-position recovery and confidence scores
+    parameters:
+      - name: num_seq_per_target
+        param_type: integer
+        default: 8
+        description: Number of sequences to design per structure
+        required: false
+      - name: sampling_temp
+        param_type: float
+        default: 0.1
+        description: "Sampling temperature (0.0-1.0, lower = more deterministic)"
+        required: false
+      - name: backbone_noise
+        param_type: float
+        default: 0.0
+        description: Noise level added to backbone coordinates
+        required: false
+    container: "ghcr.io/dauparas/proteinmpnn:1.0"
+    resource_requirements:
+      cpus: 4
+      memory_gb: 8
+      gpu: true
+      estimated_runtime_minutes: 10
+    version: "1.0.1"
+
+  - process_id: rosetta_relax
+    name: Rosetta Structure Relaxation
+    description: >
+      Refine and relax protein structures using Rosetta energy function.
+      Minimizes clashes, optimizes side-chain packing, and produces
+      physically realistic structures from predicted models.
+    category: structure_refinement
+    input_channels:
+      - name: structures
+        data_type: pdb
+        description: Input structures to relax
+    output_channels:
+      - name: relaxed_structures
+        data_type: pdb
+        description: Energy-minimized structures
+      - name: scores
+        data_type: csv
+        description: Rosetta energy scores per structure
+    parameters:
+      - name: nstruct
+        param_type: integer
+        default: 5
+        description: Number of relaxation trajectories
+        required: false
+      - name: constrain_relax_to_start_coords
+        param_type: boolean
+        default: true
+        description: Constrain coordinates to stay near starting structure
+        required: false
+    container: "ghcr.io/rosettacommons/rosetta:3.14"
+    resource_requirements:
+      cpus: 4
+      memory_gb: 8
+      gpu: false
+      estimated_runtime_minutes: 45
+    version: "3.14"
+
+  - process_id: md_simulation
+    name: Molecular Dynamics Simulation (OpenMM)
+    description: >
+      Run molecular dynamics simulations using OpenMM. Useful for
+      studying protein dynamics, conformational changes, and stability.
+      Supports implicit and explicit solvent models.
+    category: simulation
+    input_channels:
+      - name: structures
+        data_type: pdb
+        description: Starting structure(s) for simulation
+    output_channels:
+      - name: trajectories
+        data_type: dcd
+        description: MD trajectory files
+      - name: analysis
+        data_type: csv
+        description: RMSD, RMSF, and energy analysis
+      - name: final_structures
+        data_type: pdb
+        description: Final frames from each simulation
+    parameters:
+      - name: simulation_time_ns
+        param_type: float
+        default: 10.0
+        description: Simulation time in nanoseconds
+        required: false
+      - name: temperature_k
+        param_type: float
+        default: 300.0
+        description: Temperature in Kelvin
+        required: false
+      - name: solvent_model
+        param_type: string
+        default: implicit
+        description: "Solvent model: implicit or explicit"
+        required: false
+      - name: force_field
+        param_type: string
+        default: amber14
+        description: "Force field: amber14, charmm36, or opls"
+        required: false
+    container: "ghcr.io/openmm/openmm:8.1"
+    resource_requirements:
+      cpus: 4
+      memory_gb: 16
+      gpu: true
+      estimated_runtime_minutes: 180
+    version: "8.1.0"
+
+  - process_id: binding_affinity
+    name: Binding Affinity Prediction
+    description: >
+      Predict protein-protein or protein-ligand binding affinity.
+      Uses physics-based scoring (FoldX) combined with deep learning
+      predictions for accurate dG estimation.
+    category: analysis
+    input_channels:
+      - name: complex_structures
+        data_type: pdb
+        description: Protein complex structures
+    output_channels:
+      - name: affinities
+        data_type: csv
+        description: Predicted binding free energies and component scores
+      - name: hotspot_residues
+        data_type: csv
+        description: Per-residue energy contributions (hotspot analysis)
+    parameters:
+      - name: method
+        param_type: string
+        default: foldx
+        description: "Prediction method: foldx, prodigy, or ensemble"
+        required: false
+      - name: n_runs
+        param_type: integer
+        default: 3
+        description: Number of independent runs for averaging
+        required: false
+    container: "ghcr.io/colloquip/binding-affinity:1.0"
+    resource_requirements:
+      cpus: 4
+      memory_gb: 8
+      gpu: false
+      estimated_runtime_minutes: 30
+    version: "1.0.0"
+
+  - process_id: docking
+    name: Molecular Docking (AutoDock Vina)
+    description: >
+      Perform molecular docking to predict binding poses and affinities
+      between proteins and small molecules. Useful for virtual screening
+      and binding site analysis.
+    category: analysis
+    input_channels:
+      - name: receptor
+        data_type: pdb
+        description: Receptor protein structure
+      - name: ligands
+        data_type: sdf
+        description: Ligand molecules in SDF format
+    output_channels:
+      - name: poses
+        data_type: pdb
+        description: Predicted binding poses
+      - name: scores
+        data_type: csv
+        description: Docking scores and rankings
+    parameters:
+      - name: center_x
+        param_type: float
+        description: X coordinate of search box center
+        required: true
+      - name: center_y
+        param_type: float
+        description: Y coordinate of search box center
+        required: true
+      - name: center_z
+        param_type: float
+        description: Z coordinate of search box center
+        required: true
+      - name: box_size
+        param_type: float
+        default: 20.0
+        description: Size of search box (Angstroms)
+        required: false
+      - name: exhaustiveness
+        param_type: integer
+        default: 32
+        description: Search exhaustiveness (higher = more thorough)
+        required: false
+    container: "ghcr.io/ccsb-scripps/autodock-vina:1.2"
+    resource_requirements:
+      cpus: 8
+      memory_gb: 8
+      gpu: false
+      estimated_runtime_minutes: 60
+    version: "1.2.5"

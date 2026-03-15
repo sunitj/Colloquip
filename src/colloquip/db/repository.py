@@ -8,12 +8,16 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from colloquip.db.tables import (
+    DBActionProposal,
     DBAgentIdentity,
     DBConsensusMap,
     DBCostRecord,
     DBCrossReference,
+    DBDataConnection,
     DBEnergyHistory,
+    DBJob,
     DBMemoryAnnotation,
+    DBNextflowProcess,
     DBPost,
     DBSession,
     DBSubreddit,
@@ -22,13 +26,22 @@ from colloquip.db.tables import (
     DBSynthesisMemory,
 )
 from colloquip.models import (
+    ActionProposal,
+    ActionProposalStatus,
     AgentStance,
     AgentStatus,
     BaseAgentIdentity,
+    ComputeBackend,
     ConsensusMap,
+    DataConnection,
     DeliberationSession,
     EnergyUpdate,
+    Job,
+    JobArtifact,
+    JobStatus,
+    NextflowProcess,
     Phase,
+    PipelineDefinition,
     Post,
     SessionStatus,
     SubredditMembership,
@@ -112,6 +125,7 @@ class SessionRepository:
             novelty_score=post.novelty_score,
             phase=post.phase.value,
             triggered_by=post.triggered_by,
+            tool_invocations=post.tool_invocations,
             created_at=post.created_at,
         )
         self.db.add(db_post)
@@ -618,6 +632,242 @@ class SessionRepository:
         result = await self.db.execute(stmt)
         return [_row_to_cross_reference_dict(r) for r in result.scalars().all()]
 
+    # ---- Nextflow Processes ----
+
+    async def save_nf_process(self, process: NextflowProcess) -> None:
+        """Insert or update a Nextflow process in the library."""
+        stmt = select(DBNextflowProcess).where(DBNextflowProcess.process_id == process.process_id)
+        result = await self.db.execute(stmt)
+        row = result.scalar_one_or_none()
+        if row:
+            row.name = process.name
+            row.description = process.description
+            row.category = process.category
+            row.input_channels = [c.model_dump() for c in process.input_channels]
+            row.output_channels = [c.model_dump() for c in process.output_channels]
+            row.parameters = [p.model_dump() for p in process.parameters]
+            row.container = process.container
+            row.resource_requirements = process.resource_requirements.model_dump()
+            row.version = process.version
+        else:
+            row = DBNextflowProcess(
+                process_id=process.process_id,
+                name=process.name,
+                description=process.description,
+                category=process.category,
+                input_channels=[c.model_dump() for c in process.input_channels],
+                output_channels=[c.model_dump() for c in process.output_channels],
+                parameters=[p.model_dump() for p in process.parameters],
+                container=process.container,
+                resource_requirements=process.resource_requirements.model_dump(),
+                version=process.version,
+            )
+            self.db.add(row)
+        await self.db.flush()
+
+    async def list_nf_processes(self, category: Optional[str] = None) -> List[NextflowProcess]:
+        """List Nextflow processes, optionally filtered by category."""
+        stmt = select(DBNextflowProcess).order_by(
+            DBNextflowProcess.category, DBNextflowProcess.name
+        )
+        if category:
+            stmt = stmt.where(DBNextflowProcess.category == category)
+        result = await self.db.execute(stmt)
+        return [_row_to_nf_process(r) for r in result.scalars().all()]
+
+    async def get_nf_process(self, process_id: str) -> Optional[NextflowProcess]:
+        """Get a Nextflow process by its process_id."""
+        stmt = select(DBNextflowProcess).where(DBNextflowProcess.process_id == process_id)
+        result = await self.db.execute(stmt)
+        row = result.scalar_one_or_none()
+        if not row:
+            return None
+        return _row_to_nf_process(row)
+
+    # ---- Jobs ----
+
+    async def create_job(self, job: Job) -> None:
+        """Insert a new job."""
+        row = DBJob(
+            id=str(job.id),
+            session_id=str(job.session_id),
+            thread_id=str(job.thread_id) if job.thread_id else None,
+            agent_id=job.agent_id,
+            pipeline=job.pipeline.model_dump(),
+            compute_backend=job.compute_backend.value,
+            compute_profile=job.compute_profile,
+            status=job.status.value,
+            nextflow_run_id=job.nextflow_run_id,
+            result_summary=job.result_summary,
+            result_artifacts=[a.model_dump() for a in job.result_artifacts],
+            error_message=job.error_message,
+            submitted_at=job.submitted_at,
+            completed_at=job.completed_at,
+            created_at=job.created_at,
+        )
+        self.db.add(row)
+        await self.db.flush()
+
+    async def get_job(self, job_id: UUID) -> Optional[Job]:
+        """Get a job by ID."""
+        row = await self.db.get(DBJob, str(job_id))
+        if not row:
+            return None
+        return _row_to_job(row)
+
+    async def update_job_status(
+        self,
+        job_id: UUID,
+        status: JobStatus,
+        nextflow_run_id: Optional[str] = None,
+        result_summary: Optional[str] = None,
+        result_artifacts: Optional[list] = None,
+        error_message: Optional[str] = None,
+    ) -> None:
+        """Update job status and optional fields."""
+        row = await self.db.get(DBJob, str(job_id))
+        if not row:
+            return
+        row.status = status.value
+        if nextflow_run_id is not None:
+            row.nextflow_run_id = nextflow_run_id
+        if result_summary is not None:
+            row.result_summary = result_summary
+        if result_artifacts is not None:
+            row.result_artifacts = result_artifacts
+        if error_message is not None:
+            row.error_message = error_message
+        if status == JobStatus.SUBMITTED:
+            from datetime import datetime, timezone
+
+            row.submitted_at = datetime.now(timezone.utc)
+        if status in (JobStatus.COMPLETED, JobStatus.FAILED):
+            from datetime import datetime, timezone
+
+            row.completed_at = datetime.now(timezone.utc)
+        await self.db.flush()
+
+    async def list_jobs_by_session(self, session_id: UUID) -> List[Job]:
+        """List all jobs for a session."""
+        stmt = (
+            select(DBJob)
+            .where(DBJob.session_id == str(session_id))
+            .order_by(DBJob.created_at.desc())
+        )
+        result = await self.db.execute(stmt)
+        return [_row_to_job(r) for r in result.scalars().all()]
+
+    async def list_jobs_by_status(self, status: JobStatus) -> List[Job]:
+        """List all jobs with a given status."""
+        stmt = select(DBJob).where(DBJob.status == status.value).order_by(DBJob.created_at)
+        result = await self.db.execute(stmt)
+        return [_row_to_job(r) for r in result.scalars().all()]
+
+    # ---- Action Proposals ----
+
+    async def create_proposal(self, proposal: ActionProposal) -> None:
+        """Insert a new action proposal."""
+        row = DBActionProposal(
+            id=str(proposal.id),
+            session_id=str(proposal.session_id),
+            thread_id=str(proposal.thread_id) if proposal.thread_id else None,
+            agent_id=proposal.agent_id,
+            action_type=proposal.action_type,
+            description=proposal.description,
+            rationale=proposal.rationale,
+            proposed_pipeline=(
+                proposal.proposed_pipeline.model_dump() if proposal.proposed_pipeline else None
+            ),
+            proposed_params=proposal.proposed_params,
+            status=proposal.status.value,
+            created_at=proposal.created_at,
+        )
+        self.db.add(row)
+        await self.db.flush()
+
+    async def get_proposal(self, proposal_id: UUID) -> Optional[ActionProposal]:
+        """Get an action proposal by ID."""
+        row = await self.db.get(DBActionProposal, str(proposal_id))
+        if not row:
+            return None
+        return _row_to_proposal(row)
+
+    async def list_pending_proposals(self, session_id: UUID) -> List[ActionProposal]:
+        """List pending proposals for a session."""
+        stmt = (
+            select(DBActionProposal)
+            .where(
+                DBActionProposal.session_id == str(session_id),
+                DBActionProposal.status == "pending",
+            )
+            .order_by(DBActionProposal.created_at)
+        )
+        result = await self.db.execute(stmt)
+        return [_row_to_proposal(r) for r in result.scalars().all()]
+
+    async def review_proposal(
+        self,
+        proposal_id: UUID,
+        status: ActionProposalStatus,
+        reviewer: str,
+        note: str = "",
+    ) -> None:
+        """Update a proposal with review decision."""
+        row = await self.db.get(DBActionProposal, str(proposal_id))
+        if not row:
+            return
+        row.status = status.value
+        row.reviewed_by = reviewer
+        row.review_note = note
+        from datetime import datetime, timezone
+
+        row.reviewed_at = datetime.now(timezone.utc)
+        await self.db.flush()
+
+    # ---- Data Connections ----
+
+    async def save_data_connection(self, conn: DataConnection) -> None:
+        """Insert a new data connection."""
+        row = DBDataConnection(
+            id=str(conn.id),
+            subreddit_id=str(conn.subreddit_id),
+            name=conn.name,
+            description=conn.description,
+            db_type=conn.db_type,
+            connection_string=conn.connection_string,
+            read_only=conn.read_only,
+            enabled=conn.enabled,
+            created_at=conn.created_at,
+        )
+        self.db.add(row)
+        await self.db.flush()
+
+    async def list_data_connections(self, subreddit_id: UUID) -> List[DataConnection]:
+        """List all data connections for a subreddit."""
+        stmt = (
+            select(DBDataConnection)
+            .where(DBDataConnection.subreddit_id == str(subreddit_id))
+            .order_by(DBDataConnection.created_at)
+        )
+        result = await self.db.execute(stmt)
+        return [_row_to_data_connection(r) for r in result.scalars().all()]
+
+    async def get_data_connection(self, conn_id: UUID) -> Optional[DataConnection]:
+        """Get a data connection by ID."""
+        row = await self.db.get(DBDataConnection, str(conn_id))
+        if not row:
+            return None
+        return _row_to_data_connection(row)
+
+    async def delete_data_connection(self, conn_id: UUID) -> bool:
+        """Delete a data connection. Returns True if found and deleted."""
+        row = await self.db.get(DBDataConnection, str(conn_id))
+        if not row:
+            return False
+        await self.db.delete(row)
+        await self.db.flush()
+        return True
+
     # ---- Commit ----
 
     async def commit(self) -> None:
@@ -654,6 +904,7 @@ def _row_to_post(row: DBPost) -> Post:
         novelty_score=row.novelty_score,
         phase=Phase(row.phase),
         triggered_by=row.triggered_by or [],
+        tool_invocations=row.tool_invocations or [],
         created_at=row.created_at,
     )
 
@@ -763,3 +1014,75 @@ def _row_to_cross_reference_dict(row: DBCrossReference) -> dict:
         "reviewed_by": row.reviewed_by,
         "created_at": row.created_at,
     }
+
+
+def _row_to_nf_process(row: DBNextflowProcess) -> NextflowProcess:
+    from colloquip.models import ChannelSpec, ParamSpec, ResourceSpec
+
+    return NextflowProcess(
+        process_id=row.process_id,
+        name=row.name,
+        description=row.description or "",
+        category=row.category or "",
+        input_channels=[ChannelSpec(**c) for c in (row.input_channels or [])],
+        output_channels=[ChannelSpec(**c) for c in (row.output_channels or [])],
+        parameters=[ParamSpec(**p) for p in (row.parameters or [])],
+        container=row.container or "",
+        resource_requirements=ResourceSpec(**(row.resource_requirements or {})),
+        version=row.version or "1.0.0",
+    )
+
+
+def _row_to_job(row: DBJob) -> Job:
+    return Job(
+        id=UUID(row.id),
+        session_id=UUID(row.session_id),
+        thread_id=UUID(row.thread_id) if row.thread_id else None,
+        agent_id=row.agent_id,
+        pipeline=PipelineDefinition(**(row.pipeline or {})),
+        compute_backend=ComputeBackend(row.compute_backend),
+        compute_profile=row.compute_profile or "standard",
+        status=JobStatus(row.status),
+        nextflow_run_id=row.nextflow_run_id,
+        result_summary=row.result_summary,
+        result_artifacts=[JobArtifact(**a) for a in (row.result_artifacts or [])],
+        error_message=row.error_message,
+        submitted_at=row.submitted_at,
+        completed_at=row.completed_at,
+        created_at=row.created_at,
+    )
+
+
+def _row_to_proposal(row: DBActionProposal) -> ActionProposal:
+    return ActionProposal(
+        id=UUID(row.id),
+        session_id=UUID(row.session_id),
+        thread_id=UUID(row.thread_id) if row.thread_id else None,
+        agent_id=row.agent_id,
+        action_type=row.action_type,
+        description=row.description or "",
+        rationale=row.rationale or "",
+        proposed_pipeline=(
+            PipelineDefinition(**(row.proposed_pipeline)) if row.proposed_pipeline else None
+        ),
+        proposed_params=row.proposed_params or {},
+        status=ActionProposalStatus(row.status),
+        reviewed_by=row.reviewed_by,
+        review_note=row.review_note,
+        created_at=row.created_at,
+        reviewed_at=row.reviewed_at,
+    )
+
+
+def _row_to_data_connection(row: DBDataConnection) -> DataConnection:
+    return DataConnection(
+        id=UUID(row.id),
+        subreddit_id=UUID(row.subreddit_id),
+        name=row.name,
+        description=row.description or "",
+        db_type=row.db_type or "postgresql",
+        connection_string=row.connection_string or "",
+        read_only=row.read_only,
+        enabled=row.enabled,
+        created_at=row.created_at,
+    )

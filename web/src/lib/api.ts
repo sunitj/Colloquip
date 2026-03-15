@@ -87,3 +87,34 @@ export const exportJson = (threadId: string) => request<Record<string, unknown>>
 export const reportOutcome = (threadId: string, data: import('@/types/platform').OutcomeReport) => request<unknown>(`/threads/${threadId}/outcome`, { method: 'POST', body: JSON.stringify(data) });
 export const getAgentCalibration = (agentId: string) => request<import('@/types/platform').CalibrationReport>(`/agents/${agentId}/calibration`);
 export const getCalibrationOverview = () => request<import('@/types/platform').CalibrationOverview>('/calibration/overview');
+
+// Jobs & Pipelines
+export const getNfProcesses = (category?: string) => {
+  const params = category ? `?category=${encodeURIComponent(category)}` : '';
+  return request<{ processes: import('@/types/jobs').NextflowProcess[] }>(`/nf-processes${params}`);
+};
+export const getNfProcess = (processId: string) => request<import('@/types/jobs').NextflowProcess>(`/nf-processes/${processId}`);
+export const getJobs = (sessionId?: string) => {
+  const params = sessionId ? `?session_id=${sessionId}` : '';
+  return request<{ jobs: import('@/types/jobs').Job[] }>(`/jobs${params}`);
+};
+export const getJob = (jobId: string) => request<import('@/types/jobs').Job>(`/jobs/${jobId}`);
+export const createJob = (data: {
+  session_id: string; agent_id: string; pipeline_name: string;
+  pipeline_description?: string; steps: unknown[]; parameters?: Record<string, unknown>;
+  compute_profile?: string; thread_id?: string;
+}) => request<{ job_id: string; status: string; error?: string }>('/jobs', { method: 'POST', body: JSON.stringify(data) });
+export const cancelJob = (jobId: string) => request<{ status: string }>(`/jobs/${jobId}/cancel`, { method: 'POST' });
+
+// Proposals
+export const getProposals = (sessionId: string) => request<{ proposals: import('@/types/jobs').ActionProposal[] }>(`/proposals?session_id=${sessionId}`);
+export const reviewProposal = (proposalId: string, data: { reviewer: string; action: 'approve' | 'reject'; note?: string }) =>
+  request<{ status: string; job_id?: string }>(`/proposals/${proposalId}/review`, { method: 'POST', body: JSON.stringify(data) });
+
+// Data Connections
+export const getDataConnections = (subredditId: string) => request<{ connections: import('@/types/jobs').DataConnection[] }>(`/subreddits/${subredditId}/data-connections`);
+export const createDataConnection = (subredditId: string, data: {
+  name: string; description?: string; db_type?: string; connection_string: string; read_only?: boolean;
+}) => request<import('@/types/jobs').DataConnection>(`/subreddits/${subredditId}/data-connections`, { method: 'POST', body: JSON.stringify(data) });
+export const deleteDataConnection = (subredditId: string, connId: string) =>
+  request<{ status: string }>(`/subreddits/${subredditId}/data-connections/${connId}`, { method: 'DELETE' });

@@ -1,11 +1,11 @@
 """Base deliberation agent."""
 
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from uuid import uuid4
 
 from colloquip.agents.prompts import build_system_prompt, build_user_prompt
-from colloquip.llm.interface import LLMInterface
+from colloquip.llm.interface import LLMInterface, ToolExecutor
 from colloquip.models import AgentConfig, AgentDependencies, Citation, Phase, Post
 from colloquip.triggers import TriggerEvaluator
 
@@ -22,6 +22,8 @@ class BaseDeliberationAgent:
         trigger_evaluator: Optional[TriggerEvaluator] = None,
         prompt_version: str = "v1",
         phase_max_tokens: Optional[Dict[str, int]] = None,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        tool_executor: Optional[ToolExecutor] = None,
     ):
         self.config = config
         self.llm = llm
@@ -30,6 +32,11 @@ class BaseDeliberationAgent:
         # Token counts from the last LLM call (used by engine for cost tracking)
         self.last_input_tokens = 0
         self.last_output_tokens = 0
+        # Tool schemas and executor for tool_use during generation
+        self.tools = tools
+        self.tool_executor = tool_executor
+        # Track tool invocations from the last generation
+        self.last_tool_invocations: List[Dict] = []
         self.trigger_evaluator = trigger_evaluator or TriggerEvaluator(
             agent_id=config.agent_id,
             domain_keywords=config.domain_keywords,
@@ -50,7 +57,12 @@ class BaseDeliberationAgent:
         return self.trigger_evaluator.evaluate(posts, phase)
 
     async def generate_post(self, deps: AgentDependencies) -> Post:
-        """Generate a post given current context."""
+        """Generate a post given current context.
+
+        If tools are configured, passes them to the LLM so the agent
+        can invoke tools (database queries, process library search, etc.)
+        during post generation.
+        """
         system_prompt = build_system_prompt(self.config, deps.phase, self.prompt_version)
         user_prompt = build_user_prompt(
             hypothesis=deps.session.hypothesis,
@@ -62,9 +74,18 @@ class BaseDeliberationAgent:
             phase_tokens = (
                 self.phase_max_tokens.get(deps.phase.value) if self.phase_max_tokens else None
             )
-            result = await self.llm.generate(system_prompt, user_prompt, max_tokens=phase_tokens)
+            result = await self.llm.generate(
+                system_prompt,
+                user_prompt,
+                max_tokens=phase_tokens,
+                tools=self.tools,
+                tool_executor=self.tool_executor,
+            )
             self.last_input_tokens = getattr(result, "input_tokens", 0)
             self.last_output_tokens = getattr(result, "output_tokens", 0)
+            self.last_tool_invocations = [
+                inv.model_dump() for inv in getattr(result, "tool_invocations", [])
+            ]
             # Convert raw citation dicts from LLMResult to Citation models
             post_citations = [Citation(**c) for c in getattr(result, "citations", [])]
             return Post(
