@@ -3,8 +3,8 @@
 Tests API endpoints and frontend components via browser automation.
 Generates a test report at the end.
 """
+
 import asyncio
-import json
 import sys
 from datetime import datetime
 from uuid import uuid4
@@ -85,8 +85,11 @@ async def run_tests():
         print("\n[Health]")
         try:
             resp = await client.get("/health")
-            report.add("Health: GET /health", "pass" if resp.status_code == 200 else "fail",
-                        f"status={resp.status_code} body={resp.text[:100]}")
+            report.add(
+                "Health: GET /health",
+                "pass" if resp.status_code == 200 else "fail",
+                f"status={resp.status_code} body={resp.text[:100]}",
+            )
         except Exception as e:
             report.add("Health: GET /health", "fail", str(e))
 
@@ -110,7 +113,8 @@ async def run_tests():
 
         # Filter by category
         try:
-            resp = await client.get("/api/nf-processes", params={"category": "structure_prediction"})
+            params = {"category": "structure_prediction"}
+            resp = await client.get("/api/nf-processes", params=params)
             data = resp.json()
             filtered = data.get("processes", [])
             all_match = all(p.get("category") == "structure_prediction" for p in filtered)
@@ -127,7 +131,9 @@ async def run_tests():
             resp = await client.get("/api/nf-processes/alphafold2")
             report.add(
                 "NF Processes: GET /api/nf-processes/alphafold2",
-                "pass" if resp.status_code == 200 and resp.json().get("process_id") == "alphafold2" else "fail",
+                "pass"
+                if resp.status_code == 200 and resp.json().get("process_id") == "alphafold2"
+                else "fail",
                 f"status={resp.status_code}",
             )
         except Exception as e:
@@ -148,9 +154,17 @@ async def run_tests():
         try:
             resp = await client.get("/api/nf-processes/alphafold2")
             proc = resp.json()
-            required_fields = ["process_id", "name", "description", "category",
-                               "input_channels", "output_channels", "parameters",
-                               "container", "resource_requirements"]
+            required_fields = [
+                "process_id",
+                "name",
+                "description",
+                "category",
+                "input_channels",
+                "output_channels",
+                "parameters",
+                "container",
+                "resource_requirements",
+            ]
             missing = [f for f in required_fields if f not in proc]
             report.add(
                 "NF Processes: Schema completeness",
@@ -176,11 +190,14 @@ async def run_tests():
             report.add("Jobs: GET /api/jobs returns 503 without manager", "fail", str(e))
 
         try:
-            resp = await client.post("/api/jobs", json={
-                "session_id": str(uuid4()),
-                "agent_id": "test",
-                "pipeline_name": "test",
-            })
+            resp = await client.post(
+                "/api/jobs",
+                json={
+                    "session_id": str(uuid4()),
+                    "agent_id": "test",
+                    "pipeline_name": "test",
+                },
+            )
             report.add(
                 "Jobs: POST /api/jobs returns 503 without manager",
                 "pass" if resp.status_code == 503 else "fail",
@@ -225,10 +242,13 @@ async def run_tests():
             report.add("Proposals: GET returns 503 without manager", "fail", str(e))
 
         try:
-            resp = await client.post(f"/api/proposals/{uuid4()}/review", json={
-                "reviewer": "admin",
-                "action": "approve",
-            })
+            resp = await client.post(
+                f"/api/proposals/{uuid4()}/review",
+                json={
+                    "reviewer": "admin",
+                    "action": "approve",
+                },
+            )
             report.add(
                 "Proposals: POST review returns 503 without manager",
                 "pass" if resp.status_code == 503 else "fail",
@@ -246,19 +266,24 @@ async def run_tests():
 
         # Create a connection
         try:
-            resp = await client.post(f"/api/subreddits/{sub_id}/data-connections", json={
-                "name": "test_assay_db",
-                "description": "Test assay results database",
-                "db_type": "postgresql",
-                "connection_string": "postgresql://localhost:5432/assays",
-                "read_only": True,
-            })
+            resp = await client.post(
+                f"/api/subreddits/{sub_id}/data-connections",
+                json={
+                    "name": "test_assay_db",
+                    "description": "Test assay results database",
+                    "db_type": "postgresql",
+                    "connection_string": "postgresql://localhost:5432/assays",
+                    "read_only": True,
+                },
+            )
             conn_data = resp.json()
             conn_id = conn_data.get("id", "")
             report.add(
                 "Data Connections: POST create",
                 "pass" if resp.status_code == 200 and conn_id else "fail",
-                f"status={resp.status_code}, id={conn_id[:8]}..." if conn_id else f"status={resp.status_code}",
+                f"status={resp.status_code}, id={conn_id[:8]}..."
+                if conn_id
+                else f"status={resp.status_code}",
             )
         except Exception as e:
             report.add("Data Connections: POST create", "fail", str(e))
@@ -295,11 +320,14 @@ async def run_tests():
 
         # Create a second connection
         try:
-            resp = await client.post(f"/api/subreddits/{sub_id}/data-connections", json={
-                "name": "compound_lib",
-                "connection_string": "sqlite:///compounds.db",
-            })
-            conn2_id = resp.json().get("id", "")
+            resp = await client.post(
+                f"/api/subreddits/{sub_id}/data-connections",
+                json={
+                    "name": "compound_lib",
+                    "connection_string": "sqlite:///compounds.db",
+                },
+            )
+            resp.json().get("id", "")
             report.add(
                 "Data Connections: POST create second",
                 "pass" if resp.status_code == 200 else "fail",
@@ -307,7 +335,6 @@ async def run_tests():
             )
         except Exception as e:
             report.add("Data Connections: POST create second", "fail", str(e))
-            conn2_id = ""
 
         # List should show 2
         try:
@@ -378,9 +405,17 @@ async def run_tests():
             resp = await client.get("/api/nf-processes")
             procs = resp.json().get("processes", [])
             expected_ids = [
-                "alphafold2", "esmfold", "rosettafold", "colabfold_msa",
-                "mmseqs2_search", "foldseek", "protein_mpnn",
-                "rosetta_relax", "md_simulation", "binding_affinity", "docking",
+                "alphafold2",
+                "esmfold",
+                "rosettafold",
+                "colabfold_msa",
+                "mmseqs2_search",
+                "foldseek",
+                "protein_mpnn",
+                "rosetta_relax",
+                "md_simulation",
+                "binding_affinity",
+                "docking",
             ]
             found_ids = {p.get("process_id") for p in procs}
             missing = set(expected_ids) - found_ids
@@ -418,9 +453,15 @@ async def run_tests():
             resp = await client.get("/api/nf-processes")
             procs = resp.json().get("processes", [])
             categories = {p.get("category") for p in procs}
-            expected_cats = {"structure_prediction", "sequence_alignment",
-                             "protein_design", "simulation", "structure_search",
-                             "structure_refinement", "analysis"}
+            expected_cats = {
+                "structure_prediction",
+                "sequence_alignment",
+                "protein_design",
+                "simulation",
+                "structure_search",
+                "structure_refinement",
+                "analysis",
+            }
             missing_cats = expected_cats - categories
             report.add(
                 "Catalog: Expected categories present",
