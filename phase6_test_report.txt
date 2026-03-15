@@ -1,0 +1,77 @@
+========================================================================
+PHASE 6 — Agent Database & Jobs System — Playwright Test Report
+========================================================================
+Date: 2026-03-15 21:04:30
+Duration: 0.7s
+Results: 26/26 passed, 0 failed
+
+------------------------------------------------------------------------
+DETAILED RESULTS
+------------------------------------------------------------------------
+  [PASS] Health: GET /health
+         status=200 body={"status":"ok"}
+  [PASS] NF Processes: GET /api/nf-processes
+         status=200, count=11
+  [PASS] NF Processes: Filter by category
+         count=3, all_match=True
+  [PASS] NF Processes: GET /api/nf-processes/alphafold2
+         status=200
+  [PASS] NF Processes: 404 for unknown process
+         status=404
+  [PASS] NF Processes: Schema completeness
+         all fields present
+  [PASS] Jobs: GET /api/jobs returns 503 without manager
+         status=503
+  [PASS] Jobs: POST /api/jobs returns 503 without manager
+         status=503
+  [PASS] Jobs: GET /api/jobs/:id returns 503 without manager
+         status=503
+  [PASS] Jobs: POST cancel returns 503 without manager
+         status=503
+  [PASS] Proposals: GET returns 503 without manager
+         status=503
+  [PASS] Proposals: POST review returns 503 without manager
+         status=503
+  [PASS] Data Connections: POST create
+         status=200, id=d216ea0e...
+  [PASS] Data Connections: GET list
+         status=200, count=1
+  [PASS] Data Connections: Response schema
+         fields=['id', 'name', 'description', 'db_type', 'read_only', 'enabled']
+  [PASS] Data Connections: POST create second
+         status=200
+  [PASS] Data Connections: List shows 2
+         count=2
+  [PASS] Data Connections: DELETE
+         status=200
+  [PASS] Data Connections: List after delete shows 1
+         count=1
+  [PASS] Data Connections: DELETE nonexistent returns 404
+         status=404
+  [PASS] Data Connections: Isolation between subreddits
+         count=0
+  [PASS] Catalog: All 11 processes present
+         all 11 present
+  [PASS] Catalog: All processes have channels & containers
+         all valid
+  [PASS] Catalog: Expected categories present
+         found={'sequence_alignment', 'protein_design', 'structure_prediction', 'structure_refinement', 'analysis', 'simulation', 'structure_search'}
+  [PASS] Error Handling: Invalid JSON returns 422
+         status=422
+  [PASS] Error Handling: Missing required fields returns 422
+         status=422
+
+------------------------------------------------------------------------
+SUMMARY BY CATEGORY
+------------------------------------------------------------------------
+  Health: 1/1 passed
+  NF Processes: 5/5 passed
+  Jobs: 4/4 passed
+  Proposals: 2/2 passed
+  Data Connections: 9/9 passed
+  Catalog: 3/3 passed
+  Error Handling: 2/2 passed
+
+========================================================================
+ALL TESTS PASSED
+========================================================================
