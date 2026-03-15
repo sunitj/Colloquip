@@ -125,9 +125,7 @@ class TestDatabaseQueryTool:
         mock_session.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session.__aexit__ = AsyncMock(return_value=False)
 
-        with patch(
-            "sqlalchemy.ext.asyncio.AsyncSession", return_value=mock_session
-        ):
+        with patch("sqlalchemy.ext.asyncio.AsyncSession", return_value=mock_session):
             tool = DatabaseQueryTool(connection_name="test_db")
             tool.set_engine(MagicMock())
             result = await tool.execute(query="SELECT id, name FROM compounds")
@@ -150,9 +148,7 @@ class TestDatabaseQueryTool:
         mock_session.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session.__aexit__ = AsyncMock(return_value=False)
 
-        with patch(
-            "sqlalchemy.ext.asyncio.AsyncSession", return_value=mock_session
-        ):
+        with patch("sqlalchemy.ext.asyncio.AsyncSession", return_value=mock_session):
             tool = DatabaseQueryTool()
             tool.set_engine(MagicMock())
             await tool.execute(query="SELECT 1", max_rows=500)
@@ -166,9 +162,7 @@ class TestDatabaseQueryTool:
         mock_session.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session.__aexit__ = AsyncMock(return_value=False)
 
-        with patch(
-            "sqlalchemy.ext.asyncio.AsyncSession", return_value=mock_session
-        ):
+        with patch("sqlalchemy.ext.asyncio.AsyncSession", return_value=mock_session):
             tool = DatabaseQueryTool()
             tool.set_engine(MagicMock())
             result = await tool.execute(query="SELECT 1")
