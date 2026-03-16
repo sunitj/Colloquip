@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { cn } from '@/lib/utils'
+import { cn, formatCost } from '@/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
 import type { ResearchIteration } from '@/types/platform'
 import { getResearchJobResults } from '@/lib/api'
 
@@ -51,7 +52,7 @@ export function IterationHistoryTable({ jobId, className }: IterationHistoryTabl
       </CardHeader>
       <CardContent>
         {loading ? (
-          <div className="h-40 animate-pulse rounded-md bg-muted" />
+          <Skeleton className="h-40" />
         ) : error ? (
           <p className="text-xs text-red-500">{error}</p>
         ) : iterations.length === 0 ? (
@@ -95,7 +96,7 @@ export function IterationHistoryTable({ jobId, className }: IterationHistoryTabl
                         {iter.status}
                       </Badge>
                     </td>
-                    <td className="px-2 py-1.5 tabular-nums">${iter.cost_usd.toFixed(2)}</td>
+                    <td className="px-2 py-1.5 tabular-nums">{formatCost(iter.cost_usd)}</td>
                   </tr>
                 ))}
               </tbody>

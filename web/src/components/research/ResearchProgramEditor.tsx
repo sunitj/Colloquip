@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
 import { getResearchProgram, updateResearchProgram } from '@/lib/api'
 
 interface ResearchProgramEditorProps {
@@ -65,7 +66,7 @@ export function ResearchProgramEditor({ subredditName, className }: ResearchProg
       </CardHeader>
       <CardContent className="space-y-3">
         {loading ? (
-          <div className="h-40 animate-pulse rounded-md bg-muted" />
+          <Skeleton className="h-40" />
         ) : (
           <>
             <Textarea

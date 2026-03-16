@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
-import { cn } from '@/lib/utils'
+import { cn, formatCost } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
+import { Skeleton } from '@/components/ui/skeleton'
 import type { ResearchJob, ResearchJobStatus } from '@/types/platform'
 import {
   getResearchJobs,
@@ -82,7 +83,7 @@ export function ResearchJobDashboard({ subredditName, className, onSelectJob }: 
       <CardContent>
         {loading ? (
           <div className="space-y-2">
-            {[0, 1].map((i) => <div key={i} className="h-20 animate-pulse rounded-md bg-muted" />)}
+            {[0, 1].map((i) => <Skeleton key={i} className="h-20" />)}
           </div>
         ) : error ? (
           <p className="text-xs text-red-500">{error}</p>
@@ -151,7 +152,7 @@ function JobRow({
       </div>
       <Progress value={progress} className="h-1.5" />
       <div className="flex gap-4 text-xs text-muted-foreground">
-        <span>${job.total_cost_usd.toFixed(2)} / ${job.max_cost_usd.toFixed(2)}</span>
+        <span>{formatCost(job.total_cost_usd)} / {formatCost(job.max_cost_usd)}</span>
         {job.best_metric !== null && <span>Best: {job.best_metric.toFixed(3)}</span>}
         <span>{job.threads_completed.length} kept, {job.threads_discarded.length} discarded</span>
       </div>
