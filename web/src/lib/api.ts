@@ -88,6 +88,31 @@ export const reportOutcome = (threadId: string, data: import('@/types/platform')
 export const getAgentCalibration = (agentId: string) => request<import('@/types/platform').CalibrationReport>(`/agents/${agentId}/calibration`);
 export const getCalibrationOverview = () => request<import('@/types/platform').CalibrationOverview>('/calibration/overview');
 
+// Research Programs & Jobs
+export const getResearchProgram = (subredditName: string) =>
+  request<import('@/types/platform').ResearchProgram>(`/subreddits/${subredditName}/research-program`);
+export const updateResearchProgram = (subredditName: string, content: string) =>
+  request<import('@/types/platform').ResearchProgram>(`/subreddits/${subredditName}/research-program`, {
+    method: 'PUT', body: JSON.stringify({ content }),
+  });
+export const getResearchJobs = (subredditName: string) =>
+  request<{ jobs: import('@/types/platform').ResearchJob[] }>(`/subreddits/${subredditName}/research-jobs`);
+export const createResearchJob = (subredditName: string, data: {
+  max_iterations?: number; max_cost_usd?: number; max_threads_per_hour?: number; max_runtime_hours?: number;
+}) => request<import('@/types/platform').ResearchJob>(`/subreddits/${subredditName}/research-jobs`, {
+  method: 'POST', body: JSON.stringify(data),
+});
+export const getResearchJob = (jobId: string) =>
+  request<import('@/types/platform').ResearchJob>(`/research-jobs/${jobId}`);
+export const pauseResearchJob = (jobId: string) =>
+  request<import('@/types/platform').ResearchJob>(`/research-jobs/${jobId}/pause`, { method: 'POST' });
+export const resumeResearchJob = (jobId: string) =>
+  request<import('@/types/platform').ResearchJob>(`/research-jobs/${jobId}/resume`, { method: 'POST' });
+export const stopResearchJob = (jobId: string) =>
+  request<import('@/types/platform').ResearchJob>(`/research-jobs/${jobId}/stop`, { method: 'POST' });
+export const getResearchJobResults = (jobId: string) =>
+  request<{ job_id: string; iterations: import('@/types/platform').ResearchIteration[]; summary: Record<string, unknown> }>(`/research-jobs/${jobId}/results`);
+
 // Jobs & Pipelines
 export const getNfProcesses = (category?: string) => {
   const params = category ? `?category=${encodeURIComponent(category)}` : '';

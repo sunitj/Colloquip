@@ -20,6 +20,7 @@ from colloquip.api.feedback_routes import router as feedback_router
 from colloquip.api.job_routes import router as job_router
 from colloquip.api.memory_routes import router as memory_router
 from colloquip.api.platform_routes import router as platform_router
+from colloquip.api.research_routes import router as research_router
 from colloquip.api.routes import router
 from colloquip.api.watcher_routes import router as watcher_router
 from colloquip.api.ws import ws_router
@@ -76,6 +77,7 @@ def create_app(
     app.include_router(external_router)
     app.include_router(feedback_router)
     app.include_router(job_router)
+    app.include_router(research_router)
 
     # Platform manager (auto-initialize on startup)
     from colloquip.api.platform_manager import PlatformManager

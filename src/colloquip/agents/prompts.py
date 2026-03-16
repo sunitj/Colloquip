@@ -368,6 +368,7 @@ def build_v3_system_prompt(
     role_prompt: str = "",
     tool_descriptions: Union[str, List[str]] = "",
     prior_deliberations: str = "",
+    research_program: Optional[str] = None,
 ) -> str:
     """Build a v3 system prompt with layered assembly.
 
@@ -375,11 +376,12 @@ def build_v3_system_prompt(
     1. Base persona (from YAML)
     2. Subreddit context (purpose, core questions)
     3. Role in subreddit (membership role_prompt)
-    4. Prior deliberation memory (Phase 3 RAG)
-    5. Phase mandate (phase-specific behavior)
-    6. Citation requirements
-    7. Tool instructions (if tools available)
-    8. Response guidelines
+    4. Research program (human-authored steering document)
+    5. Prior deliberation memory (Phase 3 RAG)
+    6. Phase mandate (phase-specific behavior)
+    7. Citation requirements
+    8. Tool instructions (if tools available)
+    9. Response guidelines
     """
     parts = [persona_prompt.strip()]
 
@@ -388,6 +390,9 @@ def build_v3_system_prompt(
 
     if role_prompt:
         parts.append(f"## Your Role in This Community\n\n{role_prompt}")
+
+    if research_program:
+        parts.append(f"## Research Program\n\n{research_program}")
 
     # Prior deliberation memory (Phase 3 RAG)
     if prior_deliberations:

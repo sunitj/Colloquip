@@ -187,3 +187,42 @@ export interface OutcomeReport {
   agent_assessments: Record<string, string>;
   reported_by: string;
 }
+
+// Research
+export type ResearchJobStatus = 'pending' | 'running' | 'paused' | 'completed' | 'failed' | 'stopped';
+
+export interface ResearchJob {
+  id: string;
+  subreddit_id: string;
+  status: ResearchJobStatus;
+  research_program_version: number;
+  current_iteration: number;
+  max_iterations: number;
+  threads_completed: string[];
+  threads_discarded: string[];
+  baseline_metric: number | null;
+  best_metric: number | null;
+  metric_history: ResearchIteration[];
+  total_cost_usd: number;
+  max_cost_usd: number;
+  max_threads_per_hour: number;
+  max_runtime_hours: number;
+  created_at: string;
+  updated_at: string;
+  started_at: string | null;
+}
+
+export interface ResearchIteration {
+  iteration: number;
+  thread_id: string | null;
+  hypothesis: string;
+  metric: number;
+  status: 'keep' | 'discard';
+  cost_usd: number;
+}
+
+export interface ResearchProgram {
+  subreddit_name: string;
+  content: string | null;
+  version: number;
+}

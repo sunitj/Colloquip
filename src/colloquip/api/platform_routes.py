@@ -99,6 +99,16 @@ class ThreadResponse(BaseModel):
     estimated_cost_usd: float
 
 
+class UpdateResearchProgramRequest(BaseModel):
+    content: str = Field(min_length=1, max_length=50000)
+
+
+class ResearchProgramResponse(BaseModel):
+    subreddit_name: str
+    content: Optional[str] = None
+    version: int = 0
+
+
 class HumanPostRequest(BaseModel):
     content: str = Field(min_length=1, max_length=5000)
     post_type: Literal["comment", "question", "data", "redirect"] = "comment"
@@ -270,6 +280,44 @@ async def create_thread(name: str, body: CreateThreadRequest, request: Request):
         phase=thread.get("phase", "explore"),
         post_count=0,
         estimated_cost_usd=0.0,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Research Program endpoints
+# ---------------------------------------------------------------------------
+
+
+@router.get("/subreddits/{name}/research-program", response_model=ResearchProgramResponse)
+async def get_research_program(name: str, request: Request):
+    """Get the research program for a subreddit."""
+    pm = _get_platform(request)
+    subreddit = pm.get_subreddit_by_name(name)
+    if not subreddit:
+        raise HTTPException(status_code=404, detail=f"Subreddit '{name}' not found")
+    return ResearchProgramResponse(
+        subreddit_name=name,
+        content=subreddit.get("research_program"),
+        version=subreddit.get("research_program_version", 0),
+    )
+
+
+@router.put("/subreddits/{name}/research-program", response_model=ResearchProgramResponse)
+async def update_research_program(name: str, body: UpdateResearchProgramRequest, request: Request):
+    """Update the research program for a subreddit."""
+    pm = _get_platform(request)
+    subreddit = pm.get_subreddit_by_name(name)
+    if not subreddit:
+        raise HTTPException(status_code=404, detail=f"Subreddit '{name}' not found")
+
+    # Update in PlatformManager's in-memory store
+    subreddit["research_program"] = body.content
+    subreddit["research_program_version"] = subreddit.get("research_program_version", 0) + 1
+
+    return ResearchProgramResponse(
+        subreddit_name=name,
+        content=subreddit["research_program"],
+        version=subreddit["research_program_version"],
     )
 
 

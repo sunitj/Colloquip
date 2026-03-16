@@ -752,6 +752,63 @@ class DataConnection(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
+# ---------------------------------------------------------------------------
+# Phase 7: Autonomous Research Loop
+# ---------------------------------------------------------------------------
+
+
+class ResearchJobStatus(str, Enum):
+    """Lifecycle status of a research job."""
+
+    PENDING = "pending"
+    RUNNING = "running"
+    PAUSED = "paused"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    STOPPED = "stopped"
+
+
+class ResearchJob(BaseModel):
+    """An autonomous research loop that chains deliberations."""
+
+    id: UUID = Field(default_factory=uuid4)
+    subreddit_id: UUID
+    status: ResearchJobStatus = ResearchJobStatus.PENDING
+    research_program_version: int = 0  # snapshot at job start
+
+    # Loop state
+    current_iteration: int = 0
+    max_iterations: int = 50
+    threads_completed: List[UUID] = Field(default_factory=list)
+    threads_discarded: List[UUID] = Field(default_factory=list)
+
+    # Evaluation
+    baseline_metric: Optional[float] = None
+    best_metric: Optional[float] = None
+    metric_history: List[Dict[str, Any]] = Field(default_factory=list)
+
+    # Budget
+    total_cost_usd: float = 0.0
+    max_cost_usd: float = 25.0
+    max_threads_per_hour: int = 3
+    max_runtime_hours: float = 24.0
+
+    # Timestamps
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    started_at: Optional[datetime] = None
+
+
+class ResearchJobEvent(BaseModel):
+    """Event emitted during a research loop iteration."""
+
+    job_id: UUID
+    event_type: str  # hypothesis_generated, thread_started, etc.
+    iteration: int = 0
+    data: Dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
 class JobsConfig(BaseModel):
     """Configuration for the jobs subsystem."""
 

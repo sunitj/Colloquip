@@ -295,6 +295,23 @@ class SessionRepository:
         result = await self.db.execute(stmt)
         return [_row_to_subreddit_dict(r) for r in result.scalars().all()]
 
+    # ---- Research Program ----
+
+    async def update_research_program(
+        self, subreddit_id: str, research_program: str
+    ) -> Optional[int]:
+        """Update the research program for a subreddit.
+
+        Increments the version number. Returns the new version, or None if not found.
+        """
+        row = await self.db.get(DBSubreddit, subreddit_id)
+        if not row:
+            return None
+        row.research_program = research_program
+        row.research_program_version = (row.research_program_version or 0) + 1
+        await self.db.flush()
+        return row.research_program_version
+
     # ---- Agent Identities ----
 
     async def save_agent(self, agent: BaseAgentIdentity) -> None:
@@ -824,6 +841,65 @@ class SessionRepository:
         row.reviewed_at = datetime.now(timezone.utc)
         await self.db.flush()
 
+    # ---- Research Jobs ----
+
+    async def save_research_job(self, job: "ResearchJob") -> None:
+        """Insert or update a research job."""
+        from colloquip.db.tables import DBResearchJob
+
+        row = await self.db.get(DBResearchJob, str(job.id))
+        if row:
+            row.status = job.status.value
+            row.current_iteration = job.current_iteration
+            row.threads_completed = [str(t) for t in job.threads_completed]
+            row.threads_discarded = [str(t) for t in job.threads_discarded]
+            row.baseline_metric = job.baseline_metric
+            row.best_metric = job.best_metric
+            row.metric_history = job.metric_history
+            row.total_cost_usd = job.total_cost_usd
+            row.started_at = job.started_at
+        else:
+            row = DBResearchJob(
+                id=str(job.id),
+                subreddit_id=str(job.subreddit_id),
+                status=job.status.value,
+                research_program_version=job.research_program_version,
+                current_iteration=job.current_iteration,
+                max_iterations=job.max_iterations,
+                threads_completed=[str(t) for t in job.threads_completed],
+                threads_discarded=[str(t) for t in job.threads_discarded],
+                baseline_metric=job.baseline_metric,
+                best_metric=job.best_metric,
+                metric_history=job.metric_history,
+                total_cost_usd=job.total_cost_usd,
+                max_cost_usd=job.max_cost_usd,
+                max_threads_per_hour=job.max_threads_per_hour,
+                max_runtime_hours=job.max_runtime_hours,
+                created_at=job.created_at,
+                started_at=job.started_at,
+            )
+            self.db.add(row)
+        await self.db.flush()
+
+    async def get_research_job(self, job_id: UUID) -> Optional["ResearchJob"]:
+        """Load a research job by ID."""
+        from colloquip.db.tables import DBResearchJob
+
+        row = await self.db.get(DBResearchJob, str(job_id))
+        if not row:
+            return None
+        return _row_to_research_job(row)
+
+    async def list_research_jobs(self, subreddit_id: Optional[str] = None) -> List["ResearchJob"]:
+        """List research jobs, optionally filtered by subreddit."""
+        from colloquip.db.tables import DBResearchJob
+
+        stmt = select(DBResearchJob).order_by(DBResearchJob.created_at.desc())
+        if subreddit_id:
+            stmt = stmt.where(DBResearchJob.subreddit_id == subreddit_id)
+        result = await self.db.execute(stmt)
+        return [_row_to_research_job(r) for r in result.scalars().all()]
+
     # ---- Data Connections ----
 
     async def save_data_connection(self, conn: DataConnection) -> None:
@@ -939,6 +1015,8 @@ def _row_to_subreddit_dict(row: DBSubreddit) -> dict:
         "max_cost_per_thread_usd": row.max_cost_per_thread_usd,
         "monthly_budget_usd": row.monthly_budget_usd,
         "engine_overrides": row.engine_overrides,
+        "research_program": row.research_program,
+        "research_program_version": row.research_program_version,
         "created_by": row.created_by,
         "created_at": row.created_at,
         "updated_at": row.updated_at,
@@ -1071,6 +1149,31 @@ def _row_to_proposal(row: DBActionProposal) -> ActionProposal:
         review_note=row.review_note,
         created_at=row.created_at,
         reviewed_at=row.reviewed_at,
+    )
+
+
+def _row_to_research_job(row) -> "ResearchJob":
+    from colloquip.models import ResearchJob, ResearchJobStatus
+
+    return ResearchJob(
+        id=UUID(row.id),
+        subreddit_id=UUID(row.subreddit_id),
+        status=ResearchJobStatus(row.status),
+        research_program_version=row.research_program_version,
+        current_iteration=row.current_iteration,
+        max_iterations=row.max_iterations,
+        threads_completed=[UUID(t) for t in (row.threads_completed or [])],
+        threads_discarded=[UUID(t) for t in (row.threads_discarded or [])],
+        baseline_metric=row.baseline_metric,
+        best_metric=row.best_metric,
+        metric_history=row.metric_history or [],
+        total_cost_usd=row.total_cost_usd,
+        max_cost_usd=row.max_cost_usd,
+        max_threads_per_hour=row.max_threads_per_hour,
+        max_runtime_hours=row.max_runtime_hours,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+        started_at=row.started_at,
     )
 
 

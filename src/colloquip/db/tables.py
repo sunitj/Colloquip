@@ -160,6 +160,9 @@ class DBSubreddit(Base):
     always_include_red_team = Column(Boolean, nullable=False, default=True)
     max_cost_per_thread_usd = Column(Float, default=5.0)
     monthly_budget_usd = Column(Float, nullable=True)
+    # Research program: human-authored markdown steering agent behavior
+    research_program = Column(Text, nullable=True)
+    research_program_version = Column(Integer, nullable=False, default=0)
     created_by = Column(String(36), nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
     updated_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow, onupdate=_utcnow)
@@ -516,6 +519,50 @@ class DBActionProposal(Base):
     review_note = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
     reviewed_at = Column(DateTime(timezone=True), nullable=True)
+
+
+# ---------------------------------------------------------------------------
+# Phase 7: Autonomous Research Loop
+# ---------------------------------------------------------------------------
+
+
+class DBResearchJob(Base):
+    """research_jobs table — autonomous research loop state."""
+
+    __tablename__ = "research_jobs"
+    __table_args__ = (
+        Index("idx_rjob_subreddit", "subreddit_id"),
+        Index("idx_rjob_status", "status"),
+    )
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    subreddit_id = Column(String(36), ForeignKey("subreddits.id"), nullable=False)
+    status = Column(String(20), nullable=False, default="pending")
+    research_program_version = Column(Integer, nullable=False, default=0)
+
+    # Loop state
+    current_iteration = Column(Integer, nullable=False, default=0)
+    max_iterations = Column(Integer, nullable=False, default=50)
+    threads_completed = Column(JSON, nullable=False, default=list)
+    threads_discarded = Column(JSON, nullable=False, default=list)
+
+    # Evaluation
+    baseline_metric = Column(Float, nullable=True)
+    best_metric = Column(Float, nullable=True)
+    metric_history = Column(JSON, nullable=False, default=list)
+
+    # Budget
+    total_cost_usd = Column(Float, nullable=False, default=0.0)
+    max_cost_usd = Column(Float, nullable=False, default=25.0)
+    max_threads_per_hour = Column(Integer, nullable=False, default=3)
+    max_runtime_hours = Column(Float, nullable=False, default=24.0)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow, onupdate=_utcnow)
+    started_at = Column(DateTime(timezone=True), nullable=True)
+
+    subreddit = relationship("DBSubreddit")
 
 
 class DBDataConnection(Base):
