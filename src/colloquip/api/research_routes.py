@@ -33,14 +33,18 @@ class ResearchJobResponse(BaseModel):
     best_metric: Optional[float] = None
     total_cost_usd: float
     max_cost_usd: float
-    threads_completed: int
-    threads_discarded: int
+    max_threads_per_hour: int = 3
+    max_runtime_hours: float = 24.0
+    threads_completed: List[str]
+    threads_discarded: List[str]
     created_at: str
+    updated_at: str
+    started_at: Optional[str] = None
+    research_program_version: int = 0
 
 
 class ResearchJobDetailResponse(ResearchJobResponse):
     metric_history: List[dict]
-    research_program_version: int
 
 
 # ---- Helpers ----
@@ -72,28 +76,22 @@ def _job_to_response(job) -> ResearchJobResponse:
         best_metric=job.best_metric,
         total_cost_usd=job.total_cost_usd,
         max_cost_usd=job.max_cost_usd,
-        threads_completed=len(job.threads_completed),
-        threads_discarded=len(job.threads_discarded),
+        max_threads_per_hour=job.max_threads_per_hour,
+        max_runtime_hours=job.max_runtime_hours,
+        threads_completed=[str(t) for t in job.threads_completed],
+        threads_discarded=[str(t) for t in job.threads_discarded],
         created_at=job.created_at.isoformat(),
+        updated_at=job.updated_at.isoformat(),
+        started_at=job.started_at.isoformat() if job.started_at else None,
+        research_program_version=job.research_program_version,
     )
 
 
 def _job_to_detail(job) -> ResearchJobDetailResponse:
+    base = _job_to_response(job)
     return ResearchJobDetailResponse(
-        id=str(job.id),
-        subreddit_id=str(job.subreddit_id),
-        status=job.status.value,
-        current_iteration=job.current_iteration,
-        max_iterations=job.max_iterations,
-        baseline_metric=job.baseline_metric,
-        best_metric=job.best_metric,
-        total_cost_usd=job.total_cost_usd,
-        max_cost_usd=job.max_cost_usd,
-        threads_completed=len(job.threads_completed),
-        threads_discarded=len(job.threads_discarded),
-        created_at=job.created_at.isoformat(),
+        **base.model_dump(),
         metric_history=job.metric_history,
-        research_program_version=job.research_program_version,
     )
 
 
@@ -122,6 +120,7 @@ async def create_research_job(name: str, body: CreateResearchJobRequest, request
         if str(existing.subreddit_id) == subreddit["id"] and existing.status in (
             ResearchJobStatus.PENDING,
             ResearchJobStatus.RUNNING,
+            ResearchJobStatus.PAUSED,
         ):
             raise HTTPException(
                 status_code=409,
@@ -176,7 +175,7 @@ async def pause_research_job(job_id: str, request: Request):
             status_code=400, detail=f"Cannot pause job in status '{job.status.value}'"
         )
     job.status = ResearchJobStatus.PAUSED
-    return {"status": "paused"}
+    return _job_to_response(job)
 
 
 @router.post("/research-jobs/{job_id}/resume")
@@ -191,7 +190,7 @@ async def resume_research_job(job_id: str, request: Request):
             status_code=400, detail=f"Cannot resume job in status '{job.status.value}'"
         )
     job.status = ResearchJobStatus.RUNNING
-    return {"status": "running"}
+    return _job_to_response(job)
 
 
 @router.post("/research-jobs/{job_id}/stop")
@@ -207,7 +206,7 @@ async def stop_research_job(job_id: str, request: Request):
             status_code=400, detail=f"Cannot stop job in status '{job.status.value}'"
         )
     job.status = ResearchJobStatus.STOPPED
-    return {"status": "stopped"}
+    return _job_to_response(job)
 
 
 @router.get("/research-jobs/{job_id}/results")
