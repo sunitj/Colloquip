@@ -36,6 +36,10 @@ def validate_read_only(sql: str) -> bool:
     if not re.match(r"^\s*(SELECT|WITH)\b", cleaned, re.IGNORECASE):
         return False
 
+    # Reject multi-statement queries (semicolons indicate statement chaining)
+    if ";" in cleaned:
+        return False
+
     # Must not contain write operations
     if _WRITE_PATTERN.search(cleaned):
         return False

@@ -855,7 +855,7 @@ class SessionRepository:
             row.threads_discarded = [str(t) for t in job.threads_discarded]
             row.baseline_metric = job.baseline_metric
             row.best_metric = job.best_metric
-            row.metric_history = job.metric_history
+            row.metric_history = [e.model_dump() for e in job.metric_history]
             row.total_cost_usd = job.total_cost_usd
             row.started_at = job.started_at
         else:
@@ -870,7 +870,7 @@ class SessionRepository:
                 threads_discarded=[str(t) for t in job.threads_discarded],
                 baseline_metric=job.baseline_metric,
                 best_metric=job.best_metric,
-                metric_history=job.metric_history,
+                metric_history=[e.model_dump() for e in job.metric_history],
                 total_cost_usd=job.total_cost_usd,
                 max_cost_usd=job.max_cost_usd,
                 max_threads_per_hour=job.max_threads_per_hour,
@@ -1153,7 +1153,7 @@ def _row_to_proposal(row: DBActionProposal) -> ActionProposal:
 
 
 def _row_to_research_job(row) -> "ResearchJob":
-    from colloquip.models import ResearchJob, ResearchJobStatus
+    from colloquip.models import ResearchIterationEntry, ResearchJob, ResearchJobStatus
 
     return ResearchJob(
         id=UUID(row.id),
@@ -1166,7 +1166,7 @@ def _row_to_research_job(row) -> "ResearchJob":
         threads_discarded=[UUID(t) for t in (row.threads_discarded or [])],
         baseline_metric=row.baseline_metric,
         best_metric=row.best_metric,
-        metric_history=row.metric_history or [],
+        metric_history=[ResearchIterationEntry(**e) for e in (row.metric_history or [])],
         total_cost_usd=row.total_cost_usd,
         max_cost_usd=row.max_cost_usd,
         max_threads_per_hour=row.max_threads_per_hour,

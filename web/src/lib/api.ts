@@ -111,7 +111,7 @@ export const resumeResearchJob = (jobId: string) =>
 export const stopResearchJob = (jobId: string) =>
   request<import('@/types/platform').ResearchJob>(`/research-jobs/${jobId}/stop`, { method: 'POST' });
 export const getResearchJobResults = (jobId: string) =>
-  request<{ job_id: string; iterations: import('@/types/platform').ResearchIteration[]; summary: Record<string, unknown> }>(`/research-jobs/${jobId}/results`);
+  request<{ job_id: string; status: string; iterations: import('@/types/platform').ResearchIteration[]; best_metric: number | null; total_cost_usd: number }>(`/research-jobs/${jobId}/results`);
 
 // Jobs & Pipelines
 export const getNfProcesses = (category?: string) => {

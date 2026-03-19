@@ -75,7 +75,7 @@ class SynthesisEvaluator:
         """Ratio of agreements to total claims."""
         total = len(agreements) + len(disagreements)
         if total == 0:
-            return 0.5  # No claims = neutral
+            return 0.0  # No claims = no evidence of consensus
         return len(agreements) / total
 
     def _score_evidence(self, synthesis_content: str, key_conclusions: List[str]) -> float:

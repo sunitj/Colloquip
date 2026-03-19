@@ -90,7 +90,10 @@ class HypothesisGenerator:
             max_tokens=500,
         )
 
-        return result.content.strip()
+        hypothesis = (result.content or "").strip()
+        if not hypothesis:
+            raise ValueError("LLM returned empty hypothesis")
+        return hypothesis
 
     def _build_user_prompt(
         self,

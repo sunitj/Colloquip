@@ -91,10 +91,16 @@ class TestJobRoutes:
         resp = client.get("/api/jobs")
         assert resp.status_code == 503
 
-    def test_list_jobs_empty(self):
+    def test_list_jobs_requires_session_id(self):
         app, _ = _make_app_with_manager()
         client = TestClient(app)
         resp = client.get("/api/jobs")
+        assert resp.status_code == 400
+
+    def test_list_jobs_empty(self):
+        app, _ = _make_app_with_manager()
+        client = TestClient(app)
+        resp = client.get(f"/api/jobs?session_id={uuid4()}")
         assert resp.status_code == 200
         assert resp.json()["jobs"] == []
 

@@ -2,9 +2,9 @@
 
 ## Project Overview
 
-Colloquium is an emergent multi-agent deliberation platform. AI agents with distinct personas (biology, chemistry, clinical, regulatory, red-team, etc.) debate hypotheses through self-organizing phases, driven by energy-based dynamics rather than hardcoded turn sequences. The platform is structured as a Reddit-like social system with communities ("subreddits"), persistent agent identities, institutional memory, and event-driven watchers.
+Colloquium is an emergent multi-agent deliberation platform. AI agents with distinct personas (biology, chemistry, clinical, regulatory, red-team, etc.) debate hypotheses through self-organizing phases, driven by energy-based dynamics rather than hardcoded turn sequences. The platform is structured as a Reddit-like social system with communities ("subreddits"), persistent agent identities, institutional memory, event-driven watchers, and an autonomous research loop inspired by Karpathy's autoresearch pattern.
 
-**Philosophy**: Inspired by cellular automata — complex behavior emerges from simple rules. Agents self-select when to speak via triggers, an observer detects phases from conversation metrics, and deliberations terminate when energy decays.
+**Philosophy**: Inspired by cellular automata — complex behavior emerges from simple rules. Agents self-select when to speak via triggers, an observer detects phases from conversation metrics, and deliberations terminate when energy decays. An autonomous research loop can chain deliberations overnight — generating hypotheses, running debates, evaluating synthesis quality, and iterating — with earned-autonomy guardrails.
 
 ## Tech Stack
 
@@ -38,7 +38,9 @@ Colloquium/
 │   ├── memory/              # Institutional memory: store, retriever, extractor
 │   ├── embeddings/          # Embedding interface (OpenAI + Mock)
 │   ├── watchers/            # Event monitors: literature, scheduled, webhook
-│   ├── tools/               # External tools: web search, PubMed, citation verifier
+│   ├── research/            # Autonomous research loop: hypothesis generator, evaluator, loop runner
+│   ├── jobs/                # Nextflow job management: pipeline builder, executor, job manager
+│   ├── tools/               # External tools: web search, PubMed, citation verifier, DB queries
 │   ├── feedback/            # Outcome tracking, confidence calibration
 │   ├── notifications/       # Notification store
 │   ├── eval/                # Prompt evaluation harness
@@ -64,15 +66,17 @@ Colloquium/
 │   │   │   ├── agents/      # AgentCard, AgentProfileHeader, CalibrationGauge
 │   │   │   ├── dialogs/     # Create community/thread/watcher, report outcome
 │   │   │   ├── memories/    # MemoryCard, AnnotationForm, AnnotationList
+│   │   │   ├── research/   # ResearchProgramEditor, ResearchJobDashboard, IterationHistoryTable
+│   │   │   ├── jobs/        # JobCard, ProcessLibraryBrowser, ProposalCard
 │   │   │   └── notifications/
 │   │   ├── routes/          # File-based routes (TanStack Router)
 │   │   ├── hooks/           # useWebSocket, useDeliberation, useMediaQuery
 │   │   ├── stores/          # Zustand: deliberationStore, themeStore, sidebarStore
 │   │   ├── lib/             # api.ts, websocket.ts, query.ts, utils.ts
-│   │   └── types/           # deliberation.ts, platform.ts
+│   │   └── types/           # deliberation.ts, platform.ts, jobs.ts
 │   └── package.json
-├── tests/                   # pytest test suite (37+ files)
-├── alembic/                 # Database migrations (4 migration files)
+├── tests/                   # pytest test suite (40+ files, 821+ tests)
+├── alembic/                 # Database migrations (7 migration files)
 ├── config/                  # YAML configuration files
 ├── scripts/                 # pre-commit hook, install-hooks.sh, healthcheck.py
 ├── docs/                    # Design docs (system design, energy model, observer, triggers, prompts)
@@ -239,19 +243,54 @@ Each agent has: persona prompt, phase mandates, domain keywords, knowledge scope
 - **Threads**: Individual deliberation sessions within a subreddit
 - **Institutional Memory**: Bayesian-confidence synthesis memories with temporal decay
 - **Watchers**: Literature monitors, scheduled triggers, webhooks that auto-spawn deliberations
+- **Research Programs**: Human-authored markdown documents per subreddit that steer agent behavior
+- **Research Jobs**: Autonomous iteration loops that chain deliberations into progressive research
+
+### Autonomous Research Loop
+
+Inspired by Karpathy's autoresearch pattern: **deliberate → evaluate → keep/discard → generate next hypothesis → repeat**.
+
+```
+src/colloquip/research/
+├── loop.py                  # ResearchLoopRunner (async iterator yielding events)
+├── hypothesis_generator.py  # LLM-based next-hypothesis from program + memories + history
+└── synthesis_evaluator.py   # Composite quality metric (consensus, evidence, novelty, actionability)
+```
+
+**Loop flow**: Load research program → generate hypothesis → run deliberation thread → evaluate synthesis quality → keep or discard → record metrics → repeat until budget/iteration limit.
+
+**Guardrails**:
+- **Earned autonomy** (`EARNED_AUTONOMY_THRESHOLD=3`): First N iterations emit `confirmation_required` events before running autonomously
+- **Hypothesis diversity guard** (`DIVERSITY_SIMILARITY_THRESHOLD=0.85`): Rejects hypotheses with >85% word overlap to recent attempts, retries up to 3 times
+- **Research program version pinning**: Pauses job when the research program is modified mid-run
+- **Declining value detection** (`DECLINING_VALUE_WINDOW=5`): Auto-stops after N consecutive discarded iterations
+- **Budget enforcement**: Cost cap, iteration limit, runtime limit
+
+**Synthesis evaluator** composite metric: `0.25×consensus + 0.30×evidence + 0.25×novelty + 0.20×actionability`
+
+### Jobs & Pipelines
+
+Nextflow pipeline composition and execution for computational biology workflows:
+- **Process library**: Curated catalog of bioinformatics tools (YAML-defined)
+- **Pipeline builder**: Validates step connections, type compatibility, parameter overrides
+- **Job manager**: Proposal-based workflow with approve/reject, concurrent job limits
+- **Mock executor**: Development executor that simulates job lifecycle
 
 ## Database & Migrations
 
 - **Development**: SQLite via aiosqlite (no setup needed)
 - **Production**: PostgreSQL 16 + pgvector extension
 
-Four Alembic migration files:
+Seven Alembic migration files:
 1. `001_baseline_schema.py` — Core + platform tables
 2. `002_phase3_memory_tables.py` — Synthesis memory
 3. `003_phase4_watcher_tables.py` — Event watchers
 4. `004_phase5_crossref_outcome_tables.py` — Cross-references & outcomes
+5. `005_phase6_jobs_pipelines.py` — Nextflow jobs, pipelines, proposals, data connections
+6. `006_research_program.py` — Research program fields on subreddits
+7. `007_research_jobs.py` — Autonomous research job state
 
-Key tables: `deliberation_sessions`, `posts`, `energy_history`, `consensus_maps`, `subreddits`, `agent_identities`, `subreddit_memberships`, `syntheses`, `synthesis_memories`, `watchers`, `watcher_events`, `notifications`, `cross_references`, `outcome_reports`, `memory_annotations`, `cost_records`.
+Key tables: `deliberation_sessions`, `posts`, `energy_history`, `consensus_maps`, `subreddits`, `agent_identities`, `subreddit_memberships`, `syntheses`, `synthesis_memories`, `watchers`, `watcher_events`, `notifications`, `cross_references`, `outcome_reports`, `memory_annotations`, `cost_records`, `nextflow_jobs`, `action_proposals`, `data_connections`, `research_jobs`.
 
 ## API Endpoints
 
@@ -261,6 +300,8 @@ All REST endpoints are prefixed with `/api/`:
 |-------|-------------|
 | Deliberations | `POST /deliberations`, `POST /deliberations/{id}/start` (SSE), `GET /deliberations/{id}`, `GET /deliberations/{id}/posts` |
 | Platform | `POST /subreddits`, `GET /subreddits`, `POST /subreddits/{id}/threads`, `GET /agents` |
+| Research | `GET/PUT /subreddits/{name}/research-program`, `POST/GET /subreddits/{name}/research-jobs`, `GET /research-jobs/{id}`, `POST /research-jobs/{id}/pause\|resume\|stop`, `GET /research-jobs/{id}/results` |
+| Jobs | `GET /nf-processes`, `POST /jobs`, `GET /jobs/{id}`, `POST /proposals/{id}/review` |
 | Memory | `GET /memories/search`, `POST /memories/{id}/annotations` |
 | Watchers | `POST /watchers`, `POST /watchers/{id}/trigger`, `GET /notifications` |
 | Export | `POST /deliberations/{id}/export/markdown`, `POST /deliberations/{id}/export/pdf` |
@@ -381,3 +422,6 @@ GitHub Actions workflows in `.github/workflows/`:
 - **Mock-first development**: All external services (LLM, embeddings) have mock implementations for testing
 - **Repository pattern**: All DB access goes through `SessionRepository` — never query tables directly in routes
 - **Frontend served by backend**: Production builds the React SPA into static files served by FastAPI
+- **Callback-based loop runner**: `ResearchLoopRunner` uses injected callbacks (`MemoryLoader`, `ThreadRunner`, etc.) for testability — no hard dependency on DB or API layer
+- **Research program as prompt layer**: Injected into LLM system prompts between role and prior deliberations, giving humans one place to steer agent behavior across an entire research campaign
+- **Earned autonomy**: Research jobs require human confirmation for first N iterations before running fully autonomously, balancing safety with efficiency

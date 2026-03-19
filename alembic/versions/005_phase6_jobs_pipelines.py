@@ -131,8 +131,8 @@ def upgrade() -> None:
         sa.Column("description", sa.Text(), nullable=False, server_default=""),
         sa.Column("db_type", sa.String(20), nullable=False, server_default="postgresql"),
         sa.Column("connection_string", sa.Text(), nullable=False, server_default=""),
-        sa.Column("read_only", sa.Boolean(), nullable=False, server_default="1"),
-        sa.Column("enabled", sa.Boolean(), nullable=False, server_default="1"),
+        sa.Column("read_only", sa.Boolean(), nullable=False, server_default=sa.text("true")),
+        sa.Column("enabled", sa.Boolean(), nullable=False, server_default=sa.text("true")),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),

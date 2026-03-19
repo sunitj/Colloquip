@@ -38,7 +38,7 @@ export function ResearchJobDashboard({ subredditName, className, onSelectJob }: 
   const refresh = useCallback(() => {
     setLoading(true)
     getResearchJobs(subredditName)
-      .then((data) => { setJobs(data.jobs); setError(null) })
+      .then((data) => { setJobs(data.jobs ?? []); setError(null) })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
   }, [subredditName])

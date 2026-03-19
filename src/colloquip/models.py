@@ -768,6 +768,17 @@ class ResearchJobStatus(str, Enum):
     STOPPED = "stopped"
 
 
+class ResearchIterationEntry(BaseModel):
+    """A single iteration result in a research job's metric history."""
+
+    iteration: int
+    thread_id: Optional[str] = None
+    hypothesis: str
+    metric: float
+    status: str  # "keep" or "discard"
+    cost_usd: float = 0.0
+
+
 class ResearchJob(BaseModel):
     """An autonomous research loop that chains deliberations."""
 
@@ -785,7 +796,7 @@ class ResearchJob(BaseModel):
     # Evaluation
     baseline_metric: Optional[float] = None
     best_metric: Optional[float] = None
-    metric_history: List[Dict[str, Any]] = Field(default_factory=list)
+    metric_history: List[ResearchIterationEntry] = Field(default_factory=list)
 
     # Budget
     total_cost_usd: float = 0.0

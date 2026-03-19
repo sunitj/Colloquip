@@ -91,7 +91,7 @@ def _job_to_detail(job) -> ResearchJobDetailResponse:
     base = _job_to_response(job)
     return ResearchJobDetailResponse(
         **base.model_dump(),
-        metric_history=job.metric_history,
+        metric_history=[e.model_dump() for e in job.metric_history],
     )
 
 
@@ -219,7 +219,7 @@ async def get_research_job_results(job_id: str, request: Request):
     return {
         "job_id": str(job.id),
         "status": job.status.value,
-        "iterations": job.metric_history,
+        "iterations": [e.model_dump() for e in job.metric_history],
         "best_metric": job.best_metric,
         "total_cost_usd": job.total_cost_usd,
     }

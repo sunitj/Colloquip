@@ -146,10 +146,9 @@ async def list_jobs(request: Request, session_id: Optional[str] = None):
     if not manager:
         raise HTTPException(status_code=503, detail="Job manager not configured")
 
-    if session_id:
-        jobs = await manager.list_jobs(UUID(session_id))
-    else:
-        jobs = list(manager._jobs.values())
+    if not session_id:
+        raise HTTPException(status_code=400, detail="session_id query parameter is required")
+    jobs = await manager.list_jobs(UUID(session_id))
 
     return {
         "jobs": [

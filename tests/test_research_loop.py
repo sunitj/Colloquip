@@ -299,7 +299,7 @@ class TestResearchLoopRunner:
         events = await self._collect_events(runner, job)
 
         # First iteration should be "keep" (baseline)
-        assert job.metric_history[0]["status"] == "keep"
+        assert job.metric_history[0].status == "keep"
         assert len(job.threads_completed) >= 1
 
     @pytest.mark.asyncio

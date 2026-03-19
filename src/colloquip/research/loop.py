@@ -10,6 +10,7 @@ from typing import Any, AsyncIterator, Callable, Coroutine, Dict, List, Optional
 from uuid import UUID
 
 from colloquip.models import (
+    ResearchIterationEntry,
     ResearchJob,
     ResearchJobEvent,
     ResearchJobStatus,
@@ -187,14 +188,14 @@ class ResearchLoopRunner:
             cost = thread_result.get("estimated_cost_usd", 0.0)
             job.total_cost_usd += cost
             job.metric_history.append(
-                {
-                    "iteration": job.current_iteration,
-                    "thread_id": str(thread_id) if thread_id else None,
-                    "hypothesis": hypothesis,
-                    "metric": metric,
-                    "status": status,
-                    "cost_usd": cost,
-                }
+                ResearchIterationEntry(
+                    iteration=job.current_iteration,
+                    thread_id=str(thread_id) if thread_id else None,
+                    hypothesis=hypothesis,
+                    metric=metric,
+                    status=status,
+                    cost_usd=cost,
+                )
             )
             job.current_iteration += 1
             job.updated_at = datetime.now(timezone.utc)
@@ -247,7 +248,7 @@ class ResearchLoopRunner:
         if len(job.metric_history) < DECLINING_VALUE_WINDOW:
             return False
         recent = job.metric_history[-DECLINING_VALUE_WINDOW:]
-        return all(r["status"] == "discard" for r in recent)
+        return all(r.status == "discard" for r in recent)
 
     def _is_improvement(self, metric: float, job: ResearchJob) -> bool:
         """Determine if a metric represents an improvement worth keeping.
@@ -280,15 +281,13 @@ class ResearchLoopRunner:
 
         Uses word-overlap similarity as a lightweight diversity check.
         """
-        recent_hypotheses = [
-            entry["hypothesis"] for entry in job.metric_history[-10:] if "hypothesis" in entry
-        ]
+        recent_hypotheses = [entry.hypothesis for entry in job.metric_history[-10:]]
 
         for attempt in range(MAX_DIVERSITY_RETRIES):
             hypothesis = await self.hypothesis_generator.generate(
                 research_program=program,
                 memories=memories,
-                experiment_history=job.metric_history,
+                experiment_history=[e.model_dump() for e in job.metric_history],
             )
 
             if not recent_hypotheses:

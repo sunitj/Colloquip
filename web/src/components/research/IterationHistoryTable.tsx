@@ -40,7 +40,9 @@ export function IterationHistoryTable({ jobId, className }: IterationHistoryTabl
 
   const sorted = [...iterations].sort((a, b) => {
     const mul = sortDir === 'asc' ? 1 : -1
-    return (a[sortKey] - b[sortKey]) * mul
+    const aVal = Number(a[sortKey]) || 0
+    const bVal = Number(b[sortKey]) || 0
+    return (aVal - bVal) * mul
   })
 
   const arrow = (key: SortKey) => sortKey === key ? (sortDir === 'asc' ? ' \u2191' : ' \u2193') : ''
