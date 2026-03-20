@@ -471,6 +471,37 @@ class SessionManager:
                         agents[config.agent_id] = BaseDeliberationAgent(
                             config=config, llm=llm, phase_max_tokens=self._phase_max_tokens
                         )
+
+                    # Wire tools into agents if the subreddit has tool configs
+                    tool_configs = sub.get("tool_configs")
+                    if tool_configs and agents:
+                        tool_instances = platform_manager.tool_registry.get_tools_for_subreddit(
+                            tool_configs
+                        )
+                        if tool_instances:
+                            schemas = platform_manager.tool_registry.get_claude_tool_schemas(
+                                tool_instances
+                            )
+                            registry = platform_manager.tool_registry
+
+                            async def _tool_executor(
+                                name: str,
+                                inp: dict,
+                                _tools=tool_instances,
+                                _reg=registry,
+                            ) -> dict:
+                                return await _reg.execute_tool_call(name, inp, _tools)
+
+                            for agent in agents.values():
+                                agent.tools = schemas
+                                agent.tool_executor = _tool_executor
+                            logger.info(
+                                "Wired %d tools into %d agents for '%s'",
+                                len(tool_instances),
+                                len(agents),
+                                community_name,
+                            )
+
                     if agents:
                         logger.info(
                             "Created %d agents from community '%s'",

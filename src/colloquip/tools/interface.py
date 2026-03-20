@@ -1,5 +1,6 @@
 """Tool interface and result models for agent research tools."""
 
+import re
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
@@ -62,15 +63,30 @@ class BaseSearchTool(ABC):
         """Execute the tool with given parameters and return results."""
         ...
 
+    @staticmethod
+    def _sanitize_citation_field(value: str, max_len: int = 100) -> str:
+        """Strip control characters and prompt-injection markers from a citation field."""
+        # Remove common prompt injection markers and control chars
+        sanitized = re.sub(r"[\x00-\x1f\x7f]", "", value)
+        # Strip markdown/instruction-like patterns that could manipulate agent behavior
+        sanitized = re.sub(r"<\|.*?\|>", "", sanitized)
+        sanitized = re.sub(r"\[INST\].*?\[/INST\]", "", sanitized, flags=re.DOTALL)
+        return sanitized[:max_len].strip()
+
     def _format_citation_ref(self, result: SearchResult) -> str:
-        """Format a citation reference string for prompt injection."""
+        """Format a sanitized citation reference string."""
         if result.source_type == "pubmed" and result.source_id:
-            return f"[PUBMED:{result.source_id}]"
+            sid = self._sanitize_citation_field(result.source_id, max_len=20)
+            return f"[PUBMED:{sid}]"
         if result.source_type == "internal" and result.source_id:
-            return f"[INTERNAL:{result.source_id}]"
+            sid = self._sanitize_citation_field(result.source_id, max_len=50)
+            return f"[INTERNAL:{sid}]"
         if result.url:
-            return f"[WEB:{result.url}]"
-        return f"[{result.source_type.upper()}:{result.title[:50]}]"
+            url = self._sanitize_citation_field(result.url, max_len=200)
+            return f"[WEB:{url}]"
+        title = self._sanitize_citation_field(result.title, max_len=50)
+        stype = self._sanitize_citation_field(result.source_type, max_len=20).upper()
+        return f"[{stype}:{title}]"
 
 
 # Backward compatibility alias

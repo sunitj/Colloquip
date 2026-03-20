@@ -33,6 +33,7 @@ class CostTracker:
 
         # thread_id -> list of (input_tokens, output_tokens, model)
         self._records: Dict[UUID, List[dict]] = defaultdict(list)
+        self._tool_records: Dict[UUID, List[dict]] = defaultdict(list)
         self._start_times: Dict[UUID, datetime] = {}
 
     def start_tracking(self, thread_id: UUID):
@@ -54,6 +55,21 @@ class CostTracker:
                 "output_tokens": output_tokens,
                 "model": model,
                 "estimated_cost_usd": cost,
+                "recorded_at": datetime.now(timezone.utc),
+            }
+        )
+
+    def record_tool_call(
+        self,
+        thread_id: UUID,
+        tool_name: str,
+        duration_ms: float,
+    ):
+        """Record a tool invocation for a thread."""
+        self._tool_records[thread_id].append(
+            {
+                "tool_name": tool_name,
+                "duration_ms": duration_ms,
                 "recorded_at": datetime.now(timezone.utc),
             }
         )
@@ -86,6 +102,7 @@ class CostTracker:
         if start:
             duration = (datetime.now(timezone.utc) - start).total_seconds()
 
+        tool_calls = self._tool_records.get(thread_id, [])
         return {
             "thread_id": str(thread_id),
             "total_input_tokens": self.total_input_tokens(thread_id),
@@ -93,6 +110,8 @@ class CostTracker:
             "total_tokens": self.total_tokens(thread_id),
             "estimated_cost_usd": round(self.estimated_cost(thread_id), 6),
             "num_llm_calls": self.num_calls(thread_id),
+            "num_tool_calls": len(tool_calls),
+            "total_tool_duration_ms": round(sum(t["duration_ms"] for t in tool_calls), 1),
             "duration_seconds": round(duration, 1),
         }
 

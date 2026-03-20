@@ -57,6 +57,46 @@ def _get_research_store(request: Request) -> dict:
     return request.app.state.research_jobs
 
 
+def _get_db_factory(request: Request):
+    """Get the DB session factory, or None if DB is not configured."""
+    sm = getattr(request.app.state, "session_manager", None)
+    if sm and getattr(sm, "_db_factory", None):
+        return sm._db_factory
+    return None
+
+
+async def _persist_research_job(request: Request, job) -> None:
+    """Persist a research job to the database if configured."""
+    db_factory = _get_db_factory(request)
+    if not db_factory:
+        return
+    try:
+        from colloquip.db.repository import SessionRepository
+
+        async with db_factory() as db:
+            repo = SessionRepository(db)
+            await repo.save_research_job(job)
+            await repo.commit()
+    except Exception as e:
+        logger.warning("Failed to persist research job to DB: %s", e)
+
+
+async def _load_research_job_from_db(request: Request, job_id: str):
+    """Load a research job from DB if not in memory."""
+    db_factory = _get_db_factory(request)
+    if not db_factory:
+        return None
+    try:
+        from colloquip.db.repository import SessionRepository
+
+        async with db_factory() as db:
+            repo = SessionRepository(db)
+            return await repo.get_research_job(UUID(job_id))
+    except Exception as e:
+        logger.warning("Failed to load research job from DB: %s", e)
+        return None
+
+
 def _get_platform(request: Request):
     """Get the PlatformManager from app state."""
     pm = getattr(request.app.state, "platform_manager", None)
@@ -136,6 +176,7 @@ async def create_research_job(name: str, body: CreateResearchJobRequest, request
         max_runtime_hours=body.max_runtime_hours,
     )
     store[str(job.id)] = job
+    await _persist_research_job(request, job)
 
     return _job_to_response(job)
 
@@ -149,8 +190,25 @@ async def list_research_jobs(name: str, request: Request):
         raise HTTPException(status_code=404, detail=f"Subreddit '{name}' not found")
 
     store = _get_research_store(request)
-    jobs = [_job_to_response(j) for j in store.values() if str(j.subreddit_id) == subreddit["id"]]
-    return {"jobs": jobs}
+    jobs = [j for j in store.values() if str(j.subreddit_id) == subreddit["id"]]
+
+    # Load from DB if in-memory store has no jobs for this subreddit
+    if not jobs:
+        db_factory = _get_db_factory(request)
+        if db_factory:
+            try:
+                from colloquip.db.repository import SessionRepository
+
+                async with db_factory() as db:
+                    repo = SessionRepository(db)
+                    db_jobs = await repo.list_research_jobs(subreddit_id=subreddit["id"])
+                    for dj in db_jobs:
+                        store[str(dj.id)] = dj
+                    jobs = db_jobs
+            except Exception as e:
+                logger.warning("Failed to load research jobs from DB: %s", e)
+
+    return {"jobs": [_job_to_response(j) for j in jobs]}
 
 
 @router.get("/research-jobs/{job_id}", response_model=ResearchJobDetailResponse)
@@ -158,6 +216,10 @@ async def get_research_job(job_id: str, request: Request):
     """Get detailed status of a research job including metric history."""
     store = _get_research_store(request)
     job = store.get(job_id)
+    if not job:
+        job = await _load_research_job_from_db(request, job_id)
+        if job:
+            store[job_id] = job
     if not job:
         raise HTTPException(status_code=404, detail="Research job not found")
     return _job_to_detail(job)
@@ -175,6 +237,7 @@ async def pause_research_job(job_id: str, request: Request):
             status_code=400, detail=f"Cannot pause job in status '{job.status.value}'"
         )
     job.status = ResearchJobStatus.PAUSED
+    await _persist_research_job(request, job)
     return _job_to_response(job)
 
 
@@ -190,6 +253,7 @@ async def resume_research_job(job_id: str, request: Request):
             status_code=400, detail=f"Cannot resume job in status '{job.status.value}'"
         )
     job.status = ResearchJobStatus.RUNNING
+    await _persist_research_job(request, job)
     return _job_to_response(job)
 
 
@@ -206,6 +270,7 @@ async def stop_research_job(job_id: str, request: Request):
             status_code=400, detail=f"Cannot stop job in status '{job.status.value}'"
         )
     job.status = ResearchJobStatus.STOPPED
+    await _persist_research_job(request, job)
     return _job_to_response(job)
 
 

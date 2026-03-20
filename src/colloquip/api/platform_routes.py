@@ -314,6 +314,21 @@ async def update_research_program(name: str, body: UpdateResearchProgramRequest,
     subreddit["research_program"] = body.content
     subreddit["research_program_version"] = subreddit.get("research_program_version", 0) + 1
 
+    # Persist to database if configured
+    sm = getattr(request.app.state, "session_manager", None)
+    if sm and getattr(sm, "_db_factory", None):
+        try:
+            from colloquip.db.repository import SessionRepository
+
+            async with sm._db_factory() as db:
+                repo = SessionRepository(db)
+                new_version = await repo.update_research_program(subreddit["id"], body.content)
+                await repo.commit()
+                if new_version is not None:
+                    subreddit["research_program_version"] = new_version
+        except Exception as e:
+            logger.warning("Failed to persist research program to DB: %s", e)
+
     return ResearchProgramResponse(
         subreddit_name=name,
         content=subreddit["research_program"],

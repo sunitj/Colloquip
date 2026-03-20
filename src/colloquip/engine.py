@@ -280,13 +280,18 @@ class EmergentDeliberationEngine:
         return new_posts
 
     def _record_cost(self, agent: BaseDeliberationAgent):
-        """Record the last LLM call's cost from the agent."""
+        """Record the last LLM call's cost and tool invocations from the agent."""
         if self._cost_tracker and self._session_id:
             input_t = getattr(agent, "last_input_tokens", 0)
             output_t = getattr(agent, "last_output_tokens", 0)
             if input_t or output_t:
                 model = getattr(self.llm, "model", "unknown")
                 self._cost_tracker.record(self._session_id, input_t, output_t, model)
+
+            for ti in getattr(agent, "last_tool_invocations", []):
+                tool_name = ti.get("tool_name", "unknown") if isinstance(ti, dict) else "unknown"
+                duration = ti.get("duration_ms", 0) if isinstance(ti, dict) else 0
+                self._cost_tracker.record_tool_call(self._session_id, tool_name, duration)
 
         # Always record agent-level token metrics
         from colloquip.metrics import agent_tokens_total

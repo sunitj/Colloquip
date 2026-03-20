@@ -1,5 +1,6 @@
 """Anthropic Claude adapter for the deliberation system."""
 
+import asyncio
 import logging
 import re
 import time
@@ -222,7 +223,12 @@ class AnthropicLLM:
 
                 start_time = time.monotonic()
                 try:
-                    tool_result = await tool_executor(tool_name, tool_input)
+                    tool_result = await asyncio.wait_for(
+                        tool_executor(tool_name, tool_input), timeout=30.0
+                    )
+                except asyncio.TimeoutError:
+                    logger.error("Tool execution timed out for %s", tool_name)
+                    tool_result = {"error": f"Tool '{tool_name}' timed out after 30s"}
                 except Exception as e:
                     logger.error("Tool execution failed for %s: %s", tool_name, e)
                     tool_result = {"error": str(e)}

@@ -251,7 +251,20 @@ async def create_data_connection(
         read_only=body.read_only,
     )
 
-    # Store in memory (would go to DB in production)
+    # Persist to DB if configured, else fall back to in-memory
+    sm = getattr(request.app.state, "session_manager", None)
+    if sm and getattr(sm, "_db_factory", None):
+        try:
+            from colloquip.db.repository import SessionRepository
+
+            async with sm._db_factory() as db:
+                repo = SessionRepository(db)
+                await repo.save_data_connection(conn)
+                await repo.commit()
+        except Exception as e:
+            logger.warning("Failed to persist data connection to DB: %s", e)
+
+    # Also cache in memory for fast access
     if not hasattr(request.app.state, "data_connections"):
         request.app.state.data_connections = {}
     request.app.state.data_connections[str(conn.id)] = conn
@@ -267,6 +280,32 @@ async def create_data_connection(
 @router.get("/subreddits/{subreddit_id}/data-connections")
 async def list_data_connections(request: Request, subreddit_id: str):
     """List data connections for a subreddit."""
+    # Try DB first
+    sm = getattr(request.app.state, "session_manager", None)
+    if sm and getattr(sm, "_db_factory", None):
+        try:
+            from colloquip.db.repository import SessionRepository
+
+            async with sm._db_factory() as db:
+                repo = SessionRepository(db)
+                db_conns = await repo.list_data_connections(UUID(subreddit_id))
+                return {
+                    "connections": [
+                        {
+                            "id": str(c.id),
+                            "name": c.name,
+                            "description": c.description,
+                            "db_type": c.db_type,
+                            "read_only": c.read_only,
+                            "enabled": c.enabled,
+                        }
+                        for c in db_conns
+                    ]
+                }
+        except Exception as e:
+            logger.warning("Failed to load data connections from DB: %s", e)
+
+    # Fall back to in-memory
     connections = getattr(request.app.state, "data_connections", {})
     filtered = [
         {
@@ -286,6 +325,25 @@ async def list_data_connections(request: Request, subreddit_id: str):
 @router.delete("/subreddits/{subreddit_id}/data-connections/{conn_id}")
 async def delete_data_connection(request: Request, subreddit_id: str, conn_id: str):
     """Delete a data connection."""
+    # Delete from DB if configured
+    sm = getattr(request.app.state, "session_manager", None)
+    if sm and getattr(sm, "_db_factory", None):
+        try:
+            from colloquip.db.repository import SessionRepository
+
+            async with sm._db_factory() as db:
+                repo = SessionRepository(db)
+                deleted = await repo.delete_data_connection(UUID(conn_id))
+                await repo.commit()
+                if deleted:
+                    # Also remove from in-memory cache
+                    connections = getattr(request.app.state, "data_connections", {})
+                    connections.pop(conn_id, None)
+                    return {"status": "deleted"}
+        except Exception as e:
+            logger.warning("Failed to delete data connection from DB: %s", e)
+
+    # Fall back to in-memory only
     connections = getattr(request.app.state, "data_connections", {})
     if conn_id in connections:
         del connections[conn_id]
