@@ -3,13 +3,15 @@
 import asyncio
 import logging
 from collections import Counter, defaultdict
-from typing import AsyncIterator, Dict, List, Union
+from typing import AsyncIterator, Dict, List, Optional, Union
+from uuid import UUID
 
 from colloquip.agents.base import BaseDeliberationAgent
 from colloquip.agents.prompts import build_synthesis_prompt
 from colloquip.energy import EnergyCalculator
 from colloquip.llm.interface import LLMInterface
 from colloquip.models import (
+    AgentBudgetSkipped,
     AgentDependencies,
     AgentStance,
     ConsensusMap,
@@ -18,6 +20,7 @@ from colloquip.models import (
     EnergySource,
     EnergyUpdate,
     HumanIntervention,
+    MissionObjective,
     Phase,
     PhaseSignal,
     Post,
@@ -47,6 +50,11 @@ class EmergentDeliberationEngine:
         min_posts: int = 12,
         cost_tracker=None,
         session_id=None,
+        subreddit_id: Optional[UUID] = None,
+        subreddit_mission: Optional[str] = None,
+        mission_objectives: Optional[List[MissionObjective]] = None,
+        max_cost_per_thread_usd: Optional[float] = None,
+        agent_budgets: Optional[Dict[str, float]] = None,
     ):
         self.agents = agents
         self.observer = observer
@@ -56,12 +64,19 @@ class EmergentDeliberationEngine:
         self.min_posts = min_posts
         self._cost_tracker = cost_tracker
         self._session_id = session_id
+        # Phase 6: subreddit context + budget gates
+        self._subreddit_id = subreddit_id
+        self._subreddit_mission = subreddit_mission
+        self._mission_objectives: List[MissionObjective] = list(mission_objectives or [])
+        self._max_cost_per_thread_usd = max_cost_per_thread_usd
+        # agent_id -> per-thread budget override (from DBSubredditMembership)
+        self._agent_budgets: Dict[str, float] = dict(agent_budgets or {})
 
     async def run_deliberation(
         self,
         session: DeliberationSession,
         hypothesis: str,
-    ) -> AsyncIterator[Union[Post, PhaseSignal, EnergyUpdate, ConsensusMap]]:
+    ) -> AsyncIterator[Union[Post, PhaseSignal, EnergyUpdate, ConsensusMap, AgentBudgetSkipped]]:
         """Run emergent deliberation, yielding events as they occur."""
         posts: List[Post] = []
         energy_history: List[float] = []
@@ -111,12 +126,16 @@ class EmergentDeliberationEngine:
                 await asyncio.sleep(0)
                 continue
 
-            # 4. Generate posts concurrently
-            new_posts = await self._generate_posts(responding, session, phase_signal, posts)
-
-            for post in new_posts:
-                posts.append(post)
-                yield post
+            # 4. Generate posts concurrently (budget-gated; yields Posts or
+            # AgentBudgetSkipped events)
+            new_posts: List[Post] = []
+            async for event in self._generate_posts_with_budget_gate(
+                responding, session, phase_signal, posts, turn=turn
+            ):
+                if isinstance(event, Post):
+                    new_posts.append(event)
+                    posts.append(event)
+                yield event
 
             # 5. Update energy
             energy_update = self.energy_calculator.calculate_energy_update(posts, turn)
@@ -211,10 +230,18 @@ class EmergentDeliberationEngine:
             phase=Phase.EXPLORE,
             phase_signal=seed_signal,
             posts=list(posts),  # snapshot for concurrent agents
+            subreddit_mission=self._subreddit_mission,
+            mission_objectives=list(self._mission_objectives),
+            subreddit_id=self._subreddit_id,
         )
 
         tasks = []
         for agent in self.agents.values():
+            # Phase 6: respect per-agent budget gates in seed phase too.
+            # Budget-locked agents are skipped silently during seed — the main
+            # loop will emit an AgentBudgetSkipped event on the first turn.
+            if self._check_agent_budget(agent.agent_id) is not None:
+                continue
             tasks.append(self._safe_generate(agent, deps, ["seed_phase"]))
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -252,32 +279,103 @@ class EmergentDeliberationEngine:
         phase_signal: PhaseSignal,
         posts: List[Post],
     ) -> List[Post]:
-        """Generate posts from responding agents concurrently."""
+        """Generate posts from responding agents concurrently.
+
+        Backwards-compatible wrapper around
+        :meth:`_generate_posts_with_budget_gate` that drops budget-skip events
+        and returns only the Post instances for callers that don't yield.
+        """
+        new_posts: List[Post] = []
+        async for event in self._generate_posts_with_budget_gate(
+            responding, session, phase_signal, posts
+        ):
+            if isinstance(event, Post):
+                new_posts.append(event)
+        return new_posts
+
+    def _check_agent_budget(
+        self,
+        agent_id: str,
+    ) -> Optional[tuple[str, float, float]]:
+        """Return ``(reason, current_cost, max_usd)`` if the agent is over budget.
+
+        Returns ``None`` if the agent is within budget or if no tracker/budget
+        is configured.
+        """
+        if not self._cost_tracker or not self._session_id:
+            return None
+        # Per-thread total budget (applies to all agents collectively)
+        if self._max_cost_per_thread_usd is not None:
+            current = self._cost_tracker.estimated_cost(self._session_id)
+            if current > self._max_cost_per_thread_usd:
+                return ("thread_budget", current, self._max_cost_per_thread_usd)
+        # Per-agent budget (this agent only)
+        max_usd = self._agent_budgets.get(agent_id)
+        if max_usd is not None:
+            current = self._cost_tracker.agent_cost(self._session_id, agent_id)
+            if current > max_usd:
+                return ("agent_thread_budget", current, max_usd)
+        return None
+
+    async def _generate_posts_with_budget_gate(
+        self,
+        responding: Dict[str, List[str]],
+        session: DeliberationSession,
+        phase_signal: PhaseSignal,
+        posts: List[Post],
+        turn: int = 0,
+    ) -> AsyncIterator[Union[Post, AgentBudgetSkipped]]:
+        """Yield Posts from responding agents, skipping any over budget.
+
+        Budget-blocked agents produce an :class:`AgentBudgetSkipped` event
+        instead of a post. The thread continues so other agents can still
+        deliberate and energy can naturally decay.
+        """
         deps = AgentDependencies(
             session=session,
             phase=phase_signal.current_phase,
             phase_signal=phase_signal,
             posts=list(posts),  # snapshot for concurrent agents
+            subreddit_mission=self._subreddit_mission,
+            mission_objectives=list(self._mission_objectives),
+            subreddit_id=self._subreddit_id,
         )
 
         tasks = []
-        agent_rules = []
+        agent_order: List[str] = []
+        rules_order: List[List[str]] = []
         for agent_id, rules in responding.items():
+            breach = self._check_agent_budget(agent_id)
+            if breach is not None:
+                reason, current, max_usd = breach
+                yield AgentBudgetSkipped(
+                    session_id=session.id,
+                    agent_id=agent_id,
+                    turn=turn,
+                    reason=reason,  # type: ignore[arg-type]
+                    message=(
+                        f"Agent {agent_id} skipped: {reason} "
+                        f"(current ${current:.4f} > cap ${max_usd:.4f})"
+                    ),
+                    estimated_cost_usd=current,
+                    max_usd=max_usd,
+                )
+                continue
             agent = self.agents[agent_id]
             tasks.append(self._safe_generate(agent, deps, rules))
-            agent_rules.append(rules)
+            agent_order.append(agent_id)
+            rules_order.append(rules)
+
+        if not tasks:
+            return
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        new_posts = []
         for i, result in enumerate(results):
             if isinstance(result, Post):
-                result.triggered_by = agent_rules[i]
-                new_posts.append(result)
+                result.triggered_by = rules_order[i]
+                yield result
             elif isinstance(result, Exception):
                 logger.error("Agent generation failure: %s", result)
-
-        return new_posts
 
     def _record_cost(self, agent: BaseDeliberationAgent):
         """Record the last LLM call's cost from the agent."""
@@ -286,7 +384,13 @@ class EmergentDeliberationEngine:
             output_t = getattr(agent, "last_output_tokens", 0)
             if input_t or output_t:
                 model = getattr(self.llm, "model", "unknown")
-                self._cost_tracker.record(self._session_id, input_t, output_t, model)
+                self._cost_tracker.record(
+                    self._session_id,
+                    input_t,
+                    output_t,
+                    model,
+                    agent_id=agent.agent_id,
+                )
 
         # Always record agent-level token metrics
         from colloquip.metrics import agent_tokens_total

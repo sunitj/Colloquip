@@ -159,6 +159,11 @@ class DBSubreddit(Base):
     always_include_red_team = Column(Boolean, nullable=False, default=True)
     max_cost_per_thread_usd = Column(Float, default=5.0)
     monthly_budget_usd = Column(Float, nullable=True)
+    # Mission: program.md-style directive + parsed objectives (Phase 6)
+    mission_md = Column(Text, nullable=True)
+    mission_objectives = Column(JSON, nullable=False, default=list)
+    mission_version = Column(Integer, nullable=False, default=1)
+    mission_updated_at = Column(DateTime(timezone=True), nullable=True)
     created_by = Column(String(36), nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
     updated_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow, onupdate=_utcnow)
@@ -167,6 +172,11 @@ class DBSubreddit(Base):
     threads = relationship("DBSession", back_populates="subreddit")
     memberships = relationship(
         "DBSubredditMembership",
+        back_populates="subreddit",
+        cascade="all, delete-orphan",
+    )
+    approvals = relationship(
+        "DBApprovalRequest",
         back_populates="subreddit",
         cascade="all, delete-orphan",
     )
@@ -190,6 +200,7 @@ class DBAgentIdentity(Base):
     is_red_team = Column(Boolean, nullable=False, default=False)
     status = Column(String(20), nullable=False, default="active")
     version = Column(Integer, nullable=False, default=1)
+    autoresearch_enabled = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
 
     # Relationships
@@ -214,6 +225,18 @@ class DBSubredditMembership(Base):
     tool_access = Column(JSON, nullable=False, default=list)
     threads_participated = Column(Integer, nullable=False, default=0)
     total_posts = Column(Integer, nullable=False, default=0)
+    # Per-agent budget & cost accounting (Phase 6)
+    max_cost_per_thread_usd = Column(Float, nullable=True)
+    monthly_budget_usd = Column(Float, nullable=True)
+    lifetime_cost_usd = Column(Float, nullable=False, default=0.0)
+    lifetime_input_tokens = Column(Integer, nullable=False, default=0)
+    lifetime_output_tokens = Column(Integer, nullable=False, default=0)
+    current_month_cost_usd = Column(Float, nullable=False, default=0.0)
+    current_month_reset_at = Column(DateTime(timezone=True), nullable=True)
+    # Agent organization chart (Phase 6)
+    reports_to_agent_id = Column(String(36), nullable=True)
+    # Autoresearch opt-in/policy override (Phase 6)
+    autoresearch_policy = Column(JSON, nullable=True)
     joined_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
 
     # Relationships
@@ -435,3 +458,65 @@ class DBOutcomeReport(Base):
     agent_assessments = Column(JSON, nullable=False, default=dict)
     reported_by = Column(String(100), nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+
+
+# ---------------------------------------------------------------------------
+# Phase 6: Approval queue + autoresearch audit trail
+# ---------------------------------------------------------------------------
+
+
+class DBApprovalRequest(Base):
+    """approval_requests table — Paperclip-style human-in-loop queue."""
+
+    __tablename__ = "approval_requests"
+    __table_args__ = (
+        Index("idx_approval_subreddit_status", "subreddit_id", "status"),
+        Index("idx_approval_requested_at", "requested_at"),
+    )
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    subreddit_id = Column(String(36), ForeignKey("subreddits.id"), nullable=False)
+    # thread_spawn | tool_call | budget_override | autoresearch_run | agent_hire
+    request_type = Column(String(30), nullable=False)
+    # watcher:<id> | agent:<id> | system
+    initiator = Column(String(200), nullable=False, default="")
+    target_ref = Column(String(200), nullable=True)
+    payload = Column(JSON, nullable=False, default=dict)
+    # pending | approved | denied | expired
+    status = Column(String(20), nullable=False, default="pending")
+    reason = Column(Text, nullable=False, default="")
+    estimated_cost_usd = Column(Float, nullable=False, default=0.0)
+    ttl_seconds = Column(Integer, nullable=True)
+    requested_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+    decided_at = Column(DateTime(timezone=True), nullable=True)
+    decided_by = Column(String(200), nullable=True)
+
+    subreddit = relationship("DBSubreddit", back_populates="approvals")
+
+
+class DBAutoresearchRun(Base):
+    """autoresearch_runs table — Karpathy-style research loop audit trail."""
+
+    __tablename__ = "autoresearch_runs"
+    __table_args__ = (
+        Index("idx_autoresearch_thread", "thread_id"),
+        Index("idx_autoresearch_agent", "agent_id"),
+    )
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    thread_id = Column(String(36), nullable=False)
+    agent_id = Column(String(50), nullable=False)
+    subreddit_id = Column(String(36), nullable=True)
+    config = Column(JSON, nullable=False, default=dict)
+    scratchpad = Column(Text, nullable=False, default="")
+    steps = Column(JSON, nullable=False, default=list)
+    metric_name = Column(String(50), nullable=False, default="")
+    metric_start = Column(Float, nullable=False, default=0.0)
+    metric_end = Column(Float, nullable=False, default=0.0)
+    # running | completed | budget_exceeded | failed
+    status = Column(String(20), nullable=False, default="running")
+    input_tokens = Column(Integer, nullable=False, default=0)
+    output_tokens = Column(Integer, nullable=False, default=0)
+    estimated_cost_usd = Column(Float, nullable=False, default=0.0)
+    started_at = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+    finished_at = Column(DateTime(timezone=True), nullable=True)

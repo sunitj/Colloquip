@@ -1,12 +1,14 @@
 """Cost tracking for deliberation threads.
 
 Tracks token usage and estimated costs per thread, with budget enforcement.
+Phase 6: also tracks per-agent slices within each thread so the engine
+can skip specific agents when their budget is exhausted.
 """
 
 import logging
 from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Dict, List
+from typing import Dict, List, Optional, Set
 from uuid import UUID
 
 logger = logging.getLogger(__name__)
@@ -21,6 +23,7 @@ class CostTracker:
 
     Records each LLM call's token usage and computes running totals.
     Supports budget enforcement — returns True/False on budget check.
+    Phase 6: optional agent_id tagging enables per-agent budgets.
     """
 
     def __init__(
@@ -31,7 +34,7 @@ class CostTracker:
         self.cost_per_input_token = cost_per_input_token
         self.cost_per_output_token = cost_per_output_token
 
-        # thread_id -> list of (input_tokens, output_tokens, model)
+        # thread_id -> list of record dicts (agent_id may be None)
         self._records: Dict[UUID, List[dict]] = defaultdict(list)
         self._start_times: Dict[UUID, datetime] = {}
 
@@ -45,8 +48,13 @@ class CostTracker:
         input_tokens: int,
         output_tokens: int,
         model: str = "default",
+        agent_id: Optional[str] = None,
     ):
-        """Record a single LLM call's token usage."""
+        """Record a single LLM call's token usage.
+
+        If ``agent_id`` is provided, the entry participates in per-agent
+        cost slicing (``agent_cost``, ``agent_summary``, ``check_agent_budget``).
+        """
         cost = input_tokens * self.cost_per_input_token + output_tokens * self.cost_per_output_token
         self._records[thread_id].append(
             {
@@ -55,6 +63,7 @@ class CostTracker:
                 "model": model,
                 "estimated_cost_usd": cost,
                 "recorded_at": datetime.now(timezone.utc),
+                "agent_id": agent_id,
             }
         )
 
@@ -99,3 +108,45 @@ class CostTracker:
     def all_records(self, thread_id: UUID) -> List[dict]:
         """Get all cost records for a thread."""
         return list(self._records.get(thread_id, []))
+
+    # ---- Phase 6: per-agent slicing ----
+
+    def _agent_records(self, thread_id: UUID, agent_id: str) -> List[dict]:
+        return [r for r in self._records.get(thread_id, []) if r.get("agent_id") == agent_id]
+
+    def agent_cost(self, thread_id: UUID, agent_id: str) -> float:
+        """Estimated cost (USD) for a single agent within a thread."""
+        return sum(r["estimated_cost_usd"] for r in self._agent_records(thread_id, agent_id))
+
+    def agent_input_tokens(self, thread_id: UUID, agent_id: str) -> int:
+        return sum(r["input_tokens"] for r in self._agent_records(thread_id, agent_id))
+
+    def agent_output_tokens(self, thread_id: UUID, agent_id: str) -> int:
+        return sum(r["output_tokens"] for r in self._agent_records(thread_id, agent_id))
+
+    def agent_num_calls(self, thread_id: UUID, agent_id: str) -> int:
+        return len(self._agent_records(thread_id, agent_id))
+
+    def agent_summary(self, thread_id: UUID, agent_id: str) -> dict:
+        """Per-agent cost summary within a thread."""
+        input_tokens = self.agent_input_tokens(thread_id, agent_id)
+        output_tokens = self.agent_output_tokens(thread_id, agent_id)
+        return {
+            "thread_id": str(thread_id),
+            "agent_id": agent_id,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "total_tokens": input_tokens + output_tokens,
+            "estimated_cost_usd": round(self.agent_cost(thread_id, agent_id), 6),
+            "num_llm_calls": self.agent_num_calls(thread_id, agent_id),
+        }
+
+    def check_agent_budget(self, thread_id: UUID, agent_id: str, max_usd: float) -> bool:
+        """Return True if the agent is within its per-thread budget."""
+        return self.agent_cost(thread_id, agent_id) <= max_usd
+
+    def all_agents(self, thread_id: UUID) -> Set[str]:
+        """Set of agent_ids that have recorded usage on this thread."""
+        return {
+            r["agent_id"] for r in self._records.get(thread_id, []) if r.get("agent_id") is not None
+        }

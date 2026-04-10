@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { CreateThreadDialog } from '@/components/dialogs/CreateThreadDialog';
+import { CommunityDashboard } from '@/components/dashboards/CommunityDashboard';
 
 export const Route = createFileRoute('/c/$name/')({
   component: CommunityPage,
@@ -161,6 +162,7 @@ function CommunityPage() {
             )}
           </TabsTrigger>
           <TabsTrigger value="watchers">Watchers</TabsTrigger>
+          <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
         </TabsList>
 
         {/* Threads tab */}
@@ -222,6 +224,11 @@ function CommunityPage() {
         {/* Watchers tab */}
         <TabsContent value="watchers">
           <CommunityWatchersPanel communityName={name} />
+        </TabsContent>
+
+        {/* Dashboard tab (Phase 6: mission, budgets, org chart, approvals) */}
+        <TabsContent value="dashboard">
+          <CommunityDashboard subredditName={name} />
         </TabsContent>
       </Tabs>
 

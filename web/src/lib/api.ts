@@ -87,3 +87,79 @@ export const exportJson = (threadId: string) => request<Record<string, unknown>>
 export const reportOutcome = (threadId: string, data: import('@/types/platform').OutcomeReport) => request<unknown>(`/threads/${threadId}/outcome`, { method: 'POST', body: JSON.stringify(data) });
 export const getAgentCalibration = (agentId: string) => request<import('@/types/platform').CalibrationReport>(`/agents/${agentId}/calibration`);
 export const getCalibrationOverview = () => request<import('@/types/platform').CalibrationOverview>('/calibration/overview');
+
+// ---------------------------------------------------------------------------
+// Phase 6: Mission, budgets, org chart, approvals
+// ---------------------------------------------------------------------------
+
+import type {
+  ApprovalRequest,
+  ApprovalRequestType,
+  ApprovalStatus,
+  BudgetSummary,
+  MissionObjective,
+  OrgChart,
+  SubredditMission,
+  ObjectiveProgress,
+} from '@/types/dashboards';
+
+export const getSubredditMission = (name: string) =>
+  request<SubredditMission>(`/subreddits/${name}/mission`);
+
+export const updateSubredditMission = (
+  name: string,
+  data: { mission_md: string | null; objectives?: MissionObjective[]; regenerate_objectives?: boolean },
+) =>
+  request<SubredditMission>(`/subreddits/${name}/mission`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+
+export const getSubredditMissionProgress = (name: string) =>
+  request<{ objectives: ObjectiveProgress[] }>(`/subreddits/${name}/mission/progress`);
+
+export const getSubredditBudgets = (name: string) =>
+  request<BudgetSummary>(`/subreddits/${name}/budgets`);
+
+export const updateMemberBudget = (
+  name: string,
+  agentId: string,
+  data: { max_cost_per_thread_usd?: number | null; monthly_budget_usd?: number | null },
+) =>
+  request<Record<string, unknown>>(
+    `/subreddits/${name}/members/${agentId}/budget`,
+    { method: 'PATCH', body: JSON.stringify(data) },
+  );
+
+export const getSubredditOrgChart = (name: string) =>
+  request<OrgChart>(`/subreddits/${name}/org-chart`);
+
+export const listSubredditApprovals = (name: string, status?: ApprovalStatus | 'all') => {
+  const qs = status && status !== 'all' ? `?status=${status}` : '';
+  return request<{ approvals: ApprovalRequest[] }>(`/subreddits/${name}/approvals${qs}`);
+};
+
+export const createSubredditApproval = (
+  name: string,
+  data: {
+    request_type: ApprovalRequestType;
+    initiator?: string;
+    target_ref?: string | null;
+    payload?: Record<string, unknown>;
+    reason?: string;
+    estimated_cost_usd?: number;
+  },
+) =>
+  request<ApprovalRequest>(`/subreddits/${name}/approvals`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+
+export const resolveApproval = (
+  requestId: string,
+  data: { status: ApprovalStatus; decided_by?: string },
+) =>
+  request<ApprovalRequest>(`/approvals/${requestId}/resolve`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });

@@ -1,6 +1,7 @@
 """Repository pattern for database operations."""
 
 import logging
+from datetime import datetime, timezone
 from typing import List, Optional
 from uuid import UUID
 
@@ -9,6 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from colloquip.db.tables import (
     DBAgentIdentity,
+    DBApprovalRequest,
+    DBAutoresearchRun,
     DBConsensusMap,
     DBCostRecord,
     DBCrossReference,
@@ -24,14 +27,24 @@ from colloquip.db.tables import (
 from colloquip.models import (
     AgentStance,
     AgentStatus,
+    ApprovalRequest,
+    ApprovalRequestType,
+    ApprovalStatus,
+    AutoresearchActionType,
+    AutoresearchConfig,
+    AutoresearchRun,
+    AutoresearchStatus,
+    AutoresearchStep,
     BaseAgentIdentity,
     ConsensusMap,
     DeliberationSession,
     EnergyUpdate,
+    MissionObjective,
     Phase,
     Post,
     SessionStatus,
     SubredditMembership,
+    SubredditMission,
     SubredditRole,
 )
 
@@ -295,6 +308,7 @@ class SessionRepository:
             row.knowledge_scope = agent.knowledge_scope
             row.evaluation_criteria = agent.evaluation_criteria
             row.is_red_team = agent.is_red_team
+            row.autoresearch_enabled = agent.autoresearch_enabled
             row.status = agent.status.value
             row.version = agent.version
         else:
@@ -309,6 +323,7 @@ class SessionRepository:
                 knowledge_scope=agent.knowledge_scope,
                 evaluation_criteria=agent.evaluation_criteria,
                 is_red_team=agent.is_red_team,
+                autoresearch_enabled=agent.autoresearch_enabled,
                 status=agent.status.value,
                 version=agent.version,
                 created_at=agent.created_at,
@@ -618,6 +633,248 @@ class SessionRepository:
         result = await self.db.execute(stmt)
         return [_row_to_cross_reference_dict(r) for r in result.scalars().all()]
 
+    # ---- Phase 6: Subreddit mission ----
+
+    async def get_subreddit_mission(self, subreddit_id: str) -> Optional[SubredditMission]:
+        """Load the mission directive + parsed objectives for a subreddit."""
+        row = await self.db.get(DBSubreddit, subreddit_id)
+        if not row:
+            return None
+        objectives_raw = row.mission_objectives or []
+        objectives: List[MissionObjective] = []
+        for obj in objectives_raw:
+            try:
+                objectives.append(MissionObjective(**obj))
+            except Exception:
+                continue
+        return SubredditMission(
+            subreddit_id=UUID(row.id),
+            mission_md=row.mission_md,
+            objectives=objectives,
+            version=row.mission_version or 1,
+            updated_at=row.mission_updated_at,
+        )
+
+    async def update_subreddit_mission(
+        self,
+        subreddit_id: str,
+        mission_md: Optional[str],
+        objectives: List[MissionObjective],
+        editor: Optional[str] = None,
+    ) -> None:
+        """Update the mission markdown + objectives and bump the version counter."""
+        row = await self.db.get(DBSubreddit, subreddit_id)
+        if not row:
+            raise ValueError(f"Subreddit {subreddit_id} not found")
+        row.mission_md = mission_md
+        row.mission_objectives = [obj.model_dump(mode="json") for obj in objectives]
+        row.mission_version = (row.mission_version or 1) + 1
+        row.mission_updated_at = datetime.now(timezone.utc)
+        # Editor info is recorded on the updated_at audit trail; also bump updated_at
+        row.updated_at = row.mission_updated_at
+        await self.db.flush()
+
+    # ---- Phase 6: Per-agent budgets ----
+
+    async def update_member_budget(
+        self,
+        subreddit_id: str,
+        agent_id: str,
+        max_cost_per_thread_usd: Optional[float] = None,
+        monthly_budget_usd: Optional[float] = None,
+    ) -> None:
+        """Update an agent's budget within a subreddit."""
+        row = await self._get_membership_row(subreddit_id, agent_id)
+        if not row:
+            raise ValueError(f"Membership not found: {agent_id} in {subreddit_id}")
+        if max_cost_per_thread_usd is not None:
+            row.max_cost_per_thread_usd = max_cost_per_thread_usd
+        if monthly_budget_usd is not None:
+            row.monthly_budget_usd = monthly_budget_usd
+        await self.db.flush()
+
+    async def accumulate_member_usage(
+        self,
+        subreddit_id: str,
+        agent_id: str,
+        input_tokens: int,
+        output_tokens: int,
+        cost_usd: float,
+    ) -> None:
+        """Accumulate lifetime + current-month usage for an agent in a subreddit.
+
+        Rolls the current_month counter at month boundaries.
+        """
+        row = await self._get_membership_row(subreddit_id, agent_id)
+        if not row:
+            raise ValueError(f"Membership not found: {agent_id} in {subreddit_id}")
+        now = datetime.now(timezone.utc)
+        # Roll monthly counter if we crossed a month boundary
+        if row.current_month_reset_at is None:
+            row.current_month_cost_usd = 0.0
+            row.current_month_reset_at = now
+        else:
+            reset_at = row.current_month_reset_at
+            if reset_at.tzinfo is None:
+                reset_at = reset_at.replace(tzinfo=timezone.utc)
+            if (now.year, now.month) != (reset_at.year, reset_at.month):
+                row.current_month_cost_usd = 0.0
+                row.current_month_reset_at = now
+        row.lifetime_input_tokens = (row.lifetime_input_tokens or 0) + input_tokens
+        row.lifetime_output_tokens = (row.lifetime_output_tokens or 0) + output_tokens
+        row.lifetime_cost_usd = (row.lifetime_cost_usd or 0.0) + cost_usd
+        row.current_month_cost_usd = (row.current_month_cost_usd or 0.0) + cost_usd
+        await self.db.flush()
+
+    async def set_member_reports_to(
+        self,
+        subreddit_id: str,
+        agent_id: str,
+        reports_to_agent_id: Optional[str],
+    ) -> None:
+        """Set the reports_to relationship for an agent's membership."""
+        row = await self._get_membership_row(subreddit_id, agent_id)
+        if not row:
+            raise ValueError(f"Membership not found: {agent_id} in {subreddit_id}")
+        row.reports_to_agent_id = reports_to_agent_id
+        await self.db.flush()
+
+    async def _get_membership_row(
+        self,
+        subreddit_id: str,
+        agent_id: str,
+    ) -> Optional[DBSubredditMembership]:
+        stmt = select(DBSubredditMembership).where(
+            DBSubredditMembership.subreddit_id == subreddit_id,
+            DBSubredditMembership.agent_id == agent_id,
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    # ---- Phase 6: Approval queue ----
+
+    async def save_approval_request(self, request: ApprovalRequest) -> None:
+        """Insert or update an approval request."""
+        row = await self.db.get(DBApprovalRequest, str(request.id))
+        if row:
+            row.request_type = request.request_type.value
+            row.initiator = request.initiator
+            row.target_ref = request.target_ref
+            row.payload = request.payload or {}
+            row.status = request.status.value
+            row.reason = request.reason
+            row.estimated_cost_usd = request.estimated_cost_usd
+            row.ttl_seconds = request.ttl_seconds
+            row.decided_at = request.decided_at
+            row.decided_by = request.decided_by
+        else:
+            row = DBApprovalRequest(
+                id=str(request.id),
+                subreddit_id=str(request.subreddit_id),
+                request_type=request.request_type.value,
+                initiator=request.initiator,
+                target_ref=request.target_ref,
+                payload=request.payload or {},
+                status=request.status.value,
+                reason=request.reason,
+                estimated_cost_usd=request.estimated_cost_usd,
+                ttl_seconds=request.ttl_seconds,
+                requested_at=request.requested_at,
+                decided_at=request.decided_at,
+                decided_by=request.decided_by,
+            )
+            self.db.add(row)
+        await self.db.flush()
+
+    async def get_approval_request(self, request_id: UUID) -> Optional[ApprovalRequest]:
+        row = await self.db.get(DBApprovalRequest, str(request_id))
+        if not row:
+            return None
+        return _row_to_approval(row)
+
+    async def list_approval_requests(
+        self,
+        subreddit_id: str,
+        status: Optional[str] = None,
+        limit: int = 100,
+    ) -> List[ApprovalRequest]:
+        stmt = select(DBApprovalRequest).where(DBApprovalRequest.subreddit_id == subreddit_id)
+        if status:
+            stmt = stmt.where(DBApprovalRequest.status == status)
+        stmt = stmt.order_by(DBApprovalRequest.requested_at.desc()).limit(limit)
+        result = await self.db.execute(stmt)
+        return [_row_to_approval(r) for r in result.scalars().all()]
+
+    async def resolve_approval_request(
+        self,
+        request_id: UUID,
+        status: ApprovalStatus,
+        decided_by: Optional[str] = None,
+    ) -> None:
+        row = await self.db.get(DBApprovalRequest, str(request_id))
+        if not row:
+            raise ValueError(f"Approval request {request_id} not found")
+        row.status = status.value
+        row.decided_at = datetime.now(timezone.utc)
+        row.decided_by = decided_by
+        await self.db.flush()
+
+    # ---- Phase 6: Autoresearch runs ----
+
+    async def save_autoresearch_run(self, run: AutoresearchRun) -> None:
+        """Insert or update an autoresearch run audit record."""
+        row = await self.db.get(DBAutoresearchRun, str(run.id))
+        steps_json = [step.model_dump(mode="json") for step in run.steps]
+        config_json = run.config.model_dump(mode="json")
+        if row:
+            row.scratchpad = run.scratchpad
+            row.steps = steps_json
+            row.config = config_json
+            row.metric_name = run.metric_name
+            row.metric_start = run.metric_start
+            row.metric_end = run.metric_end
+            row.status = run.status.value
+            row.input_tokens = run.input_tokens
+            row.output_tokens = run.output_tokens
+            row.estimated_cost_usd = run.estimated_cost_usd
+            row.finished_at = run.finished_at
+        else:
+            row = DBAutoresearchRun(
+                id=str(run.id),
+                thread_id=str(run.thread_id),
+                agent_id=run.agent_id,
+                subreddit_id=str(run.subreddit_id) if run.subreddit_id else None,
+                config=config_json,
+                scratchpad=run.scratchpad,
+                steps=steps_json,
+                metric_name=run.metric_name,
+                metric_start=run.metric_start,
+                metric_end=run.metric_end,
+                status=run.status.value,
+                input_tokens=run.input_tokens,
+                output_tokens=run.output_tokens,
+                estimated_cost_usd=run.estimated_cost_usd,
+                started_at=run.started_at,
+                finished_at=run.finished_at,
+            )
+            self.db.add(row)
+        await self.db.flush()
+
+    async def list_autoresearch_runs(
+        self,
+        thread_id: Optional[UUID] = None,
+        agent_id: Optional[str] = None,
+        limit: int = 50,
+    ) -> List[AutoresearchRun]:
+        stmt = select(DBAutoresearchRun)
+        if thread_id:
+            stmt = stmt.where(DBAutoresearchRun.thread_id == str(thread_id))
+        if agent_id:
+            stmt = stmt.where(DBAutoresearchRun.agent_id == agent_id)
+        stmt = stmt.order_by(DBAutoresearchRun.started_at.desc()).limit(limit)
+        result = await self.db.execute(stmt)
+        return [_row_to_autoresearch(r) for r in result.scalars().all()]
+
     # ---- Commit ----
 
     async def commit(self) -> None:
@@ -706,6 +963,7 @@ def _row_to_agent_identity(row: DBAgentIdentity) -> BaseAgentIdentity:
         knowledge_scope=row.knowledge_scope or [],
         evaluation_criteria=row.evaluation_criteria or {},
         is_red_team=row.is_red_team,
+        autoresearch_enabled=bool(getattr(row, "autoresearch_enabled", False) or False),
         status=AgentStatus(row.status),
         version=row.version,
         created_at=row.created_at,
@@ -713,6 +971,12 @@ def _row_to_agent_identity(row: DBAgentIdentity) -> BaseAgentIdentity:
 
 
 def _row_to_membership(row: DBSubredditMembership) -> SubredditMembership:
+    reports_to = None
+    if row.reports_to_agent_id:
+        try:
+            reports_to = UUID(row.reports_to_agent_id)
+        except (TypeError, ValueError):
+            reports_to = None
     return SubredditMembership(
         id=UUID(row.id),
         agent_id=UUID(row.agent_id),
@@ -722,7 +986,88 @@ def _row_to_membership(row: DBSubredditMembership) -> SubredditMembership:
         tool_access=row.tool_access or [],
         threads_participated=row.threads_participated,
         total_posts=row.total_posts,
+        max_cost_per_thread_usd=row.max_cost_per_thread_usd,
+        monthly_budget_usd=row.monthly_budget_usd,
+        lifetime_cost_usd=row.lifetime_cost_usd or 0.0,
+        lifetime_input_tokens=row.lifetime_input_tokens or 0,
+        lifetime_output_tokens=row.lifetime_output_tokens or 0,
+        current_month_cost_usd=row.current_month_cost_usd or 0.0,
+        current_month_reset_at=row.current_month_reset_at,
+        reports_to_agent_id=reports_to,
+        autoresearch_policy=row.autoresearch_policy,
         joined_at=row.joined_at,
+    )
+
+
+def _row_to_approval(row: DBApprovalRequest) -> ApprovalRequest:
+    return ApprovalRequest(
+        id=UUID(row.id),
+        subreddit_id=UUID(row.subreddit_id),
+        request_type=ApprovalRequestType(row.request_type),
+        initiator=row.initiator or "",
+        target_ref=row.target_ref,
+        payload=row.payload or {},
+        status=ApprovalStatus(row.status),
+        reason=row.reason or "",
+        estimated_cost_usd=row.estimated_cost_usd or 0.0,
+        ttl_seconds=row.ttl_seconds,
+        requested_at=row.requested_at,
+        decided_at=row.decided_at,
+        decided_by=row.decided_by,
+    )
+
+
+def _row_to_autoresearch(row: DBAutoresearchRun) -> AutoresearchRun:
+    subreddit_id: Optional[UUID] = None
+    if row.subreddit_id:
+        try:
+            subreddit_id = UUID(row.subreddit_id)
+        except (TypeError, ValueError):
+            subreddit_id = None
+    steps_data = row.steps or []
+    steps: List[AutoresearchStep] = []
+    for raw in steps_data:
+        try:
+            steps.append(
+                AutoresearchStep(
+                    step_index=raw.get("step_index", 0),
+                    action=AutoresearchActionType(raw.get("action", "reflect")),
+                    rationale=raw.get("rationale", ""),
+                    query=raw.get("query", ""),
+                    metric_before=raw.get("metric_before", 0.0),
+                    metric_after=raw.get("metric_after", 0.0),
+                    delta=raw.get("delta", 0.0),
+                    committed=raw.get("committed", False),
+                    tokens_in=raw.get("tokens_in", 0),
+                    tokens_out=raw.get("tokens_out", 0),
+                    summary=raw.get("summary", ""),
+                    error=raw.get("error"),
+                )
+            )
+        except (ValueError, KeyError):
+            continue
+    config_data = row.config or {}
+    try:
+        config = AutoresearchConfig(**config_data) if config_data else AutoresearchConfig()
+    except Exception:
+        config = AutoresearchConfig()
+    return AutoresearchRun(
+        id=UUID(row.id),
+        thread_id=UUID(row.thread_id),
+        agent_id=row.agent_id,
+        subreddit_id=subreddit_id,
+        config=config,
+        scratchpad=row.scratchpad or "",
+        steps=steps,
+        metric_name=row.metric_name or "",
+        metric_start=row.metric_start or 0.0,
+        metric_end=row.metric_end or 0.0,
+        status=AutoresearchStatus(row.status),
+        input_tokens=row.input_tokens or 0,
+        output_tokens=row.output_tokens or 0,
+        estimated_cost_usd=row.estimated_cost_usd or 0.0,
+        started_at=row.started_at,
+        finished_at=row.finished_at,
     )
 
 

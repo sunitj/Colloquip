@@ -116,6 +116,26 @@ class SessionManager:
         # Wire cost tracker from platform manager
         cost_tracker = getattr(platform_manager, "cost_tracker", None) if platform_manager else None
 
+        # Phase 6: pull subreddit-level mission + budgets into the engine
+        subreddit_mission_md: Optional[str] = None
+        mission_objectives_list = []
+        max_cost_per_thread: Optional[float] = None
+        agent_budgets: Dict[str, float] = {}
+        subreddit_uuid: Optional[UUID] = None
+        if platform_manager and subreddit_id:
+            sub_dict = platform_manager.get_subreddit(subreddit_id)
+            if sub_dict:
+                max_cost_per_thread = sub_dict.get("max_cost_per_thread_usd")
+                try:
+                    subreddit_uuid = UUID(subreddit_id)
+                except (TypeError, ValueError):
+                    subreddit_uuid = None
+            mission = platform_manager.get_subreddit_mission(subreddit_id)
+            if mission:
+                subreddit_mission_md = mission.mission_md
+                mission_objectives_list = list(mission.objectives)
+            agent_budgets = platform_manager.get_member_budgets(subreddit_id)
+
         engine = EmergentDeliberationEngine(
             agents=agents,
             observer=observer,
@@ -125,6 +145,11 @@ class SessionManager:
             min_posts=12,
             cost_tracker=cost_tracker,
             session_id=session.id,
+            subreddit_id=subreddit_uuid,
+            subreddit_mission=subreddit_mission_md,
+            mission_objectives=mission_objectives_list,
+            max_cost_per_thread_usd=max_cost_per_thread,
+            agent_budgets=agent_budgets,
         )
         self.engines[session.id] = engine
 

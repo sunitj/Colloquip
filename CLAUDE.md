@@ -72,7 +72,7 @@ Colloquium/
 │   │   └── types/           # deliberation.ts, platform.ts
 │   └── package.json
 ├── tests/                   # pytest test suite (37+ files)
-├── alembic/                 # Database migrations (4 migration files)
+├── alembic/                 # Database migrations (5 migration files)
 ├── config/                  # YAML configuration files
 ├── scripts/                 # pre-commit hook, install-hooks.sh, healthcheck.py
 ├── docs/                    # Design docs (system design, energy model, observer, triggers, prompts)
@@ -245,13 +245,14 @@ Each agent has: persona prompt, phase mandates, domain keywords, knowledge scope
 - **Development**: SQLite via aiosqlite (no setup needed)
 - **Production**: PostgreSQL 16 + pgvector extension
 
-Four Alembic migration files:
+Five Alembic migration files:
 1. `001_baseline_schema.py` — Core + platform tables
 2. `002_phase3_memory_tables.py` — Synthesis memory
 3. `003_phase4_watcher_tables.py` — Event watchers
 4. `004_phase5_crossref_outcome_tables.py` — Cross-references & outcomes
+5. `005_agent_org_and_missions.py` — Subreddit mission, per-agent budgets, approval queue, autoresearch run audit
 
-Key tables: `deliberation_sessions`, `posts`, `energy_history`, `consensus_maps`, `subreddits`, `agent_identities`, `subreddit_memberships`, `syntheses`, `synthesis_memories`, `watchers`, `watcher_events`, `notifications`, `cross_references`, `outcome_reports`, `memory_annotations`, `cost_records`.
+Key tables: `deliberation_sessions`, `posts`, `energy_history`, `consensus_maps`, `subreddits` (adds `mission_md`, `mission_objectives`), `agent_identities` (adds `autoresearch_enabled`), `subreddit_memberships` (adds per-agent `max_cost_per_thread_usd`, `monthly_budget_usd`, `lifetime_*`, `reports_to_agent_id`, `autoresearch_policy`), `syntheses`, `synthesis_memories`, `watchers`, `watcher_events`, `notifications`, `cross_references`, `outcome_reports`, `memory_annotations`, `cost_records`, `approval_requests`, `autoresearch_runs`.
 
 ## API Endpoints
 
@@ -265,6 +266,10 @@ All REST endpoints are prefixed with `/api/`:
 | Watchers | `POST /watchers`, `POST /watchers/{id}/trigger`, `GET /notifications` |
 | Export | `POST /deliberations/{id}/export/markdown`, `POST /deliberations/{id}/export/pdf` |
 | Feedback | `POST /outcomes`, `GET /outcomes/{session_id}` |
+| Mission | `GET/PUT /subreddits/{name}/mission`, `GET /subreddits/{name}/mission/progress` |
+| Budgets | `GET /subreddits/{name}/budgets`, `PATCH /subreddits/{name}/members/{agent_id}/budget` |
+| Dashboards | `GET /subreddits/{name}/org-chart` |
+| Approvals | `GET/POST /subreddits/{name}/approvals`, `POST /approvals/{id}/resolve` |
 | WebSocket | `WS /ws/sessions/{session_id}` |
 | Health | `GET /health` |
 
@@ -381,3 +386,8 @@ GitHub Actions workflows in `.github/workflows/`:
 - **Mock-first development**: All external services (LLM, embeddings) have mock implementations for testing
 - **Repository pattern**: All DB access goes through `SessionRepository` — never query tables directly in routes
 - **Frontend served by backend**: Production builds the React SPA into static files served by FastAPI
+- **Subreddit missions (Phase 6)**: Each community has an optional `program.md`-style markdown directive with `## Objective:` headings parsed into structured goals. Missions are injected into every agent's system prompt and measured against live deliberation metrics via `/mission/progress`.
+- **Per-agent budgets (Phase 6)**: Each `SubredditMembership` can override `max_cost_per_thread_usd` and `monthly_budget_usd`. The engine gates agent dispatch via `_generate_posts_with_budget_gate` and yields `AgentBudgetSkipped` events instead of crashing; budget-blocked agents can be routed to the approval queue.
+- **Autoresearch capability (Phase 6)**: Agents opted in via `config.autoresearch_enabled=True` run a Karpathy-style loop inside `BaseDeliberationAgent.generate_post` before producing their post — scratchpad + metric delta, commit-or-reset. Hard-capped at `MAX_AUTORESEARCH_TOKENS_PER_RUN=8000`. The loop gates to `Phase.DEEPEN` by default.
+- **Approval queue (Phase 6)**: Paperclip-style human-in-loop queue (`colloquip.approvals.ApprovalQueue`) collects pending watcher auto-threads, budget overrides, tool calls, and autoresearch runs. Frontend dashboard exposes approve/deny actions.
+- **Org chart (Phase 6)**: Subreddit members can set `reports_to_agent_id`; interaction edges are aggregated from posts' `triggered_by` metadata. Rendered as a grouped-by-role card grid in the community Dashboard tab.

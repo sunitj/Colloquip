@@ -114,6 +114,7 @@ class AgentConfig(BaseModel):
     knowledge_scope: List[str]
     evaluation_criteria: Dict[str, float] = Field(default_factory=dict)
     is_red_team: bool = False
+    autoresearch_enabled: bool = False
 
 
 class EngineConfig(BaseModel):
@@ -149,8 +150,29 @@ class AgentDependencies(BaseModel):
     phase_signal: PhaseSignal
     posts: List[Post]
     knowledge_context: List[str] = Field(default_factory=list)
+    # Subreddit mission (program.md-style directive) injected into system prompt
+    subreddit_mission: Optional[str] = None
+    mission_objectives: List["MissionObjective"] = Field(default_factory=list)
+    # Optional autoresearch findings appended to user prompt
+    autoresearch_findings: Optional[str] = None
+    autoresearch_citations: List[Citation] = Field(default_factory=list)
+    # Subreddit id (for downstream budget/membership lookups)
+    subreddit_id: Optional[UUID] = None
 
     model_config = {"arbitrary_types_allowed": True}
+
+    def with_findings(
+        self,
+        findings: str,
+        citations: Optional[List[Citation]] = None,
+    ) -> "AgentDependencies":
+        """Return a shallow copy with autoresearch findings attached."""
+        return self.model_copy(
+            update={
+                "autoresearch_findings": findings,
+                "autoresearch_citations": citations or [],
+            }
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -288,6 +310,7 @@ class BaseAgentIdentity(BaseModel):
     knowledge_scope: List[str] = Field(default_factory=list)
     evaluation_criteria: Dict[str, float] = Field(default_factory=dict)
     is_red_team: bool = False
+    autoresearch_enabled: bool = False
     status: AgentStatus = AgentStatus.ACTIVE
     version: int = 1
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -304,6 +327,18 @@ class SubredditMembership(BaseModel):
     tool_access: List[str] = Field(default_factory=list)
     threads_participated: int = 0
     total_posts: int = 0
+    # Per-agent budget & cost accounting (Phase 6)
+    max_cost_per_thread_usd: Optional[float] = None
+    monthly_budget_usd: Optional[float] = None
+    lifetime_cost_usd: float = 0.0
+    lifetime_input_tokens: int = 0
+    lifetime_output_tokens: int = 0
+    current_month_cost_usd: float = 0.0
+    current_month_reset_at: Optional[datetime] = None
+    # Org chart delegation (Phase 6)
+    reports_to_agent_id: Optional[UUID] = None
+    # Autoresearch policy override (Phase 6)
+    autoresearch_policy: Optional[Dict[str, Any]] = None
     joined_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -591,5 +626,211 @@ class Notification(BaseModel):
     acted_at: Optional[datetime] = None
 
 
+# ---------------------------------------------------------------------------
+# Phase 6: Agent organization, mission, budgets, approvals, autoresearch
+# ---------------------------------------------------------------------------
+
+
+class MissionObjective(BaseModel):
+    """A structured objective parsed from a subreddit mission markdown directive.
+
+    Inspired by Karpathy's autoresearch program.md — humans write a markdown
+    directive; objectives are extracted as H2 headings with optional metric/target
+    bullets. Objectives without a metric are tracked qualitatively.
+    """
+
+    id: str
+    title: str
+    description: str = ""
+    metric: Optional[str] = None
+    target: Optional[float] = None
+    status: Literal["open", "in_progress", "met", "not_met"] = "open"
+
+
+class ObjectiveProgress(BaseModel):
+    """Measured progress for a single mission objective."""
+
+    objective_id: str
+    title: str
+    metric: Optional[str] = None
+    target: Optional[float] = None
+    measured_value: Optional[float] = None
+    status: Literal["open", "in_progress", "met", "not_met"] = "open"
+    qualitative: bool = False
+    sample_size: int = 0
+    detail: str = ""
+
+
+class SubredditMission(BaseModel):
+    """Subreddit-level mission directive and parsed objectives."""
+
+    subreddit_id: UUID
+    mission_md: Optional[str] = None
+    objectives: List[MissionObjective] = Field(default_factory=list)
+    version: int = 1
+    updated_at: Optional[datetime] = None
+
+
+class AgentBudgetSkipped(BaseModel):
+    """Yieldable event: an agent was skipped because of a budget breach."""
+
+    session_id: UUID
+    agent_id: str
+    turn: int
+    reason: Literal["thread_budget", "agent_thread_budget", "agent_monthly_budget"]
+    message: str
+    estimated_cost_usd: float
+    max_usd: float
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class AgentCostSummary(BaseModel):
+    """Per-agent cost breakdown for a thread."""
+
+    thread_id: UUID
+    agent_id: str
+    input_tokens: int = 0
+    output_tokens: int = 0
+    total_tokens: int = 0
+    estimated_cost_usd: float = 0.0
+    num_llm_calls: int = 0
+
+
+class ApprovalRequestType(str, Enum):
+    THREAD_SPAWN = "thread_spawn"
+    TOOL_CALL = "tool_call"
+    BUDGET_OVERRIDE = "budget_override"
+    AUTORESEARCH_RUN = "autoresearch_run"
+    AGENT_HIRE = "agent_hire"
+
+
+class ApprovalStatus(str, Enum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    DENIED = "denied"
+    EXPIRED = "expired"
+
+
+class ApprovalRequest(BaseModel):
+    """A Paperclip-style human-in-loop approval request."""
+
+    id: UUID = Field(default_factory=uuid4)
+    subreddit_id: UUID
+    request_type: ApprovalRequestType
+    initiator: str = ""  # e.g. "watcher:<id>", "agent:<id>", "system"
+    target_ref: Optional[str] = None
+    payload: Dict[str, Any] = Field(default_factory=dict)
+    status: ApprovalStatus = ApprovalStatus.PENDING
+    reason: str = ""
+    estimated_cost_usd: float = 0.0
+    ttl_seconds: Optional[int] = None
+    requested_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    decided_at: Optional[datetime] = None
+    decided_by: Optional[str] = None
+
+
+class AutoresearchActionType(str, Enum):
+    SEARCH_PUBMED = "search_pubmed"
+    SEARCH_WEB = "search_web"
+    QUERY_COMPANY_DOCS = "query_company_docs"
+    READ_MEMORY = "read_memory"
+    REFLECT = "reflect"
+
+
+class AutoresearchStep(BaseModel):
+    """A single step in an autoresearch iteration loop."""
+
+    step_index: int
+    action: AutoresearchActionType
+    rationale: str = ""
+    query: str = ""
+    metric_before: float = 0.0
+    metric_after: float = 0.0
+    delta: float = 0.0
+    committed: bool = False
+    tokens_in: int = 0
+    tokens_out: int = 0
+    summary: str = ""
+    error: Optional[str] = None
+
+
+class AutoresearchConfig(BaseModel):
+    """Fixed-budget configuration for an autoresearch run.
+
+    Modeled after Karpathy's autoresearch wall-clock/step budget pattern.
+    """
+
+    max_steps: int = 5
+    max_tokens: int = 4000
+    max_wallclock_seconds: float = 60.0
+    metric: str = "novelty_gain"
+    threshold: float = 0.0
+    allowed_actions: List[AutoresearchActionType] = Field(
+        default_factory=lambda: [
+            AutoresearchActionType.SEARCH_PUBMED,
+            AutoresearchActionType.SEARCH_WEB,
+            AutoresearchActionType.READ_MEMORY,
+            AutoresearchActionType.REFLECT,
+        ]
+    )
+
+
+class AutoresearchStatus(str, Enum):
+    RUNNING = "running"
+    COMPLETED = "completed"
+    BUDGET_EXCEEDED = "budget_exceeded"
+    FAILED = "failed"
+
+
+class AutoresearchRun(BaseModel):
+    """Audit record of a single autoresearch loop execution."""
+
+    id: UUID = Field(default_factory=uuid4)
+    thread_id: UUID
+    agent_id: str
+    subreddit_id: Optional[UUID] = None
+    config: AutoresearchConfig = Field(default_factory=AutoresearchConfig)
+    scratchpad: str = ""
+    steps: List[AutoresearchStep] = Field(default_factory=list)
+    metric_name: str = "novelty_gain"
+    metric_start: float = 0.0
+    metric_end: float = 0.0
+    status: AutoresearchStatus = AutoresearchStatus.RUNNING
+    input_tokens: int = 0
+    output_tokens: int = 0
+    estimated_cost_usd: float = 0.0
+    citations: List[Citation] = Field(default_factory=list)
+    started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    finished_at: Optional[datetime] = None
+
+
+class OrgChartNode(BaseModel):
+    agent_id: str
+    display_name: str
+    role: SubredditRole
+    reports_to: Optional[str] = None
+    post_count: int = 0
+    lifetime_cost_usd: float = 0.0
+    is_red_team: bool = False
+
+
+class OrgChartEdge(BaseModel):
+    from_agent_id: str
+    to_agent_id: str
+    edge_type: Literal["reports_to", "triggered"]
+    weight: float = 1.0
+
+
+class OrgChart(BaseModel):
+    subreddit_id: UUID
+    nodes: List[OrgChartNode] = Field(default_factory=list)
+    edges: List[OrgChartEdge] = Field(default_factory=list)
+
+
+# Hard cap to prevent runaway cost regardless of misconfigured budgets
+MAX_AUTORESEARCH_TOKENS_PER_RUN = 8000
+
+
 # Resolve forward references for models that use them
 SubredditConfig.model_rebuild()
+AgentDependencies.model_rebuild()

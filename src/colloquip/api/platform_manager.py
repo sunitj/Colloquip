@@ -8,17 +8,28 @@ This is the in-memory orchestrator for the platform layer. It manages:
 """
 
 import logging
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
+from colloquip.approvals import ApprovalQueue
 from colloquip.cost_tracker import CostTracker
 from colloquip.models import (
     BaseAgentIdentity,
+    MissionObjective,
+    ObjectiveProgress,
+    OrgChart,
+    OrgChartEdge,
+    OrgChartNode,
     ParticipationModel,
+    Post,
+    SubredditMission,
+    SubredditRole,
     ThinkingType,
 )
 from colloquip.output_templates import get_template
 from colloquip.registry import AgentRegistry
+from colloquip.subreddit_mission import measure_objectives, parse_objectives
 from colloquip.tools.registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
@@ -35,6 +46,8 @@ class PlatformManager:
         self.registry = AgentRegistry()
         self.tool_registry = ToolRegistry(mock_mode=mock_mode)
         self.cost_tracker = CostTracker()
+        # Phase 6: Paperclip-style approval queue
+        self.approval_queue = ApprovalQueue()
 
         # In-memory storage (mirrors DB for real-time access)
         self._subreddits: Dict[str, dict] = {}  # id -> subreddit dict
@@ -119,6 +132,11 @@ class PlatformManager:
             "max_cost_per_thread_usd": max_cost_per_thread_usd,
             "max_agents": max_agents,
             "always_include_red_team": True,
+            # Phase 6: subreddit-level mission directive + parsed objectives
+            "mission_md": None,
+            "mission_objectives": [],
+            "mission_version": 1,
+            "mission_updated_at": None,
         }
 
         # Store
@@ -202,6 +220,177 @@ class PlatformManager:
 
     def get_subreddit_threads(self, subreddit_id: str) -> List[dict]:
         return self._threads.get(subreddit_id, [])
+
+    # ---- Phase 6: Subreddit mission ----
+
+    def get_subreddit_mission(self, subreddit_id: str) -> Optional[SubredditMission]:
+        subreddit = self._subreddits.get(subreddit_id)
+        if not subreddit:
+            return None
+        objectives_raw = subreddit.get("mission_objectives") or []
+        objectives: List[MissionObjective] = []
+        for raw in objectives_raw:
+            try:
+                objectives.append(MissionObjective(**raw))
+            except Exception:
+                continue
+        return SubredditMission(
+            subreddit_id=UUID(subreddit_id),
+            mission_md=subreddit.get("mission_md"),
+            objectives=objectives,
+            version=subreddit.get("mission_version") or 1,
+            updated_at=subreddit.get("mission_updated_at"),
+        )
+
+    def update_subreddit_mission(
+        self,
+        subreddit_id: str,
+        mission_md: Optional[str],
+        objectives: Optional[List[MissionObjective]] = None,
+    ) -> Optional[SubredditMission]:
+        """Update a subreddit's mission markdown; re-parse objectives if omitted."""
+        subreddit = self._subreddits.get(subreddit_id)
+        if not subreddit:
+            return None
+        parsed = objectives if objectives is not None else parse_objectives(mission_md)
+        subreddit["mission_md"] = mission_md
+        subreddit["mission_objectives"] = [obj.model_dump(mode="json") for obj in parsed]
+        subreddit["mission_version"] = (subreddit.get("mission_version") or 1) + 1
+        subreddit["mission_updated_at"] = datetime.now(timezone.utc)
+        return self.get_subreddit_mission(subreddit_id)
+
+    def set_member_budget(
+        self,
+        subreddit_id: str,
+        agent_id: str,
+        max_cost_per_thread_usd: Optional[float] = None,
+        monthly_budget_usd: Optional[float] = None,
+    ) -> Optional[dict]:
+        """Update a single member's per-thread and/or monthly budget."""
+        memberships = self._memberships.get(subreddit_id, [])
+        for m in memberships:
+            if m.get("agent_id") == agent_id:
+                if max_cost_per_thread_usd is not None:
+                    m["max_cost_per_thread_usd"] = max_cost_per_thread_usd
+                if monthly_budget_usd is not None:
+                    m["monthly_budget_usd"] = monthly_budget_usd
+                return m
+        return None
+
+    def get_member_budgets(self, subreddit_id: str) -> Dict[str, float]:
+        """Return a ``{agent_type: max_cost_per_thread_usd}`` map for an engine."""
+        budgets: Dict[str, float] = {}
+        for m in self._memberships.get(subreddit_id, []):
+            cap = m.get("max_cost_per_thread_usd")
+            if cap is None:
+                continue
+            agent_uuid = m.get("agent_id")
+            if not agent_uuid:
+                continue
+            agent = self.registry.get_agent(UUID(agent_uuid))
+            if agent:
+                budgets[agent.agent_type] = float(cap)
+        return budgets
+
+    # ---- Phase 6: Org chart + goal progress ----
+
+    def get_subreddit_org_chart(
+        self,
+        subreddit_id: str,
+        recent_posts: Optional[List[Post]] = None,
+    ) -> Optional[OrgChart]:
+        """Build an org-chart view for a subreddit.
+
+        Nodes are the subreddit's members; edges are either explicit
+        ``reports_to`` relationships (from membership overrides) or the
+        aggregated ``triggered_by`` signals from recent posts (aggregated
+        per agent pair by the caller).
+        """
+        if subreddit_id not in self._subreddits:
+            return None
+        members = self.get_subreddit_members(subreddit_id)
+
+        # agent_type -> (agent_id_str, node)
+        nodes_by_type: Dict[str, OrgChartNode] = {}
+        for m in members:
+            agent_type = m.get("agent_type")
+            if not agent_type:
+                continue
+            reports_to = m.get("reports_to_agent_id")
+            role_value = m.get("role", "member")
+            try:
+                role = SubredditRole(role_value)
+            except ValueError:
+                role = SubredditRole.MEMBER
+            node = OrgChartNode(
+                agent_id=agent_type,
+                display_name=m.get("display_name") or agent_type,
+                role=role,
+                reports_to=reports_to,
+                lifetime_cost_usd=float(m.get("lifetime_cost_usd", 0.0) or 0.0),
+                is_red_team=bool(m.get("is_red_team", False)),
+            )
+            nodes_by_type[agent_type] = node
+
+        edges: List[OrgChartEdge] = []
+        # reports_to edges
+        for agent_type, node in nodes_by_type.items():
+            if node.reports_to and node.reports_to in nodes_by_type:
+                edges.append(
+                    OrgChartEdge(
+                        from_agent_id=agent_type,
+                        to_agent_id=node.reports_to,
+                        edge_type="reports_to",
+                        weight=1.0,
+                    )
+                )
+
+        # triggered_by edges (aggregated from recent posts)
+        if recent_posts:
+            counter: Dict[tuple[str, str], int] = {}
+            post_counts: Dict[str, int] = {}
+            for post in recent_posts:
+                post_counts[post.agent_id] = post_counts.get(post.agent_id, 0) + 1
+                for trigger in post.triggered_by or []:
+                    # trigger rules may be keyed like "responded_to:<agent_id>"
+                    if ":" in trigger:
+                        _, source = trigger.split(":", 1)
+                    else:
+                        source = None
+                    if source and source != post.agent_id:
+                        key = (source, post.agent_id)
+                        counter[key] = counter.get(key, 0) + 1
+            for (src, dst), weight in counter.items():
+                if src in nodes_by_type and dst in nodes_by_type:
+                    edges.append(
+                        OrgChartEdge(
+                            from_agent_id=src,
+                            to_agent_id=dst,
+                            edge_type="triggered",
+                            weight=float(weight),
+                        )
+                    )
+            for agent_id, count in post_counts.items():
+                node = nodes_by_type.get(agent_id)
+                if node:
+                    node.post_count = count
+
+        return OrgChart(
+            subreddit_id=UUID(subreddit_id),
+            nodes=list(nodes_by_type.values()),
+            edges=edges,
+        )
+
+    def measure_subreddit_mission_progress(
+        self,
+        subreddit_id: str,
+        recent_posts: Optional[List[Post]] = None,
+    ) -> List[ObjectiveProgress]:
+        """Score current mission objectives for a subreddit."""
+        mission = self.get_subreddit_mission(subreddit_id)
+        if not mission:
+            return []
+        return measure_objectives(mission.objectives, recent_posts or [])
 
     # ---- Agents ----
 

@@ -6,7 +6,8 @@ Supports versioned prompt sets for systematic tuning.
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Union
 
-from colloquip.models import AgentConfig, Phase, Post
+from colloquip.models import AgentConfig, MissionObjective, Phase, Post
+from colloquip.subreddit_mission import render_mission_for_prompt
 
 # Word limits per phase (prompt-level instruction)
 PHASE_WORD_LIMITS: Dict[Phase, int] = {
@@ -97,19 +98,33 @@ def build_system_prompt(
     config: AgentConfig,
     phase: Phase,
     prompt_version: str = "v1",
+    subreddit_mission: Optional[str] = None,
+    mission_objectives: Optional[List[MissionObjective]] = None,
 ) -> str:
-    """Build the full system prompt for an agent in a given phase."""
+    """Build the full system prompt for an agent in a given phase.
+
+    If ``subreddit_mission`` or ``mission_objectives`` are provided, a
+    ``## Subreddit Mission`` section is prepended so agents prioritize
+    community-level goals across turns.
+    """
     pv = get_prompt_version(prompt_version)
     mandates = pv.phase_mandates
     guidelines = pv.response_guidelines
 
-    parts = [
-        config.persona_prompt.strip(),
-        "",
-        config.phase_mandates.get(phase, mandates.get(phase, "")),
-        "",
-        guidelines,
-    ]
+    parts: List[str] = []
+    mission_block = render_mission_for_prompt(subreddit_mission, mission_objectives or [])
+    if mission_block:
+        parts.extend([mission_block, ""])
+
+    parts.extend(
+        [
+            config.persona_prompt.strip(),
+            "",
+            config.phase_mandates.get(phase, mandates.get(phase, "")),
+            "",
+            guidelines,
+        ]
+    )
     return "\n\n".join(parts)
 
 
@@ -118,8 +133,14 @@ def build_user_prompt(
     posts: List[Post],
     phase_observation: Optional[str] = None,
     max_history: int = 15,
+    autoresearch_findings: Optional[str] = None,
 ) -> str:
-    """Build the user prompt with conversation history."""
+    """Build the user prompt with conversation history.
+
+    If ``autoresearch_findings`` is provided (e.g. from the shared autoresearch
+    capability layer), it is inserted ahead of the turn instruction so the
+    agent grounds its response in freshly-gathered evidence.
+    """
     parts = [f"## Hypothesis Under Deliberation\n\n{hypothesis}"]
 
     if phase_observation:
@@ -132,6 +153,10 @@ def build_user_prompt(
             parts.append(
                 f"\n**{post.agent_id}** ({post.stance.value}, {post.phase.value}):\n{post.content}"
             )
+
+    if autoresearch_findings:
+        parts.append("\n## Autoresearch Findings\n")
+        parts.append(autoresearch_findings)
 
     parts.append(
         "\n\n## Your Turn\n\n"
