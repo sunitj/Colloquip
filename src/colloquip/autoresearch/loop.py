@@ -89,6 +89,11 @@ class AutoresearchLoop:
                     break
 
                 action = self._pick_action(step_index, config)
+                # metric_before/after track the absolute scratchpad score (so the
+                # audit record stays informative), but the commit decision is
+                # driven by the metric's own delta() implementation, which knows
+                # how to compare prev↔curr without the broken evaluate("", x)
+                # plateau bug.
                 step = AutoresearchStep(
                     step_index=step_index,
                     action=action,
@@ -115,7 +120,7 @@ class AutoresearchLoop:
 
                 candidate = (scratchpad + "\n\n" + added_text).strip() if added_text else scratchpad
                 step.metric_after = metric.evaluate("", candidate)
-                step.delta = step.metric_after - step.metric_before
+                step.delta = metric.delta(scratchpad, candidate)
                 if step.delta > config.threshold:
                     scratchpad = candidate
                     step.committed = True
@@ -131,6 +136,16 @@ class AutoresearchLoop:
                 steps.append(step)
 
                 if consecutive_nogain >= 2:
+                    break
+
+                # Post-step hard cap check: if this step pushed us over the
+                # token cap, stop NOW (even though the budget check at the
+                # top of the next iteration would also catch it). Otherwise
+                # we could overshoot by one step's worth of tokens.
+                total_tokens = run.input_tokens + run.output_tokens
+                token_cap = min(config.max_tokens, MAX_AUTORESEARCH_TOKENS_PER_RUN)
+                if total_tokens >= token_cap:
+                    run.status = AutoresearchStatus.BUDGET_EXCEEDED
                     break
 
             if run.status == AutoresearchStatus.RUNNING:

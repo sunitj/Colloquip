@@ -120,6 +120,30 @@ class TestSubredditMissionRepository:
         assert mission.objectives[0].target == 0.85
         assert mission.version == 2  # bumped on edit
 
+    async def test_get_subreddit_dict_includes_mission_fields(self, db_session):
+        """Regression: _row_to_subreddit_dict must surface mission fields.
+
+        Without this, missions persisted to the DB silently disappear
+        on reload — the UI shows an empty mission editor even though
+        the data is intact in the database.
+        """
+        repo = SessionRepository(db_session)
+        sid = await _seed_subreddit(repo)
+        await repo.update_subreddit_mission(
+            subreddit_id=sid,
+            mission_md="# Mission\n\n## Objective: x\n",
+            objectives=[MissionObjective(id="obj-1", title="x")],
+        )
+        await repo.commit()
+
+        sub = await repo.get_subreddit(sid)
+        assert sub is not None
+        assert "mission_md" in sub
+        assert sub["mission_md"].startswith("# Mission")
+        assert "mission_objectives" in sub
+        assert len(sub["mission_objectives"]) == 1
+        assert sub["mission_version"] == 2
+
     async def test_update_mission_bumps_version(self, db_session):
         repo = SessionRepository(db_session)
         sid = await _seed_subreddit(repo)

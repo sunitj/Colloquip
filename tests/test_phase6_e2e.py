@@ -25,7 +25,6 @@ from colloquip.llm.mock import MockBehavior, MockLLM
 from colloquip.models import (
     AgentBudgetSkipped,
     AgentConfig,
-    AutoresearchRun,
     ConsensusMap,
     DeliberationSession,
     Phase,
@@ -50,18 +49,25 @@ def _make_agent_config(agent_id: str, keywords=None, autoresearch: bool = False)
 @pytest.mark.asyncio
 async def test_phase6_end_to_end_engine_flow():
     """Exercise the engine with mission, budget skip, and autoresearch together."""
+    from colloquip.approvals import ApprovalQueue
+    from colloquip.models import ApprovalRequestType
+
     # --- Build agents: alpha (autoresearch on), beta (red-team), gamma (budget-locked)
+    # All three agents share the "hypothesis" keyword so they all naturally
+    # trigger in the main loop — we want gamma's budget breach to surface as
+    # an event from _generate_posts_with_budget_gate, not just be silently
+    # skipped in the seed phase.
     alpha = BaseDeliberationAgent(
-        config=_make_agent_config("alpha", autoresearch=True),
+        config=_make_agent_config("alpha", keywords=["hypothesis", "alpha"], autoresearch=True),
         llm=MockLLM(behavior=MockBehavior.MIXED, seed=1),
         autoresearch_loop=MockAutoresearchLoop(),
     )
     beta = BaseDeliberationAgent(
-        config=_make_agent_config("beta", keywords=["critique", "hypothesis"]),
+        config=_make_agent_config("beta", keywords=["hypothesis", "critique"]),
         llm=MockLLM(behavior=MockBehavior.ALWAYS_CRITICAL, seed=2),
     )
     gamma = BaseDeliberationAgent(
-        config=_make_agent_config("gamma"),
+        config=_make_agent_config("gamma", keywords=["hypothesis", "gamma"]),
         llm=MockLLM(behavior=MockBehavior.MIXED, seed=3),
     )
     agents = {"alpha": alpha, "beta": beta, "gamma": gamma}
@@ -83,21 +89,25 @@ async def test_phase6_end_to_end_engine_flow():
     cost_tracker.start_tracking(session_id)
     cost_tracker.record(session_id, input_tokens=10_000_000, output_tokens=0, agent_id="gamma")
 
+    approval_queue = ApprovalQueue()
+    subreddit_uuid = uuid4()
     engine = EmergentDeliberationEngine(
         agents=agents,
         observer=ObserverAgent(energy_calculator=EnergyCalculator()),
         energy_calculator=EnergyCalculator(),
         llm=MockLLM(seed=42),
-        max_turns=3,
+        max_turns=4,
         min_posts=3,
         cost_tracker=cost_tracker,
         session_id=session_id,
+        subreddit_id=subreddit_uuid,
         subreddit_mission=mission_md,
         mission_objectives=objectives,
         agent_budgets={"gamma": 0.001},
+        approval_queue=approval_queue,
     )
 
-    session = DeliberationSession(id=session_id, hypothesis="GLP-1 improves cognition")
+    session = DeliberationSession(id=session_id, hypothesis="GLP-1 hypothesis improves cognition")
 
     posts: list[Post] = []
     skips: list[AgentBudgetSkipped] = []
@@ -114,21 +124,26 @@ async def test_phase6_end_to_end_engine_flow():
     assert len(posts) > 0, "expected at least one post from non-budget-locked agents"
     assert consensus is not None, "expected final synthesis"
 
-    # Mission should have been injected into agents' system prompts via their
-    # generate_post call — we verify indirectly by checking alpha's autoresearch
-    # run was recorded (only fires in DEEPEN phase).
-    alpha_ran_autoresearch = isinstance(alpha.last_autoresearch_run, AutoresearchRun) or (
-        alpha.last_autoresearch_run is None
-    )
-    assert alpha_ran_autoresearch  # must not crash
-
-    # gamma should never post (either silently skipped in seed phase or
-    # surfaced as AgentBudgetSkipped in the main loop)
+    # gamma should never post; the budget gate keeps it out of every turn
     posting_agents = {p.agent_id for p in posts}
     assert "gamma" not in posting_agents
-
-    # Non-gamma agents should still post
     assert "alpha" in posting_agents or "beta" in posting_agents
+
+    # The main loop should yield at least one AgentBudgetSkipped event tagged
+    # with gamma + agent_thread_budget — proves the breach surfaced, not just
+    # got silently skipped at the seed phase boundary.
+    gamma_skips = [s for s in skips if s.agent_id == "gamma"]
+    assert len(gamma_skips) >= 1, (
+        f"gamma should produce a skip event from the main loop; got {skips}"
+    )
+    assert all(s.reason == "agent_thread_budget" for s in gamma_skips)
+
+    # Engine should have routed gamma's breach to the approval queue as a
+    # BUDGET_OVERRIDE request, idempotently (one entry, not many).
+    pending = approval_queue.pending_for_subreddit(str(subreddit_uuid))
+    assert len(pending) == 1, f"expected 1 dedup'd budget override; got {pending}"
+    assert pending[0].request_type == ApprovalRequestType.BUDGET_OVERRIDE
+    assert pending[0].initiator == "agent:gamma"
 
 
 class TestPhase6ApiE2E:

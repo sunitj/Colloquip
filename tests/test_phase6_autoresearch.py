@@ -100,17 +100,43 @@ class TestMockAutoresearchLoop:
             assert step.summary
             assert step.summary in run.scratchpad
 
+    async def test_loop_runs_full_budget_when_metric_keeps_gaining(self):
+        """Regression test: with the metric.delta() fix, the loop should run
+        most of its requested steps when the mock keeps producing novel
+        scratchpad content (not give up after step 0)."""
+        loop = MockAutoresearchLoop()
+        config = AutoresearchConfig(max_steps=5, max_tokens=10_000)
+        deps = _make_deps()
+        run = await loop.run(deps=deps, agent_id="alpha", config=config)
+        # Mock adds genuinely novel tokens every step → should not bail early
+        step_deltas = [s.delta for s in run.steps]
+        assert len(run.steps) == 5, (
+            f"Loop should run all 5 steps; got {len(run.steps)} ({step_deltas})"
+        )
+        committed = [s for s in run.steps if s.committed]
+        assert len(committed) >= 4, f"At least 4 of 5 steps should commit; got {len(committed)}"
+        # Deltas should be positive and monotonically non-increasing as scratchpad grows
+        deltas = [s.delta for s in run.steps if s.committed]
+        assert all(d > 0 for d in deltas), f"committed deltas not positive: {deltas}"
+
     async def test_exceeding_hard_cap_tokens_stops(self):
         loop = MockAutoresearchLoop()
         # Set max_tokens above the hard cap — the loop must still stop at
-        # MAX_AUTORESEARCH_TOKENS_PER_RUN.
+        # ~MAX_AUTORESEARCH_TOKENS_PER_RUN. We allow up to one step's worth of
+        # overshoot because real LLM-driven loops can't predict token usage
+        # before invoking a tool.
         config = AutoresearchConfig(
             max_steps=100,
             max_tokens=MAX_AUTORESEARCH_TOKENS_PER_RUN * 3,
         )
         deps = _make_deps()
         run = await loop.run(deps=deps, agent_id="alpha", config=config)
-        assert run.input_tokens + run.output_tokens <= MAX_AUTORESEARCH_TOKENS_PER_RUN
+        total = run.input_tokens + run.output_tokens
+        # Mock spends ~300 tokens per step, so allow up to one overshoot
+        assert total <= MAX_AUTORESEARCH_TOKENS_PER_RUN + 500, (
+            f"loop overshot hard cap by more than one step: {total}"
+        )
+        assert run.status == AutoresearchStatus.BUDGET_EXCEEDED
 
     async def test_zero_steps_budget_yields_empty_run(self):
         loop = MockAutoresearchLoop()

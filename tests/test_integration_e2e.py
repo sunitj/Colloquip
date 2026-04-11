@@ -132,7 +132,15 @@ class TestFullLifecycle:
         session_id, events = await _create_and_run(client, manager, max_turns=3)
 
         stored = manager.get_events(session_id)
-        valid_types = {"post", "phase_change", "energy_update", "session_complete", "done", "error"}
+        valid_types = {
+            "post",
+            "phase_change",
+            "energy_update",
+            "session_complete",
+            "done",
+            "error",
+            "budget_skip",  # Phase 6: per-agent budget breach
+        }
         for ev in stored:
             assert ev["type"] in valid_types
 

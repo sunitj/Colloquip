@@ -7,7 +7,9 @@ This is the in-memory orchestrator for the platform layer. It manages:
 - Thread creation within subreddits
 """
 
+import asyncio
 import logging
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
@@ -57,6 +59,63 @@ class PlatformManager:
         self._agent_subreddit_count: Dict[UUID, int] = {}
 
         self._initialized = False
+        # Phase 6: optional DB persistence. When attached, mutations also
+        # write through to the SessionRepository, and approval queue
+        # enqueue/resolve callbacks persist to the approval_requests table.
+        self._db_factory: Optional[Any] = None
+        self.approval_queue.subscribe(self._on_approval_event)
+
+    def attach_db(self, db_session_factory: Any) -> None:
+        """Attach an async session factory so mutations persist to the DB.
+
+        Called from the FastAPI ``lifespan`` startup hook once the engine
+        is created. Without this, the platform manager runs in pure in-memory
+        mode and mission/budget/approval state is lost on restart.
+        """
+        self._db_factory = db_session_factory
+
+    @asynccontextmanager
+    async def _open_repo(self):
+        """Yield a SessionRepository, committing on success.
+
+        Returns ``None`` (via the ``yielded`` value) when no DB factory has
+        been attached, so callers can short-circuit cleanly.
+        """
+        if not self._db_factory:
+            yield None
+            return
+        from colloquip.db.repository import SessionRepository
+
+        async with self._db_factory() as db:
+            repo = SessionRepository(db)
+            try:
+                yield repo
+                await repo.commit()
+            except Exception:
+                logger.exception("PlatformManager DB write failed")
+                raise
+
+    def _on_approval_event(self, event: str, request) -> None:
+        """ApprovalQueue subscriber: schedule a DB persist for the change."""
+        if self._db_factory is None:
+            return
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            return
+        if not loop.is_running():
+            return
+        # Fire-and-forget: persist the request without blocking the queue.
+        loop.create_task(self._persist_approval(request))
+
+    async def _persist_approval(self, request) -> None:
+        try:
+            async with self._open_repo() as repo:
+                if repo is None:
+                    return
+                await repo.save_approval_request(request)
+        except Exception:  # noqa: BLE001
+            logger.exception("Failed to persist approval request %s", request.id)
 
     def initialize(self):
         """Load personas into registry. Idempotent."""
@@ -248,7 +307,11 @@ class PlatformManager:
         mission_md: Optional[str],
         objectives: Optional[List[MissionObjective]] = None,
     ) -> Optional[SubredditMission]:
-        """Update a subreddit's mission markdown; re-parse objectives if omitted."""
+        """Update a subreddit's mission markdown; re-parse objectives if omitted.
+
+        When a DB factory is attached, the write is mirrored to the
+        ``subreddits`` table via ``SessionRepository.update_subreddit_mission``.
+        """
         subreddit = self._subreddits.get(subreddit_id)
         if not subreddit:
             return None
@@ -257,7 +320,44 @@ class PlatformManager:
         subreddit["mission_objectives"] = [obj.model_dump(mode="json") for obj in parsed]
         subreddit["mission_version"] = (subreddit.get("mission_version") or 1) + 1
         subreddit["mission_updated_at"] = datetime.now(timezone.utc)
+        self._fire_persist(self._persist_subreddit_mission(subreddit_id, mission_md, parsed))
         return self.get_subreddit_mission(subreddit_id)
+
+    async def _persist_subreddit_mission(
+        self,
+        subreddit_id: str,
+        mission_md: Optional[str],
+        objectives: List[MissionObjective],
+    ) -> None:
+        try:
+            async with self._open_repo() as repo:
+                if repo is None:
+                    return
+                await repo.update_subreddit_mission(
+                    subreddit_id=subreddit_id,
+                    mission_md=mission_md,
+                    objectives=objectives,
+                )
+        except Exception:  # noqa: BLE001
+            logger.exception("Failed to persist mission for %s", subreddit_id)
+
+    def _fire_persist(self, coro) -> None:
+        """Schedule an async persistence task without blocking the caller.
+
+        Used by sync mutators (update_subreddit_mission, set_member_budget)
+        so existing callers don't have to become async. When called from
+        non-async context (e.g. unit tests with no running loop), the coro
+        is closed cleanly instead of being scheduled.
+        """
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            coro.close()
+            return
+        if not loop.is_running():
+            coro.close()
+            return
+        loop.create_task(coro)
 
     def set_member_budget(
         self,
@@ -266,7 +366,11 @@ class PlatformManager:
         max_cost_per_thread_usd: Optional[float] = None,
         monthly_budget_usd: Optional[float] = None,
     ) -> Optional[dict]:
-        """Update a single member's per-thread and/or monthly budget."""
+        """Update a single member's per-thread and/or monthly budget.
+
+        Mirrored to ``subreddit_memberships`` via the repository when a DB
+        factory is attached.
+        """
         memberships = self._memberships.get(subreddit_id, [])
         for m in memberships:
             if m.get("agent_id") == agent_id:
@@ -274,8 +378,36 @@ class PlatformManager:
                     m["max_cost_per_thread_usd"] = max_cost_per_thread_usd
                 if monthly_budget_usd is not None:
                     m["monthly_budget_usd"] = monthly_budget_usd
+                self._fire_persist(
+                    self._persist_member_budget(
+                        subreddit_id=subreddit_id,
+                        agent_id=agent_id,
+                        max_cost_per_thread_usd=max_cost_per_thread_usd,
+                        monthly_budget_usd=monthly_budget_usd,
+                    )
+                )
                 return m
         return None
+
+    async def _persist_member_budget(
+        self,
+        subreddit_id: str,
+        agent_id: str,
+        max_cost_per_thread_usd: Optional[float],
+        monthly_budget_usd: Optional[float],
+    ) -> None:
+        try:
+            async with self._open_repo() as repo:
+                if repo is None:
+                    return
+                await repo.update_member_budget(
+                    subreddit_id=subreddit_id,
+                    agent_id=agent_id,
+                    max_cost_per_thread_usd=max_cost_per_thread_usd,
+                    monthly_budget_usd=monthly_budget_usd,
+                )
+        except Exception:  # noqa: BLE001
+            logger.exception("Failed to persist budget for %s/%s", subreddit_id, agent_id)
 
     def get_member_budgets(self, subreddit_id: str) -> Dict[str, float]:
         """Return a ``{agent_type: max_cost_per_thread_usd}`` map for an engine."""
@@ -291,6 +423,87 @@ class PlatformManager:
             if agent:
                 budgets[agent.agent_type] = float(cap)
         return budgets
+
+    def get_member_monthly_budgets(self, subreddit_id: str) -> Dict[str, float]:
+        """Return a ``{agent_type: monthly_budget_usd}`` map for an engine."""
+        budgets: Dict[str, float] = {}
+        for m in self._memberships.get(subreddit_id, []):
+            cap = m.get("monthly_budget_usd")
+            if cap is None:
+                continue
+            agent_uuid = m.get("agent_id")
+            if not agent_uuid:
+                continue
+            agent = self.registry.get_agent(UUID(agent_uuid))
+            if agent:
+                budgets[agent.agent_type] = float(cap)
+        return budgets
+
+    def get_member_monthly_used(self, subreddit_id: str) -> Dict[str, float]:
+        """Return ``{agent_type: current_month_cost_usd}`` from in-memory cache.
+
+        When DB is attached, this is hydrated from the membership rows on
+        startup; otherwise it's the in-memory accumulation.
+        """
+        used: Dict[str, float] = {}
+        for m in self._memberships.get(subreddit_id, []):
+            current = m.get("current_month_cost_usd")
+            if current is None:
+                continue
+            agent_uuid = m.get("agent_id")
+            if not agent_uuid:
+                continue
+            agent = self.registry.get_agent(UUID(agent_uuid))
+            if agent:
+                used[agent.agent_type] = float(current)
+        return used
+
+    async def accumulate_usage(
+        self,
+        subreddit_id: str,
+        agent_type: str,
+        input_tokens: int,
+        output_tokens: int,
+        cost_usd: float,
+    ) -> None:
+        """Update the in-memory membership's lifetime/monthly counters and
+        mirror to the DB if attached.
+
+        Called from the engine ``usage_callback`` after every LLM invocation.
+        """
+        agent_uuid: Optional[str] = None
+        for m in self._memberships.get(subreddit_id, []):
+            aid = m.get("agent_id")
+            if not aid:
+                continue
+            try:
+                agent = self.registry.get_agent(UUID(aid))
+            except Exception:  # noqa: BLE001
+                continue
+            if agent and agent.agent_type == agent_type:
+                m["lifetime_cost_usd"] = float(m.get("lifetime_cost_usd", 0.0)) + cost_usd
+                m["lifetime_input_tokens"] = int(m.get("lifetime_input_tokens", 0)) + input_tokens
+                m["lifetime_output_tokens"] = (
+                    int(m.get("lifetime_output_tokens", 0)) + output_tokens
+                )
+                m["current_month_cost_usd"] = float(m.get("current_month_cost_usd", 0.0)) + cost_usd
+                agent_uuid = aid
+                break
+        if agent_uuid is None or self._db_factory is None:
+            return
+        try:
+            async with self._open_repo() as repo:
+                if repo is None:
+                    return
+                await repo.accumulate_member_usage(
+                    subreddit_id=subreddit_id,
+                    agent_id=agent_uuid,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    cost_usd=cost_usd,
+                )
+        except Exception:  # noqa: BLE001
+            logger.exception("Failed to persist usage for %s/%s", subreddit_id, agent_type)
 
     # ---- Phase 6: Org chart + goal progress ----
 

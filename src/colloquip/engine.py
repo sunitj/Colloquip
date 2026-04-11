@@ -55,6 +55,10 @@ class EmergentDeliberationEngine:
         mission_objectives: Optional[List[MissionObjective]] = None,
         max_cost_per_thread_usd: Optional[float] = None,
         agent_budgets: Optional[Dict[str, float]] = None,
+        agent_monthly_budgets: Optional[Dict[str, float]] = None,
+        agent_monthly_used: Optional[Dict[str, float]] = None,
+        usage_callback=None,
+        approval_queue=None,
     ):
         self.agents = agents
         self.observer = observer
@@ -71,6 +75,20 @@ class EmergentDeliberationEngine:
         self._max_cost_per_thread_usd = max_cost_per_thread_usd
         # agent_id -> per-thread budget override (from DBSubredditMembership)
         self._agent_budgets: Dict[str, float] = dict(agent_budgets or {})
+        # Phase 6: monthly budgets — checked against (DB-loaded baseline +
+        # in-memory CostTracker spend so far this thread)
+        self._agent_monthly_budgets: Dict[str, float] = dict(agent_monthly_budgets or {})
+        self._agent_monthly_used: Dict[str, float] = dict(agent_monthly_used or {})
+        # Optional async callback (input_tokens, output_tokens, cost_usd, agent_id)
+        # invoked after each successful LLM call so SessionManager can write
+        # lifetime/monthly accumulators back to the DB.
+        self._usage_callback = usage_callback
+        # Optional ApprovalQueue: budget breaches enqueue a BUDGET_OVERRIDE
+        # request so a human can authorize an extension instead of silent skip.
+        self._approval_queue = approval_queue
+        # Per-turn dedupe of thread-budget skip events (the breach is global,
+        # so we only need to surface it once per turn, not per agent).
+        self._thread_budget_already_emitted_for_turn: Optional[int] = None
 
     async def run_deliberation(
         self,
@@ -300,7 +318,8 @@ class EmergentDeliberationEngine:
         """Return ``(reason, current_cost, max_usd)`` if the agent is over budget.
 
         Returns ``None`` if the agent is within budget or if no tracker/budget
-        is configured.
+        is configured. Checks (in order) thread total cap → per-agent thread
+        cap → per-agent monthly cap.
         """
         if not self._cost_tracker or not self._session_id:
             return None
@@ -309,12 +328,20 @@ class EmergentDeliberationEngine:
             current = self._cost_tracker.estimated_cost(self._session_id)
             if current > self._max_cost_per_thread_usd:
                 return ("thread_budget", current, self._max_cost_per_thread_usd)
-        # Per-agent budget (this agent only)
-        max_usd = self._agent_budgets.get(agent_id)
-        if max_usd is not None:
+        # Per-agent thread budget
+        thread_cap = self._agent_budgets.get(agent_id)
+        if thread_cap is not None:
             current = self._cost_tracker.agent_cost(self._session_id, agent_id)
-            if current > max_usd:
-                return ("agent_thread_budget", current, max_usd)
+            if current > thread_cap:
+                return ("agent_thread_budget", current, thread_cap)
+        # Per-agent monthly budget (DB baseline + current thread spend)
+        monthly_cap = self._agent_monthly_budgets.get(agent_id)
+        if monthly_cap is not None:
+            baseline = self._agent_monthly_used.get(agent_id, 0.0)
+            current_thread = self._cost_tracker.agent_cost(self._session_id, agent_id)
+            total = baseline + current_thread
+            if total > monthly_cap:
+                return ("agent_monthly_budget", total, monthly_cap)
         return None
 
     async def _generate_posts_with_budget_gate(
@@ -330,6 +357,14 @@ class EmergentDeliberationEngine:
         Budget-blocked agents produce an :class:`AgentBudgetSkipped` event
         instead of a post. The thread continues so other agents can still
         deliberate and energy can naturally decay.
+
+        Phase 6 refinements:
+
+        * Thread-budget breaches are emitted **once per turn** (the cap is
+          shared across all agents, so N events would just be noise).
+        * When an :class:`ApprovalQueue` is wired, the first breach for a
+          given agent on a given thread enqueues a ``BUDGET_OVERRIDE`` request
+          so a human can authorize an extension instead of silent skip.
         """
         deps = AgentDependencies(
             session=session,
@@ -348,7 +383,13 @@ class EmergentDeliberationEngine:
             breach = self._check_agent_budget(agent_id)
             if breach is not None:
                 reason, current, max_usd = breach
-                yield AgentBudgetSkipped(
+                # Dedupe thread_budget skips per turn — the cap applies to the
+                # entire thread, not to individual agents, so one event suffices.
+                if reason == "thread_budget":
+                    if self._thread_budget_already_emitted_for_turn == turn:
+                        continue
+                    self._thread_budget_already_emitted_for_turn = turn
+                event = AgentBudgetSkipped(
                     session_id=session.id,
                     agent_id=agent_id,
                     turn=turn,
@@ -360,6 +401,8 @@ class EmergentDeliberationEngine:
                     estimated_cost_usd=current,
                     max_usd=max_usd,
                 )
+                self._enqueue_budget_override(agent_id, reason, current, max_usd)
+                yield event
                 continue
             agent = self.agents[agent_id]
             tasks.append(self._safe_generate(agent, deps, rules))
@@ -377,8 +420,56 @@ class EmergentDeliberationEngine:
             elif isinstance(result, Exception):
                 logger.error("Agent generation failure: %s", result)
 
+    def _enqueue_budget_override(
+        self,
+        agent_id: str,
+        reason: str,
+        current_cost: float,
+        max_usd: float,
+    ) -> None:
+        """Enqueue a BUDGET_OVERRIDE approval request for a budget-skipped agent.
+
+        Idempotent within a thread — only the first breach per (session, agent)
+        creates a request, so a chronically-blocked agent doesn't spam the queue.
+        """
+        if self._approval_queue is None or self._subreddit_id is None:
+            return
+        # Deduplicate across the lifetime of this engine instance
+        key = (self._session_id, agent_id, reason)
+        if not hasattr(self, "_approval_keys"):
+            self._approval_keys: set = set()
+        if key in self._approval_keys:
+            return
+        self._approval_keys.add(key)
+        try:
+            from colloquip.models import ApprovalRequestType
+
+            self._approval_queue.enqueue(
+                subreddit_id=self._subreddit_id,
+                request_type=ApprovalRequestType.BUDGET_OVERRIDE,
+                initiator=f"agent:{agent_id}",
+                target_ref=str(self._session_id) if self._session_id else None,
+                payload={
+                    "reason": reason,
+                    "current_cost_usd": current_cost,
+                    "max_usd": max_usd,
+                },
+                reason=(
+                    f"{agent_id} hit {reason} on thread {self._session_id} "
+                    f"(${current_cost:.4f} > ${max_usd:.4f})"
+                ),
+                estimated_cost_usd=current_cost,
+            )
+        except Exception:  # noqa: BLE001
+            logger.exception("Failed to enqueue budget override for %s", agent_id)
+
     def _record_cost(self, agent: BaseDeliberationAgent):
-        """Record the last LLM call's cost from the agent."""
+        """Record the last LLM call's cost from the agent.
+
+        Also fires the optional ``usage_callback`` (Phase 6) so the caller
+        can persist lifetime/monthly usage to the DB. The callback runs as
+        a fire-and-forget task to avoid blocking concurrent agent dispatch.
+        """
         if self._cost_tracker and self._session_id:
             input_t = getattr(agent, "last_input_tokens", 0)
             output_t = getattr(agent, "last_output_tokens", 0)
@@ -391,6 +482,35 @@ class EmergentDeliberationEngine:
                     model,
                     agent_id=agent.agent_id,
                 )
+                # Fire usage callback (DB write-through for membership totals)
+                if self._usage_callback is not None:
+                    cost = (
+                        input_t * self._cost_tracker.cost_per_input_token
+                        + output_t * self._cost_tracker.cost_per_output_token
+                    )
+                    try:
+                        result = self._usage_callback(agent.agent_id, input_t, output_t, cost)
+                        if asyncio.iscoroutine(result):
+                            try:
+                                loop = asyncio.get_event_loop()
+                                if loop.is_running():
+                                    loop.create_task(result)
+                                else:
+                                    result.close()
+                            except RuntimeError:
+                                result.close()
+                    except Exception:  # noqa: BLE001
+                        logger.exception("usage_callback failed for %s", agent.agent_id)
+                # Track monthly running total in-memory so the next budget
+                # check sees up-to-date numbers without waiting for the DB.
+                if agent.agent_id in self._agent_monthly_budgets:
+                    cost = (
+                        input_t * self._cost_tracker.cost_per_input_token
+                        + output_t * self._cost_tracker.cost_per_output_token
+                    )
+                    self._agent_monthly_used[agent.agent_id] = (
+                        self._agent_monthly_used.get(agent.agent_id, 0.0) + cost
+                    )
 
         # Always record agent-level token metrics
         from colloquip.metrics import agent_tokens_total

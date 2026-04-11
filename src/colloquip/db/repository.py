@@ -945,6 +945,11 @@ def _row_to_subreddit_dict(row: DBSubreddit) -> dict:
         "max_cost_per_thread_usd": row.max_cost_per_thread_usd,
         "monthly_budget_usd": row.monthly_budget_usd,
         "engine_overrides": row.engine_overrides,
+        # Phase 6: subreddit mission directive + parsed objectives
+        "mission_md": row.mission_md,
+        "mission_objectives": row.mission_objectives or [],
+        "mission_version": row.mission_version or 1,
+        "mission_updated_at": row.mission_updated_at,
         "created_by": row.created_by,
         "created_at": row.created_at,
         "updated_at": row.updated_at,
