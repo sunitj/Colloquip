@@ -16,9 +16,13 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from colloquip.models import (
+    ApprovalRequestType,
+    ApprovalStatus,
+    MissionObjective,
     ParticipationModel,
     ThinkingType,
 )
+from colloquip.subreddit_mission import parse_objectives
 
 logger = logging.getLogger(__name__)
 
@@ -330,6 +334,303 @@ async def get_agent(agent_id: str, request: Request):
 # ---------------------------------------------------------------------------
 # Cost endpoints
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# Phase 6: Subreddit mission + per-agent budgets
+# ---------------------------------------------------------------------------
+
+
+class MissionObjectiveResponse(BaseModel):
+    id: str
+    title: str
+    description: str = ""
+    metric: Optional[str] = None
+    target: Optional[float] = None
+    status: str = "open"
+
+
+class SubredditMissionResponse(BaseModel):
+    subreddit_id: str
+    mission_md: Optional[str] = None
+    objectives: List[MissionObjectiveResponse] = Field(default_factory=list)
+    version: int = 1
+    updated_at: Optional[str] = None
+
+
+class UpdateMissionRequest(BaseModel):
+    mission_md: Optional[str] = None
+    objectives: Optional[List[MissionObjectiveResponse]] = None
+    regenerate_objectives: bool = True
+
+
+class UpdateMemberBudgetRequest(BaseModel):
+    max_cost_per_thread_usd: Optional[float] = Field(default=None, ge=0.0)
+    monthly_budget_usd: Optional[float] = Field(default=None, ge=0.0)
+
+
+@router.get("/subreddits/{name}/mission", response_model=SubredditMissionResponse)
+async def get_subreddit_mission(name: str, request: Request):
+    """Read the subreddit's program.md-style mission directive + parsed objectives."""
+    pm = _get_platform(request)
+    subreddit = pm.get_subreddit_by_name(name)
+    if not subreddit:
+        raise HTTPException(status_code=404, detail=f"Subreddit '{name}' not found")
+    mission = pm.get_subreddit_mission(subreddit["id"])
+    if not mission:
+        return SubredditMissionResponse(subreddit_id=subreddit["id"])
+    return SubredditMissionResponse(
+        subreddit_id=str(mission.subreddit_id),
+        mission_md=mission.mission_md,
+        objectives=[MissionObjectiveResponse(**obj.model_dump()) for obj in mission.objectives],
+        version=mission.version,
+        updated_at=mission.updated_at.isoformat() if mission.updated_at else None,
+    )
+
+
+@router.put("/subreddits/{name}/mission", response_model=SubredditMissionResponse)
+async def update_subreddit_mission(name: str, body: UpdateMissionRequest, request: Request):
+    """Update the subreddit mission markdown and re-parse objectives.
+
+    If ``regenerate_objectives`` is true (default), objectives are re-parsed
+    from the markdown. If ``objectives`` is provided it overrides that.
+    """
+    pm = _get_platform(request)
+    subreddit = pm.get_subreddit_by_name(name)
+    if not subreddit:
+        raise HTTPException(status_code=404, detail=f"Subreddit '{name}' not found")
+
+    if body.objectives is not None:
+        parsed = [MissionObjective(**obj.model_dump()) for obj in body.objectives]
+    elif body.regenerate_objectives:
+        parsed = parse_objectives(body.mission_md or "")
+    else:
+        # Preserve existing objectives
+        existing = pm.get_subreddit_mission(subreddit["id"])
+        parsed = list(existing.objectives) if existing else []
+
+    mission = pm.update_subreddit_mission(
+        subreddit["id"], mission_md=body.mission_md, objectives=parsed
+    )
+    if not mission:
+        raise HTTPException(status_code=500, detail="Failed to update mission")
+    return SubredditMissionResponse(
+        subreddit_id=str(mission.subreddit_id),
+        mission_md=mission.mission_md,
+        objectives=[MissionObjectiveResponse(**obj.model_dump()) for obj in mission.objectives],
+        version=mission.version,
+        updated_at=mission.updated_at.isoformat() if mission.updated_at else None,
+    )
+
+
+@router.get("/subreddits/{name}/mission/progress")
+async def get_subreddit_mission_progress(name: str, request: Request):
+    """Measure progress against a subreddit's mission objectives.
+
+    Aggregates posts from active in-memory sessions to compute each
+    quantitative objective. Qualitative objectives are returned with
+    ``qualitative=True`` so the UI can surface them for human review.
+    """
+    pm = _get_platform(request)
+    subreddit = pm.get_subreddit_by_name(name)
+    if not subreddit:
+        raise HTTPException(status_code=404, detail=f"Subreddit '{name}' not found")
+
+    sm = getattr(request.app.state, "session_manager", None)
+    recent_posts: list = []
+    if sm is not None:
+        threads = pm.get_subreddit_threads(subreddit["id"])
+        for thread in threads:
+            try:
+                sid = UUID(thread["id"])
+            except (KeyError, ValueError):
+                continue
+            recent_posts.extend(sm.get_posts(sid))
+
+    progress = pm.measure_subreddit_mission_progress(subreddit["id"], recent_posts=recent_posts)
+    return {"objectives": [p.model_dump() for p in progress]}
+
+
+@router.get("/subreddits/{name}/org-chart")
+async def get_subreddit_org_chart(name: str, request: Request):
+    """Return the agent org chart (nodes + edges) for a subreddit."""
+    pm = _get_platform(request)
+    subreddit = pm.get_subreddit_by_name(name)
+    if not subreddit:
+        raise HTTPException(status_code=404, detail=f"Subreddit '{name}' not found")
+
+    sm = getattr(request.app.state, "session_manager", None)
+    recent_posts: list = []
+    if sm is not None:
+        threads = pm.get_subreddit_threads(subreddit["id"])
+        for thread in threads:
+            try:
+                sid = UUID(thread["id"])
+            except (KeyError, ValueError):
+                continue
+            recent_posts.extend(sm.get_posts(sid))
+
+    chart = pm.get_subreddit_org_chart(subreddit["id"], recent_posts=recent_posts)
+    if chart is None:
+        raise HTTPException(status_code=404, detail=f"Subreddit '{name}' not found")
+    return chart.model_dump(mode="json")
+
+
+@router.get("/subreddits/{name}/budgets")
+async def get_subreddit_budgets(name: str, request: Request):
+    """List per-member budgets + current usage for a subreddit."""
+    pm = _get_platform(request)
+    subreddit = pm.get_subreddit_by_name(name)
+    if not subreddit:
+        raise HTTPException(status_code=404, detail=f"Subreddit '{name}' not found")
+
+    members = pm.get_subreddit_members(subreddit["id"])
+    return {
+        "subreddit_id": subreddit["id"],
+        "max_cost_per_thread_usd": subreddit.get("max_cost_per_thread_usd"),
+        "monthly_budget_usd": subreddit.get("monthly_budget_usd"),
+        "members": [
+            {
+                "agent_id": m.get("agent_id"),
+                "agent_type": m.get("agent_type"),
+                "display_name": m.get("display_name"),
+                "role": m.get("role"),
+                "max_cost_per_thread_usd": m.get("max_cost_per_thread_usd"),
+                "monthly_budget_usd": m.get("monthly_budget_usd"),
+                "lifetime_cost_usd": m.get("lifetime_cost_usd", 0.0),
+                "current_month_cost_usd": m.get("current_month_cost_usd", 0.0),
+            }
+            for m in members
+        ],
+    }
+
+
+@router.patch("/subreddits/{name}/members/{agent_id}/budget")
+async def update_member_budget(
+    name: str, agent_id: str, body: UpdateMemberBudgetRequest, request: Request
+):
+    """Update a specific member's per-thread or monthly budget override."""
+    pm = _get_platform(request)
+    subreddit = pm.get_subreddit_by_name(name)
+    if not subreddit:
+        raise HTTPException(status_code=404, detail=f"Subreddit '{name}' not found")
+
+    updated = pm.set_member_budget(
+        subreddit_id=subreddit["id"],
+        agent_id=agent_id,
+        max_cost_per_thread_usd=body.max_cost_per_thread_usd,
+        monthly_budget_usd=body.monthly_budget_usd,
+    )
+    if not updated:
+        raise HTTPException(status_code=404, detail="Membership not found")
+    return updated
+
+
+# ---------------------------------------------------------------------------
+# Phase 6: Approval queue
+# ---------------------------------------------------------------------------
+
+
+class ApprovalResponse(BaseModel):
+    id: str
+    subreddit_id: str
+    request_type: str
+    initiator: str = ""
+    target_ref: Optional[str] = None
+    payload: dict = Field(default_factory=dict)
+    status: str
+    reason: str = ""
+    estimated_cost_usd: float = 0.0
+    requested_at: str
+    decided_at: Optional[str] = None
+    decided_by: Optional[str] = None
+
+
+class EnqueueApprovalRequest(BaseModel):
+    request_type: ApprovalRequestType
+    initiator: str = ""
+    target_ref: Optional[str] = None
+    payload: dict = Field(default_factory=dict)
+    reason: str = ""
+    estimated_cost_usd: float = 0.0
+
+
+class ResolveApprovalRequest(BaseModel):
+    status: ApprovalStatus
+    decided_by: Optional[str] = None
+
+
+def _approval_to_response(req) -> ApprovalResponse:
+    return ApprovalResponse(
+        id=str(req.id),
+        subreddit_id=str(req.subreddit_id),
+        request_type=req.request_type.value,
+        initiator=req.initiator,
+        target_ref=req.target_ref,
+        payload=req.payload or {},
+        status=req.status.value,
+        reason=req.reason,
+        estimated_cost_usd=req.estimated_cost_usd,
+        requested_at=req.requested_at.isoformat(),
+        decided_at=req.decided_at.isoformat() if req.decided_at else None,
+        decided_by=req.decided_by,
+    )
+
+
+@router.get("/subreddits/{name}/approvals")
+async def list_subreddit_approvals(
+    name: str,
+    request: Request,
+    status: Optional[str] = None,
+):
+    """List approval requests for a subreddit, optionally filtered by status."""
+    pm = _get_platform(request)
+    subreddit = pm.get_subreddit_by_name(name)
+    if not subreddit:
+        raise HTTPException(status_code=404, detail=f"Subreddit '{name}' not found")
+
+    status_enum: Optional[ApprovalStatus] = None
+    if status:
+        try:
+            status_enum = ApprovalStatus(status)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid status '{status}'")
+
+    items = pm.approval_queue.list_for_subreddit(subreddit["id"], status=status_enum)
+    return {"approvals": [_approval_to_response(r).model_dump() for r in items]}
+
+
+@router.post("/subreddits/{name}/approvals", response_model=ApprovalResponse)
+async def create_subreddit_approval(name: str, body: EnqueueApprovalRequest, request: Request):
+    """Manually enqueue an approval request (e.g. from an admin UI)."""
+    pm = _get_platform(request)
+    subreddit = pm.get_subreddit_by_name(name)
+    if not subreddit:
+        raise HTTPException(status_code=404, detail=f"Subreddit '{name}' not found")
+    req = pm.approval_queue.enqueue(
+        subreddit_id=UUID(subreddit["id"]),
+        request_type=body.request_type,
+        initiator=body.initiator,
+        target_ref=body.target_ref,
+        payload=body.payload,
+        reason=body.reason,
+        estimated_cost_usd=body.estimated_cost_usd,
+    )
+    return _approval_to_response(req)
+
+
+@router.post("/approvals/{request_id}/resolve", response_model=ApprovalResponse)
+async def resolve_approval(request_id: str, body: ResolveApprovalRequest, request: Request):
+    """Approve or deny a pending request."""
+    pm = _get_platform(request)
+    try:
+        req_uuid = UUID(request_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid request id")
+    req = pm.approval_queue.resolve(req_uuid, body.status, decided_by=body.decided_by)
+    if not req:
+        raise HTTPException(status_code=404, detail="Approval request not found")
+    return _approval_to_response(req)
 
 
 @router.get("/threads/{thread_id}/costs")

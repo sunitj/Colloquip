@@ -31,4 +31,13 @@ export const queryKeys = {
   calibration: {
     overview: ['calibration', 'overview'] as const,
   },
+  // Phase 6 dashboards
+  dashboards: {
+    mission: (name: string) => ['subreddits', name, 'mission'] as const,
+    missionProgress: (name: string) => ['subreddits', name, 'mission', 'progress'] as const,
+    budgets: (name: string) => ['subreddits', name, 'budgets'] as const,
+    orgChart: (name: string) => ['subreddits', name, 'org-chart'] as const,
+    approvals: (name: string, status?: string) =>
+      ['subreddits', name, 'approvals', status ?? 'all'] as const,
+  },
 } as const;

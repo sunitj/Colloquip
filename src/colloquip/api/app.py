@@ -11,6 +11,7 @@ from colloquip.energy import EnergyCalculator
 from colloquip.engine import EmergentDeliberationEngine
 from colloquip.llm.mock import MockBehavior, MockLLM
 from colloquip.models import (
+    AgentBudgetSkipped,
     AgentConfig,
     ConsensusMap,
     DeliberationSession,
@@ -116,6 +117,45 @@ class SessionManager:
         # Wire cost tracker from platform manager
         cost_tracker = getattr(platform_manager, "cost_tracker", None) if platform_manager else None
 
+        # Phase 6: pull subreddit-level mission + budgets into the engine
+        subreddit_mission_md: Optional[str] = None
+        mission_objectives_list = []
+        max_cost_per_thread: Optional[float] = None
+        agent_budgets: Dict[str, float] = {}
+        agent_monthly_budgets: Dict[str, float] = {}
+        agent_monthly_used: Dict[str, float] = {}
+        subreddit_uuid: Optional[UUID] = None
+        usage_callback = None
+        approval_queue = None
+        if platform_manager and subreddit_id:
+            sub_dict = platform_manager.get_subreddit(subreddit_id)
+            if sub_dict:
+                max_cost_per_thread = sub_dict.get("max_cost_per_thread_usd")
+                try:
+                    subreddit_uuid = UUID(subreddit_id)
+                except (TypeError, ValueError):
+                    subreddit_uuid = None
+            mission = platform_manager.get_subreddit_mission(subreddit_id)
+            if mission:
+                subreddit_mission_md = mission.mission_md
+                mission_objectives_list = list(mission.objectives)
+            agent_budgets = platform_manager.get_member_budgets(subreddit_id)
+            agent_monthly_budgets = platform_manager.get_member_monthly_budgets(subreddit_id)
+            agent_monthly_used = platform_manager.get_member_monthly_used(subreddit_id)
+            approval_queue = getattr(platform_manager, "approval_queue", None)
+
+            # Closure: each LLM call → write-through to membership totals
+            async def _accumulate(agent_type, in_tok, out_tok, cost):
+                await platform_manager.accumulate_usage(
+                    subreddit_id=subreddit_id,
+                    agent_type=agent_type,
+                    input_tokens=in_tok,
+                    output_tokens=out_tok,
+                    cost_usd=cost,
+                )
+
+            usage_callback = _accumulate
+
         engine = EmergentDeliberationEngine(
             agents=agents,
             observer=observer,
@@ -125,6 +165,15 @@ class SessionManager:
             min_posts=12,
             cost_tracker=cost_tracker,
             session_id=session.id,
+            subreddit_id=subreddit_uuid,
+            subreddit_mission=subreddit_mission_md,
+            mission_objectives=mission_objectives_list,
+            max_cost_per_thread_usd=max_cost_per_thread,
+            agent_budgets=agent_budgets,
+            agent_monthly_budgets=agent_monthly_budgets,
+            agent_monthly_used=agent_monthly_used,
+            usage_callback=usage_callback,
+            approval_queue=approval_queue,
         )
         self.engines[session.id] = engine
 
@@ -262,6 +311,16 @@ class SessionManager:
                         },
                     )
                     await self._persist_energy(session_id, event)
+                elif isinstance(event, AgentBudgetSkipped):
+                    # Phase 6: surface budget breaches to subscribers so the
+                    # UI can show why an agent went silent.
+                    await self._broadcast(
+                        session_id,
+                        {
+                            "type": "budget_skip",
+                            "data": event.model_dump(mode="json"),
+                        },
+                    )
                 elif isinstance(event, ConsensusMap):
                     self._update_platform_thread(session_id, status="completed", phase="synthesis")
                     await self._broadcast(

@@ -7,18 +7,31 @@ This is the in-memory orchestrator for the platform layer. It manages:
 - Thread creation within subreddits
 """
 
+import asyncio
 import logging
+from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
+from colloquip.approvals import ApprovalQueue
 from colloquip.cost_tracker import CostTracker
 from colloquip.models import (
     BaseAgentIdentity,
+    MissionObjective,
+    ObjectiveProgress,
+    OrgChart,
+    OrgChartEdge,
+    OrgChartNode,
     ParticipationModel,
+    Post,
+    SubredditMission,
+    SubredditRole,
     ThinkingType,
 )
 from colloquip.output_templates import get_template
 from colloquip.registry import AgentRegistry
+from colloquip.subreddit_mission import measure_objectives, parse_objectives
 from colloquip.tools.registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
@@ -35,6 +48,8 @@ class PlatformManager:
         self.registry = AgentRegistry()
         self.tool_registry = ToolRegistry(mock_mode=mock_mode)
         self.cost_tracker = CostTracker()
+        # Phase 6: Paperclip-style approval queue
+        self.approval_queue = ApprovalQueue()
 
         # In-memory storage (mirrors DB for real-time access)
         self._subreddits: Dict[str, dict] = {}  # id -> subreddit dict
@@ -44,6 +59,63 @@ class PlatformManager:
         self._agent_subreddit_count: Dict[UUID, int] = {}
 
         self._initialized = False
+        # Phase 6: optional DB persistence. When attached, mutations also
+        # write through to the SessionRepository, and approval queue
+        # enqueue/resolve callbacks persist to the approval_requests table.
+        self._db_factory: Optional[Any] = None
+        self.approval_queue.subscribe(self._on_approval_event)
+
+    def attach_db(self, db_session_factory: Any) -> None:
+        """Attach an async session factory so mutations persist to the DB.
+
+        Called from the FastAPI ``lifespan`` startup hook once the engine
+        is created. Without this, the platform manager runs in pure in-memory
+        mode and mission/budget/approval state is lost on restart.
+        """
+        self._db_factory = db_session_factory
+
+    @asynccontextmanager
+    async def _open_repo(self):
+        """Yield a SessionRepository, committing on success.
+
+        Returns ``None`` (via the ``yielded`` value) when no DB factory has
+        been attached, so callers can short-circuit cleanly.
+        """
+        if not self._db_factory:
+            yield None
+            return
+        from colloquip.db.repository import SessionRepository
+
+        async with self._db_factory() as db:
+            repo = SessionRepository(db)
+            try:
+                yield repo
+                await repo.commit()
+            except Exception:
+                logger.exception("PlatformManager DB write failed")
+                raise
+
+    def _on_approval_event(self, event: str, request) -> None:
+        """ApprovalQueue subscriber: schedule a DB persist for the change."""
+        if self._db_factory is None:
+            return
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            return
+        if not loop.is_running():
+            return
+        # Fire-and-forget: persist the request without blocking the queue.
+        loop.create_task(self._persist_approval(request))
+
+    async def _persist_approval(self, request) -> None:
+        try:
+            async with self._open_repo() as repo:
+                if repo is None:
+                    return
+                await repo.save_approval_request(request)
+        except Exception:  # noqa: BLE001
+            logger.exception("Failed to persist approval request %s", request.id)
 
     def initialize(self):
         """Load personas into registry. Idempotent."""
@@ -119,6 +191,11 @@ class PlatformManager:
             "max_cost_per_thread_usd": max_cost_per_thread_usd,
             "max_agents": max_agents,
             "always_include_red_team": True,
+            # Phase 6: subreddit-level mission directive + parsed objectives
+            "mission_md": None,
+            "mission_objectives": [],
+            "mission_version": 1,
+            "mission_updated_at": None,
         }
 
         # Store
@@ -202,6 +279,331 @@ class PlatformManager:
 
     def get_subreddit_threads(self, subreddit_id: str) -> List[dict]:
         return self._threads.get(subreddit_id, [])
+
+    # ---- Phase 6: Subreddit mission ----
+
+    def get_subreddit_mission(self, subreddit_id: str) -> Optional[SubredditMission]:
+        subreddit = self._subreddits.get(subreddit_id)
+        if not subreddit:
+            return None
+        objectives_raw = subreddit.get("mission_objectives") or []
+        objectives: List[MissionObjective] = []
+        for raw in objectives_raw:
+            try:
+                objectives.append(MissionObjective(**raw))
+            except Exception:
+                continue
+        return SubredditMission(
+            subreddit_id=UUID(subreddit_id),
+            mission_md=subreddit.get("mission_md"),
+            objectives=objectives,
+            version=subreddit.get("mission_version") or 1,
+            updated_at=subreddit.get("mission_updated_at"),
+        )
+
+    def update_subreddit_mission(
+        self,
+        subreddit_id: str,
+        mission_md: Optional[str],
+        objectives: Optional[List[MissionObjective]] = None,
+    ) -> Optional[SubredditMission]:
+        """Update a subreddit's mission markdown; re-parse objectives if omitted.
+
+        When a DB factory is attached, the write is mirrored to the
+        ``subreddits`` table via ``SessionRepository.update_subreddit_mission``.
+        """
+        subreddit = self._subreddits.get(subreddit_id)
+        if not subreddit:
+            return None
+        parsed = objectives if objectives is not None else parse_objectives(mission_md)
+        subreddit["mission_md"] = mission_md
+        subreddit["mission_objectives"] = [obj.model_dump(mode="json") for obj in parsed]
+        subreddit["mission_version"] = (subreddit.get("mission_version") or 1) + 1
+        subreddit["mission_updated_at"] = datetime.now(timezone.utc)
+        self._fire_persist(self._persist_subreddit_mission(subreddit_id, mission_md, parsed))
+        return self.get_subreddit_mission(subreddit_id)
+
+    async def _persist_subreddit_mission(
+        self,
+        subreddit_id: str,
+        mission_md: Optional[str],
+        objectives: List[MissionObjective],
+    ) -> None:
+        try:
+            async with self._open_repo() as repo:
+                if repo is None:
+                    return
+                await repo.update_subreddit_mission(
+                    subreddit_id=subreddit_id,
+                    mission_md=mission_md,
+                    objectives=objectives,
+                )
+        except Exception:  # noqa: BLE001
+            logger.exception("Failed to persist mission for %s", subreddit_id)
+
+    def _fire_persist(self, coro) -> None:
+        """Schedule an async persistence task without blocking the caller.
+
+        Used by sync mutators (update_subreddit_mission, set_member_budget)
+        so existing callers don't have to become async. When called from
+        non-async context (e.g. unit tests with no running loop), the coro
+        is closed cleanly instead of being scheduled.
+        """
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            coro.close()
+            return
+        if not loop.is_running():
+            coro.close()
+            return
+        loop.create_task(coro)
+
+    def set_member_budget(
+        self,
+        subreddit_id: str,
+        agent_id: str,
+        max_cost_per_thread_usd: Optional[float] = None,
+        monthly_budget_usd: Optional[float] = None,
+    ) -> Optional[dict]:
+        """Update a single member's per-thread and/or monthly budget.
+
+        Mirrored to ``subreddit_memberships`` via the repository when a DB
+        factory is attached.
+        """
+        memberships = self._memberships.get(subreddit_id, [])
+        for m in memberships:
+            if m.get("agent_id") == agent_id:
+                if max_cost_per_thread_usd is not None:
+                    m["max_cost_per_thread_usd"] = max_cost_per_thread_usd
+                if monthly_budget_usd is not None:
+                    m["monthly_budget_usd"] = monthly_budget_usd
+                self._fire_persist(
+                    self._persist_member_budget(
+                        subreddit_id=subreddit_id,
+                        agent_id=agent_id,
+                        max_cost_per_thread_usd=max_cost_per_thread_usd,
+                        monthly_budget_usd=monthly_budget_usd,
+                    )
+                )
+                return m
+        return None
+
+    async def _persist_member_budget(
+        self,
+        subreddit_id: str,
+        agent_id: str,
+        max_cost_per_thread_usd: Optional[float],
+        monthly_budget_usd: Optional[float],
+    ) -> None:
+        try:
+            async with self._open_repo() as repo:
+                if repo is None:
+                    return
+                await repo.update_member_budget(
+                    subreddit_id=subreddit_id,
+                    agent_id=agent_id,
+                    max_cost_per_thread_usd=max_cost_per_thread_usd,
+                    monthly_budget_usd=monthly_budget_usd,
+                )
+        except Exception:  # noqa: BLE001
+            logger.exception("Failed to persist budget for %s/%s", subreddit_id, agent_id)
+
+    def get_member_budgets(self, subreddit_id: str) -> Dict[str, float]:
+        """Return a ``{agent_type: max_cost_per_thread_usd}`` map for an engine."""
+        budgets: Dict[str, float] = {}
+        for m in self._memberships.get(subreddit_id, []):
+            cap = m.get("max_cost_per_thread_usd")
+            if cap is None:
+                continue
+            agent_uuid = m.get("agent_id")
+            if not agent_uuid:
+                continue
+            agent = self.registry.get_agent(UUID(agent_uuid))
+            if agent:
+                budgets[agent.agent_type] = float(cap)
+        return budgets
+
+    def get_member_monthly_budgets(self, subreddit_id: str) -> Dict[str, float]:
+        """Return a ``{agent_type: monthly_budget_usd}`` map for an engine."""
+        budgets: Dict[str, float] = {}
+        for m in self._memberships.get(subreddit_id, []):
+            cap = m.get("monthly_budget_usd")
+            if cap is None:
+                continue
+            agent_uuid = m.get("agent_id")
+            if not agent_uuid:
+                continue
+            agent = self.registry.get_agent(UUID(agent_uuid))
+            if agent:
+                budgets[agent.agent_type] = float(cap)
+        return budgets
+
+    def get_member_monthly_used(self, subreddit_id: str) -> Dict[str, float]:
+        """Return ``{agent_type: current_month_cost_usd}`` from in-memory cache.
+
+        When DB is attached, this is hydrated from the membership rows on
+        startup; otherwise it's the in-memory accumulation.
+        """
+        used: Dict[str, float] = {}
+        for m in self._memberships.get(subreddit_id, []):
+            current = m.get("current_month_cost_usd")
+            if current is None:
+                continue
+            agent_uuid = m.get("agent_id")
+            if not agent_uuid:
+                continue
+            agent = self.registry.get_agent(UUID(agent_uuid))
+            if agent:
+                used[agent.agent_type] = float(current)
+        return used
+
+    async def accumulate_usage(
+        self,
+        subreddit_id: str,
+        agent_type: str,
+        input_tokens: int,
+        output_tokens: int,
+        cost_usd: float,
+    ) -> None:
+        """Update the in-memory membership's lifetime/monthly counters and
+        mirror to the DB if attached.
+
+        Called from the engine ``usage_callback`` after every LLM invocation.
+        """
+        agent_uuid: Optional[str] = None
+        for m in self._memberships.get(subreddit_id, []):
+            aid = m.get("agent_id")
+            if not aid:
+                continue
+            try:
+                agent = self.registry.get_agent(UUID(aid))
+            except Exception:  # noqa: BLE001
+                continue
+            if agent and agent.agent_type == agent_type:
+                m["lifetime_cost_usd"] = float(m.get("lifetime_cost_usd", 0.0)) + cost_usd
+                m["lifetime_input_tokens"] = int(m.get("lifetime_input_tokens", 0)) + input_tokens
+                m["lifetime_output_tokens"] = (
+                    int(m.get("lifetime_output_tokens", 0)) + output_tokens
+                )
+                m["current_month_cost_usd"] = float(m.get("current_month_cost_usd", 0.0)) + cost_usd
+                agent_uuid = aid
+                break
+        if agent_uuid is None or self._db_factory is None:
+            return
+        try:
+            async with self._open_repo() as repo:
+                if repo is None:
+                    return
+                await repo.accumulate_member_usage(
+                    subreddit_id=subreddit_id,
+                    agent_id=agent_uuid,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    cost_usd=cost_usd,
+                )
+        except Exception:  # noqa: BLE001
+            logger.exception("Failed to persist usage for %s/%s", subreddit_id, agent_type)
+
+    # ---- Phase 6: Org chart + goal progress ----
+
+    def get_subreddit_org_chart(
+        self,
+        subreddit_id: str,
+        recent_posts: Optional[List[Post]] = None,
+    ) -> Optional[OrgChart]:
+        """Build an org-chart view for a subreddit.
+
+        Nodes are the subreddit's members; edges are either explicit
+        ``reports_to`` relationships (from membership overrides) or the
+        aggregated ``triggered_by`` signals from recent posts (aggregated
+        per agent pair by the caller).
+        """
+        if subreddit_id not in self._subreddits:
+            return None
+        members = self.get_subreddit_members(subreddit_id)
+
+        # agent_type -> (agent_id_str, node)
+        nodes_by_type: Dict[str, OrgChartNode] = {}
+        for m in members:
+            agent_type = m.get("agent_type")
+            if not agent_type:
+                continue
+            reports_to = m.get("reports_to_agent_id")
+            role_value = m.get("role", "member")
+            try:
+                role = SubredditRole(role_value)
+            except ValueError:
+                role = SubredditRole.MEMBER
+            node = OrgChartNode(
+                agent_id=agent_type,
+                display_name=m.get("display_name") or agent_type,
+                role=role,
+                reports_to=reports_to,
+                lifetime_cost_usd=float(m.get("lifetime_cost_usd", 0.0) or 0.0),
+                is_red_team=bool(m.get("is_red_team", False)),
+            )
+            nodes_by_type[agent_type] = node
+
+        edges: List[OrgChartEdge] = []
+        # reports_to edges
+        for agent_type, node in nodes_by_type.items():
+            if node.reports_to and node.reports_to in nodes_by_type:
+                edges.append(
+                    OrgChartEdge(
+                        from_agent_id=agent_type,
+                        to_agent_id=node.reports_to,
+                        edge_type="reports_to",
+                        weight=1.0,
+                    )
+                )
+
+        # triggered_by edges (aggregated from recent posts)
+        if recent_posts:
+            counter: Dict[tuple[str, str], int] = {}
+            post_counts: Dict[str, int] = {}
+            for post in recent_posts:
+                post_counts[post.agent_id] = post_counts.get(post.agent_id, 0) + 1
+                for trigger in post.triggered_by or []:
+                    # trigger rules may be keyed like "responded_to:<agent_id>"
+                    if ":" in trigger:
+                        _, source = trigger.split(":", 1)
+                    else:
+                        source = None
+                    if source and source != post.agent_id:
+                        key = (source, post.agent_id)
+                        counter[key] = counter.get(key, 0) + 1
+            for (src, dst), weight in counter.items():
+                if src in nodes_by_type and dst in nodes_by_type:
+                    edges.append(
+                        OrgChartEdge(
+                            from_agent_id=src,
+                            to_agent_id=dst,
+                            edge_type="triggered",
+                            weight=float(weight),
+                        )
+                    )
+            for agent_id, count in post_counts.items():
+                node = nodes_by_type.get(agent_id)
+                if node:
+                    node.post_count = count
+
+        return OrgChart(
+            subreddit_id=UUID(subreddit_id),
+            nodes=list(nodes_by_type.values()),
+            edges=edges,
+        )
+
+    def measure_subreddit_mission_progress(
+        self,
+        subreddit_id: str,
+        recent_posts: Optional[List[Post]] = None,
+    ) -> List[ObjectiveProgress]:
+        """Score current mission objectives for a subreddit."""
+        mission = self.get_subreddit_mission(subreddit_id)
+        if not mission:
+            return []
+        return measure_objectives(mission.objectives, recent_posts or [])
 
     # ---- Agents ----
 

@@ -39,6 +39,9 @@ def create_app(
 
             await create_engine_and_tables(db_url)
             app.state.session_manager._db_factory = get_async_session
+            # Phase 6: also wire DB into the platform manager so mission,
+            # budget, and approval mutations persist across restarts.
+            app.state.platform_manager.attach_db(get_async_session)
         yield
         # Shutdown
         if db_url:
