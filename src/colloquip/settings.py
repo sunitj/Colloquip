@@ -9,6 +9,8 @@ from typing import List
 
 from pydantic import BaseModel, Field
 
+from colloquip.buzz.config import BuzzSettings, load_buzz_settings
+
 
 class DatabaseSettings(BaseModel):
     url: str = "sqlite+aiosqlite:///colloquip.db"
@@ -62,6 +64,7 @@ class Settings(BaseModel):
     memory: MemorySettings = Field(default_factory=MemorySettings)
     watchers: WatcherSettings = Field(default_factory=WatcherSettings)
     deployment: DeploymentSettings = Field(default_factory=DeploymentSettings)
+    buzz: BuzzSettings = Field(default_factory=BuzzSettings)
 
 
 def load_settings() -> Settings:
@@ -96,6 +99,7 @@ def load_settings() -> Settings:
     )
 
     return Settings(
+        buzz=load_buzz_settings(),
         database=database,
         embedding=embedding,
         memory=memory,

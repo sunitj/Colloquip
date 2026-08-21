@@ -5,7 +5,7 @@ RUN pip install --no-cache-dir uv
 
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
-RUN uv sync --no-dev --frozen --no-install-project --extra api --extra db --extra db-pg --extra llm --extra embeddings
+RUN uv sync --no-dev --frozen --no-install-project --extra api --extra db --extra db-pg --extra llm --extra embeddings --extra buzz
 
 # Stage 2: Frontend build
 FROM node:20-slim AS frontend-build

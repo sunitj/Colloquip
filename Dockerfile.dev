@@ -7,7 +7,7 @@ WORKDIR /app
 
 # Install all dependencies including dev
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --extra api --extra db --extra db-pg --extra llm --extra embeddings --extra monitoring
+RUN uv sync --frozen --extra api --extra db --extra db-pg --extra llm --extra embeddings --extra monitoring --extra buzz
 
 # Copy only what's needed for editable install (volumes override src/ at runtime)
 COPY src/ ./src/

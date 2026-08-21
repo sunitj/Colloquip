@@ -64,6 +64,8 @@ class PlatformManager:
         # enqueue/resolve callbacks persist to the approval_requests table.
         self._db_factory: Optional[Any] = None
         self.approval_queue.subscribe(self._on_approval_event)
+        # Optional Buzz mirror (see colloquip.buzz). None = adapter disabled.
+        self._buzz: Optional[Any] = None
 
     def attach_db(self, db_session_factory: Any) -> None:
         """Attach an async session factory so mutations persist to the DB.
@@ -73,6 +75,45 @@ class PlatformManager:
         mode and mission/budget/approval state is lost on restart.
         """
         self._db_factory = db_session_factory
+
+    def attach_buzz(self, mirror: Any) -> None:
+        """Mirror communities and their agent rosters to a Buzz relay.
+
+        Creating a subreddit then also creates the backing Buzz channel,
+        publishes a ``kind:0`` profile per recruited agent, and adds each of
+        them to the channel as a member.
+        """
+        self._buzz = mirror
+
+    def _mirror_community(self, subreddit: Dict[str, Any], memberships: List[dict]) -> None:
+        """Project a freshly created subreddit onto the Buzz relay."""
+        if not self._buzz:
+            return
+        agents = []
+        for membership in memberships:
+            try:
+                identity = self.registry.get_agent(UUID(membership["agent_id"]))
+            except (KeyError, TypeError, ValueError):
+                continue
+            if not identity:
+                continue
+            agents.append(
+                {
+                    # Must match Post.agent_id, which carries agent_type.
+                    "agent_id": identity.agent_type,
+                    "display_name": identity.display_name,
+                    "about": identity.persona_prompt,
+                }
+            )
+        try:
+            self._buzz.register_community_nowait(
+                subreddit["id"],
+                subreddit.get("display_name") or subreddit["name"],
+                subreddit.get("description", ""),
+                agents,
+            )
+        except Exception:  # noqa: BLE001 - mirroring must never fail a create
+            logger.exception("Could not mirror community '%s' to Buzz", subreddit.get("name"))
 
     @asynccontextmanager
     async def _open_repo(self):
@@ -244,6 +285,8 @@ class PlatformManager:
             self._agent_subreddit_count[m.agent_id] = (
                 self._agent_subreddit_count.get(m.agent_id, 0) + 1
             )
+
+        self._mirror_community(subreddit, self._memberships[subreddit_id])
 
         return {
             "subreddit": subreddit,

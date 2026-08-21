@@ -51,9 +51,72 @@ class SessionManager:
         self._session_context: Dict[UUID, Dict[str, Any]] = {}
         # Optional database factory
         self._db_factory = db_session_factory
+        # Optional Buzz mirror (see colloquip.buzz). None = adapter disabled.
+        self._buzz: Optional[Any] = None
+        self._buzz_accept_interventions = True
+        self._buzz_watched_channels: set[str] = set()
         # Load full config from YAML
         self._config = self._load_config()
         self._phase_max_tokens = self._config.engine.phase_max_tokens
+
+    def attach_buzz(self, mirror: Any, *, accept_interventions: bool = True) -> None:
+        """Mirror this manager's activity to a Buzz relay.
+
+        Every broadcast event is projected onto the relay, and — when
+        ``accept_interventions`` is set — human messages in the mirrored Buzz
+        channel come back as ``HumanIntervention``s. Detaching is just
+        ``attach_buzz(None)``; nothing else in the manager changes behaviour.
+        """
+        self._buzz = mirror
+        self._buzz_accept_interventions = accept_interventions
+
+    async def _handle_buzz_message(self, session_key: str, content: str, event: Any) -> None:
+        """Turn a human's Buzz message into an intervention on that session."""
+        if not self._buzz_accept_interventions:
+            return
+        from colloquip.buzz.mirror import parse_intervention_type
+
+        try:
+            session_id = UUID(session_key)
+        except (TypeError, ValueError):
+            return
+        if session_id not in self.sessions:
+            return
+
+        intervention_type, text = parse_intervention_type(content)
+        if not text.strip():
+            return
+
+        try:
+            await self.intervene(
+                session_id,
+                HumanIntervention(session_id=session_id, type=intervention_type, content=text),
+            )
+            logger.info(
+                "Applied Buzz intervention (%s) to session %s", intervention_type, session_id
+            )
+        except ValueError as exc:
+            # Session finished or never started — nothing to inject into.
+            logger.debug("Ignoring Buzz intervention for %s: %s", session_id, exc)
+
+    def _open_buzz_thread(self, session: DeliberationSession, ctx: Dict[str, Any]) -> None:
+        """Announce a new session in Buzz and watch its channel for humans."""
+        if not self._buzz:
+            return
+        channel_id = ctx.get("subreddit_id") or "colloquip-default"
+        try:
+            self._buzz.open_thread_nowait(
+                str(session.id),
+                channel_id,
+                ctx.get("subreddit_name") or session.hypothesis[:80],
+                session.hypothesis,
+                {"thread_id": ctx.get("thread_id"), "community": ctx.get("subreddit_name")},
+            )
+            if self._buzz_accept_interventions and channel_id not in self._buzz_watched_channels:
+                self._buzz_watched_channels.add(channel_id)
+                self._buzz.start_watching(channel_id, on_message=self._handle_buzz_message)
+        except Exception:  # noqa: BLE001 - mirroring must never block a session
+            logger.exception("Could not open Buzz thread for session %s", session.id)
 
     @staticmethod
     def _load_config():
@@ -101,6 +164,7 @@ class SessionManager:
             "platform_manager": platform_manager,
             "thread_id": session_id or str(session.id),
         }
+        self._open_buzz_thread(session, self._session_context[session.id])
 
         # Create engine components
         llm = self._create_llm(mode, seed, model)
@@ -228,6 +292,9 @@ class SessionManager:
                 queue.put_nowait(event)
             except asyncio.QueueFull:
                 logger.warning("Subscriber queue full, dropping event")
+        if self._buzz:
+            # Fire-and-forget: a slow or dead relay must not stall the loop.
+            self._buzz.mirror_event_nowait(session_id, event)
 
     async def start_deliberation(self, session_id: UUID):
         """Start the deliberation loop for a session."""

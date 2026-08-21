@@ -37,6 +37,7 @@ Colloquium/
 │   ├── llm/                 # LLM interface (Anthropic + Mock implementations)
 │   ├── memory/              # Institutional memory: store, retriever, extractor
 │   ├── embeddings/          # Embedding interface (OpenAI + Mock)
+│   ├── buzz/                # Buzz relay adapter: Nostr client, event mirror
 │   ├── watchers/            # Event monitors: literature, scheduled, webhook
 │   ├── tools/               # External tools: web search, PubMed, citation verifier
 │   ├── feedback/            # Outcome tracking, confidence calibration
@@ -271,6 +272,7 @@ All REST endpoints are prefixed with `/api/`:
 | Dashboards | `GET /subreddits/{name}/org-chart` |
 | Approvals | `GET/POST /subreddits/{name}/approvals`, `POST /approvals/{id}/resolve` |
 | WebSocket | `WS /ws/sessions/{session_id}` |
+| Buzz | `GET /api/buzz/status` |
 | Health | `GET /health` |
 
 ## Testing Conventions
@@ -347,6 +349,10 @@ GitHub Actions workflows in `.github/workflows/`:
 | `LOG_LEVEL` | `DEBUG` | Standard Python log levels |
 | `LOG_FORMAT` | `text` | `text` or `json` |
 | `WATCHER_POLL_INTERVAL` | `300` | Seconds between watcher polls |
+| `BUZZ_ENABLED` | `false` | Mirror deliberations to a Buzz relay (see `docs/BUZZ_ADAPTER.md`) |
+| `BUZZ_RELAY_URL` | — | Buzz relay WebSocket endpoint |
+| `BUZZ_PRIVATE_KEY` | — | Service keypair (hex or `nsec1...`) signing platform events |
+| `BUZZ_AGENT_KEY_SEED` | — | Master seed all agent keypairs derive from |
 
 ## Common Development Tasks
 
@@ -370,6 +376,13 @@ GitHub Actions workflows in `.github/workflows/`:
 2. Each agent needs: `agent_id`, `display_name`, `persona_prompt`, `phase_mandates`, `domain_keywords`, `knowledge_scope`
 3. Register in the agent pool / persona loader
 
+### Working on the Buzz adapter
+
+1. Read `docs/BUZZ_ADAPTER.md` first — the mapping table and the failure-isolation rule
+2. `colloquip/buzz/mirror.py` is the only module that knows about Colloquium domain types; keep the layers below it protocol-only
+3. Test against `RecordingRelayClient` (no network) or the `StubRelay` in `tests/test_buzz_client.py` for wire-level behaviour
+4. Never let a relay failure escape the mirror — `tests/test_buzz_integration.py` asserts a dead relay changes nothing
+
 ### Adding a new watcher type
 
 1. Implement `BaseWatcher` interface in `src/colloquip/watchers/`
@@ -391,3 +404,6 @@ GitHub Actions workflows in `.github/workflows/`:
 - **Autoresearch capability (Phase 6)**: Agents opted in via `config.autoresearch_enabled=True` run a Karpathy-style loop inside `BaseDeliberationAgent.generate_post` before producing their post — scratchpad + metric delta, commit-or-reset. Hard-capped at `MAX_AUTORESEARCH_TOKENS_PER_RUN=8000`. The loop gates to `Phase.DEEPEN` by default.
 - **Approval queue (Phase 6)**: Paperclip-style human-in-loop queue (`colloquip.approvals.ApprovalQueue`) collects pending watcher auto-threads, budget overrides, tool calls, and autoresearch runs. Frontend dashboard exposes approve/deny actions.
 - **Org chart (Phase 6)**: Subreddit members can set `reports_to_agent_id`; interaction edges are aggregated from posts' `triggered_by` metadata. Rendered as a grouped-by-role card grid in the community Dashboard tab.
+- **Buzz mirror is a projection, never a system of record**: the optional `colloquip.buzz` adapter publishes deliberations to a [Buzz](https://github.com/block/buzz) Nostr relay so agents get real cryptographic identities, a tamper-evident audit chain, and Buzz's existing clients. Postgres stays authoritative and nothing is read back except human messages. Every relay call is swallowed on failure — a relay outage degrades Colloquium to exactly its normal behaviour, which the integration tests assert. Disabled unless `BUZZ_ENABLED` plus relay URL and keys are set.
+- **Buzz agent keys are derived, not stored**: `HMAC-SHA256(BUZZ_AGENT_KEY_SEED, "colloquip-agent:" + agent_id)` reproduces the whole roster from one secret, so identities survive restarts with no key table. Rotating the seed rotates every agent identity.
+- **BIP-340 in pure Python**: rather than take a native crypto dependency to talk to a relay, `colloquip/buzz/schnorr.py` implements Schnorr over secp256k1. It is validated against all 19 official BIP-340 vectors (vendored in `tests/fixtures/`) and was cross-checked byte-for-byte against libsecp256k1.

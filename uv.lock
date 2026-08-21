@@ -308,6 +308,9 @@ api = [
     { name = "uvicorn" },
     { name = "websockets" },
 ]
+buzz = [
+    { name = "websockets" },
+]
 cli = [
     { name = "rich" },
 ]
@@ -368,8 +371,9 @@ requires-dist = [
     { name = "uvicorn", marker = "extra == 'api'", specifier = ">=0.30" },
     { name = "weasyprint", marker = "extra == 'export'", specifier = ">=62" },
     { name = "websockets", marker = "extra == 'api'", specifier = ">=13.0" },
+    { name = "websockets", marker = "extra == 'buzz'", specifier = ">=13.0" },
 ]
-provides-extras = ["llm", "cli", "api", "db", "db-pg", "embeddings", "monitoring", "export"]
+provides-extras = ["llm", "cli", "api", "db", "db-pg", "embeddings", "buzz", "monitoring", "export"]
 
 [package.metadata.requires-dev]
 dev = [

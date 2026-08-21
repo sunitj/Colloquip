@@ -15,6 +15,7 @@ For user-facing documentation, platform features, API reference, and development
 | [OBSERVER_SPEC.md](./OBSERVER_SPEC.md) | Metric calculations, phase detection algorithm, hysteresis, confidence, edge cases | [Core Concepts](https://github.com/sunitj/Colloquip/wiki/Core-Concepts) |
 | [TRIGGER_RULES.md](./TRIGGER_RULES.md) | All 9 trigger rule implementations, phase modulation tables, refractory period, design philosophy | [Core Concepts](https://github.com/sunitj/Colloquip/wiki/Core-Concepts) |
 | [AGENT_PROMPTS.md](./AGENT_PROMPTS.md) | Complete persona prompts for all agents, phase mandates, response guidelines | [Agent System](https://github.com/sunitj/Colloquip/wiki/Agent-System) |
+| [BUZZ_ADAPTER.md](./BUZZ_ADAPTER.md) | Optional Buzz relay mirror: event mapping, agent identity derivation, BIP-340 validation, configuration | — |
 
 ## Design Philosophy
 

@@ -41,6 +41,9 @@ db-pg = [
 embeddings = [
     "openai>=1.0",
 ]
+buzz = [
+    "websockets>=13.0",
+]
 monitoring = [
     "prometheus-client>=0.20",
 ]

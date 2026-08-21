@@ -42,8 +42,25 @@ def create_app(
             # Phase 6: also wire DB into the platform manager so mission,
             # budget, and approval mutations persist across restarts.
             app.state.platform_manager.attach_db(get_async_session)
+
+        # Optional: mirror deliberations onto a Buzz relay. Disabled unless
+        # BUZZ_ENABLED plus relay URL and keys are set; see docs/buzz_adapter.md.
+        from colloquip.buzz import create_mirror, load_buzz_settings
+
+        buzz_settings = load_buzz_settings()
+        app.state.buzz_settings = buzz_settings
+        app.state.buzz_mirror = create_mirror(buzz_settings)
+        if app.state.buzz_mirror:
+            app.state.session_manager.attach_buzz(
+                app.state.buzz_mirror,
+                accept_interventions=buzz_settings.accept_interventions,
+            )
+            app.state.platform_manager.attach_buzz(app.state.buzz_mirror)
+
         yield
         # Shutdown
+        if getattr(app.state, "buzz_mirror", None):
+            await app.state.buzz_mirror.close()
         if db_url:
             from colloquip.db.engine import dispose_engine
 
@@ -94,9 +111,31 @@ def create_app(
 
     app.state.memory_store = InMemoryStore()
 
+    app.state.buzz_mirror = None
+
     @app.get("/health")
     async def health():
         return {"status": "ok"}
+
+    @app.get("/api/buzz/status")
+    async def buzz_status():
+        """Report whether deliberations are being mirrored to a Buzz relay."""
+        mirror = getattr(app.state, "buzz_mirror", None)
+        settings = getattr(app.state, "buzz_settings", None)
+        if not mirror:
+            return {
+                "enabled": False,
+                "reason": (
+                    "BUZZ_ENABLED is not set"
+                    if not (settings and settings.enabled)
+                    else "Buzz is enabled but not fully configured"
+                ),
+            }
+        return {
+            "enabled": True,
+            "relay_url": settings.relay_url if settings else "",
+            **mirror.describe(),
+        }
 
     # Serve frontend static files (built by Vite into /app/static in Docker)
     static_dir = Path(__file__).resolve().parent.parent.parent.parent / "static"
